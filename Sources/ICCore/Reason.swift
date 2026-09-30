@@ -54,6 +54,7 @@ public enum Code {
     public static let alreadyFrozen = "SKIP_ALREADY_FROZEN"
     public static let targetReached = "SKIP_TARGET_REACHED"
     public static let conservative = "SKIP_REGRET_BUDGET"
+    public static let notInspected = "SKIP_GUARDS_NOT_INSPECTED"
 
     // Why an app was thawed
     public static let thawActivated = "THAW_ACTIVATED"

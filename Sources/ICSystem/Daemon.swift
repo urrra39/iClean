@@ -1,0 +1,464 @@
+import AppKit
+import ApplicationServices
+import Foundation
+import ICCore
+
+/// Where the daemon gets its readings. The live implementation reads the system;
+/// tests supply snapshots of processes they spawned.
+public protocol Probe: AnyObject {
+    func sample(now: Double) -> SystemSample
+    func collect(now: Double) -> AppCollector.Result
+}
+
+public final class LiveProbe: Probe {
+    let collector: AppCollector
+    public init(collector: AppCollector = AppCollector()) { self.collector = collector }
+    public func sample(now: Double) -> SystemSample { SystemSampler.sample(now: now) }
+    public func collect(now: Double) -> AppCollector.Result { collector.collect(now: now) }
+}
+
+/// A user-visible event for the menu app (notifications are posted there).
+public struct DaemonEvent: Codable, Sendable {
+    public var t: Double
+    public var title: String
+    public var body: String
+    public var appID: String?
+}
+
+/// The daemon runtime. Everything runs on the main queue; the engine is not thread-safe.
+public final class Daemon {
+    public let paths: Paths
+    let probe: Probe
+    public private(set) var engine: Engine
+    public let journal: JournalStore
+    let traces: TraceWriter
+    var ipc: IPCServer?
+    var lockFD: Int32 = -1
+    var watchdog: Process?
+    var watchdogExecutable: URL?
+    var configMTime: Date?
+    public private(set) var configError: String?
+    public private(set) var lastResult: TickResult?
+    public private(set) var lastApps: [AppSnapshot] = []
+    var pendingEvents: [SystemEvent] = []
+    var lastBatteryPercent: Int?
+    public private(set) var events: [DaemonEvent] = []
+    var eventTimes: [Double] = []
+    var lastSave = 0.0
+    var tickTimer: DispatchSourceTimer?
+    var pollTimer: DispatchSourceTimer?
+    var pressureSource: DispatchSourceMemoryPressure?
+    var signalSources: [DispatchSourceSignal] = []
+    var observers: [NSObjectProtocol] = []
+    var lastLevel: PressureLevel = .normal
+    public var clock: () -> Double = { Date().timeIntervalSince1970 }
+    /// Tests run health checks by hand instead of on timers.
+    public var scheduleHealthChecks = true
+    /// Test hook: called after every executed action.
+    public var onAction: ((Action, String) -> Void)?
+
+    public init(paths: Paths = Paths(), probe: Probe = LiveProbe(), hardware: Hardware = SystemSampler.hardware()) throws {
+        self.paths = paths
+        self.probe = probe
+        try paths.ensure()
+        journal = JournalStore(url: paths.journal)
+        let config = Self.loadConfig(paths)
+        let now = Date().timeIntervalSince1970
+        let state = (try? Files.readJSON(EngineState.self, from: paths.state)) ?? nil
+        engine = Engine(config: config.0, hardware: hardware, state: state ?? EngineState(startedAt: now))
+        configError = config.1
+        traces = TraceWriter(dir: paths.traces, settings: config.0.trace)
+        configMTime = Self.mtime(paths.config)
+        try? Files.writeJSON(hardware, to: paths.hardware, pretty: true)
+    }
+
+    /// Loads the config, creating the default (Observe mode) on first run. An invalid
+    /// file keeps the defaults and reports the error; it never crashes the daemon.
+    public static func loadConfig(_ paths: Paths) -> (Config, String?) {
+        guard let data = try? Data(contentsOf: paths.config) else {
+            try? Files.atomicWrite(Config().encoded(), to: paths.config)
+            return (Config(), nil)
+        }
+        do {
+            return (try Config.load(json: data).0, nil)
+        } catch {
+            return (Config(), "\(error)")
+        }
+    }
+
+    static func mtime(_ url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    // MARK: Lifecycle
+
+    public enum StartError: Error, CustomStringConvertible {
+        case alreadyRunning
+        public var description: String { "another icleand is already running" }
+    }
+
+    /// Takes the single-instance lock, recovers anything a previous run left frozen,
+    /// starts the watchdog, IPC and timers.
+    /// Tests pass `false` for the process-wide parts (signal handlers, observers, timers)
+    /// and drive `tick()` themselves.
+    public func start(watchdogExecutable: URL?, live: Bool = true) throws {
+        lockFD = open(paths.lock.path, O_RDWR | O_CREAT, 0o600)
+        guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { throw StartError.alreadyRunning }
+        let rec = Signals.recover(journal: journal)
+        if rec.thawed > 0 || rec.stale > 0 || rec.corrupt {
+            record("Recovered from a previous run: thawed \(rec.thawed), stale \(rec.stale)" + (rec.corrupt ? ", journal was corrupt" : ""))
+        }
+        // Frozen entries in the saved state were just thawed by recovery.
+        for id in engine.state.frozen.keys.sorted() where engine.state.frozen[id]?.dryRun == false {
+            engine.thaw(id, reason: Code.thawRecovery, at: clock())
+        }
+        self.watchdogExecutable = watchdogExecutable
+        startWatchdog()
+        ipc = IPCServer(path: paths.socket.path) { [weak self] in self?.handle($0) ?? Response(ok: false, text: "shutting down") }
+        try ipc?.start()
+        guard live else { return }
+        installSignalHandlers()
+        installObservers()
+        startTimers()
+    }
+
+    public func shutdown(reason: String = Code.thawShutdown) {
+        tickTimer?.cancel()
+        pollTimer?.cancel()
+        pressureSource?.cancel()
+        execute(engine.thawAll(reason: reason, at: clock()), immediate: true)
+        // Anything the engine did not know about (should be nothing) is thawed from the journal.
+        _ = Signals.recover(journal: journal)
+        saveState()
+        ipc?.stop()
+        watchdog?.terminate()
+        if lockFD >= 0 { flock(lockFD, LOCK_UN); close(lockFD) }
+    }
+
+    func installSignalHandlers() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let s = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            s.setEventHandler { [weak self] in
+                self?.shutdown()
+                exit(0)
+            }
+            s.resume()
+            signalSources.append(s)
+        }
+    }
+
+    func installObservers() {
+        let ws = NSWorkspace.shared.notificationCenter
+        observers.append(ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
+            guard let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            self?.handleActivation(pid: a.processIdentifier, bundleID: a.bundleIdentifier, name: a.localizedName ?? "")
+        })
+        observers.append(ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.pendingEvents.append(.wake)
+            self?.tick()
+        })
+        observers.append(ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.saveState()
+        })
+        observers.append(DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+            self?.pendingEvents.append(.unlock)
+            self?.tick()
+        })
+    }
+
+    func startTimers() {
+        let t = DispatchSource.makeTimerSource(queue: .main)
+        t.setEventHandler { [weak self] in self?.tick() }
+        t.schedule(deadline: .now())
+        t.resume()
+        tickTimer = t
+        // Cheap 1 s poll of the pressure level; a change triggers an immediate tick.
+        let p = DispatchSource.makeTimerSource(queue: .main)
+        p.schedule(deadline: .now() + 1, repeating: 1, leeway: .milliseconds(250))
+        p.setEventHandler { [weak self] in
+            guard let self else { return }
+            let level = SystemSampler.pressure()
+            if level != self.lastLevel { self.tick() }
+            if self.watchdog?.isRunning == false { self.startWatchdog() }
+        }
+        p.resume()
+        pollTimer = p
+        // Secondary trigger (FEASIBILITY §7: not delivered reliably to small processes).
+        let m = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical, .normal], queue: .main)
+        m.setEventHandler { [weak self] in self?.tick() }
+        m.resume()
+        pressureSource = m
+    }
+
+    func interval(for level: PressureLevel) -> Double {
+        switch level {
+        case .normal: return engine.lastForecast.etaWarning != nil ? 5 : 15
+        case .warning: return 3
+        case .critical: return 2
+        }
+    }
+
+    func startWatchdog() {
+        guard let exe = watchdogExecutable else { return }
+        let p = Process()
+        p.executableURL = exe
+        p.arguments = ["--watchdog", "\(getpid())"]
+        p.environment = ProcessInfo.processInfo.environment
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        do {
+            try p.run()
+            watchdog = p
+            engineLineageAdd(p.processIdentifier)
+        } catch {
+            record("Watchdog failed to start: \(error)")
+        }
+    }
+
+    func engineLineageAdd(_ pid: Int32) {
+        (probe as? LiveProbe)?.collector.lineage.insert(pid)
+    }
+
+    // MARK: Tick
+
+    public func tick() {
+        let now = clock()
+        reloadConfigIfChanged()
+        let sample = probe.sample(now: now)
+        var r = probe.collect(now: now)
+        lastLevel = sample.pressure
+
+        if let pct = sample.batteryPercent, sample.onBattery, let last = lastBatteryPercent,
+           last > engine.config.lowBatteryPercent, pct <= engine.config.lowBatteryPercent {
+            pendingEvents.append(.lowBattery)
+        }
+        lastBatteryPercent = sample.batteryPercent
+
+        // S4 guards cost syscalls per descriptor, so only inspect when iClean may act.
+        let horizon = engine.config.forecast.horizonMinutes
+        let mayAct = sample.pressure >= .warning || (engine.lastForecast.etaWarning.map { $0 <= horizon } ?? false)
+            || engine.state.wakeRefreezeAt.values.contains { $0 <= now }
+        if mayAct {
+            let ctx = engine.eligibilityContext(at: now)
+            var inspected = 0
+            for i in r.apps.indices where inspected < 12 && Policy.needsGuardInspection(r.apps[i], ctx) {
+                AppCollector.inspectGuards(&r.apps[i], engine: engine, now: now)
+                inspected += 1
+            }
+        }
+        let comps = Calendar.current.dateComponents([.weekday, .hour], from: Date(timeIntervalSince1970: now))
+        let input = TickInput(sample: sample, apps: r.apps, session: r.session, weekday: comps.weekday ?? 2,
+                              hour: comps.hour ?? 12, events: pendingEvents)
+        pendingEvents = []
+        traces.write(.tick(Self.traceView(input)))
+        let result = engine.tick(input)
+        lastResult = result
+        lastApps = r.apps
+        execute(result.actions)
+        if now - lastSave >= 60 { saveState() }
+        tickTimer?.schedule(deadline: .now() + interval(for: sample.pressure))
+    }
+
+    /// Traces keep regular apps and the 20 largest others, to stay small.
+    static func traceView(_ input: TickInput) -> TickInput {
+        var t = input
+        let big = Set(input.apps.filter { !$0.isRegularApp }.sorted { $0.residentMB > $1.residentMB }.prefix(20).map(\.id))
+        t.apps = input.apps.filter { $0.isRegularApp || big.contains($0.id) }
+        return t
+    }
+
+    func reloadConfigIfChanged() {
+        let m = Self.mtime(paths.config)
+        guard m != configMTime else { return }
+        configMTime = m
+        reloadConfig()
+    }
+
+    @discardableResult
+    public func reloadConfig() -> String? {
+        guard let data = try? Data(contentsOf: paths.config) else { return "config file missing" }
+        do {
+            let (c, warnings) = try Config.load(json: data)
+            engine.config = c
+            traces.update(settings: c.trace)
+            configError = nil
+            record("Config reloaded" + (warnings.isEmpty ? "" : " with warnings: " + warnings.map(\.description).joined(separator: "; ")))
+            return nil
+        } catch {
+            // Keep running with the previous config.
+            configError = "\(error)"
+            record("Config rejected, keeping the previous one: \(error)")
+            return configError
+        }
+    }
+
+    public func saveState() {
+        lastSave = clock()
+        try? Files.writeJSON(engine.state, to: paths.state)
+    }
+
+    // MARK: Thaw path
+
+    /// Activation handler. SIGCONT goes out before any other work.
+    public func handleActivation(pid: Int32, bundleID: String?, name: String) {
+        let frozen = engine.state.frozen
+        let appID = bundleID.flatMap { frozen[$0] != nil ? $0 : nil }
+            ?? frozen.first { $0.value.processes.contains { $0.pid == pid } }?.key
+        var thawStart: Double?
+        if let appID, let f = frozen[appID], !f.dryRun {
+            for id in f.processes { _ = Signals.send(SIGCONT, to: id) }
+            thawStart = clock()
+            measureThawLatency(appID: appID, name: f.name, root: f.processes.first, since: thawStart!)
+        }
+        let comps = Calendar.current.dateComponents([.weekday, .hour], from: Date())
+        let id = appID ?? bundleID ?? "exe:\(name)"
+        traces.write(.activate(id, name: name, at: clock(), weekday: comps.weekday ?? 2, hour: comps.hour ?? 12))
+        execute(engine.activated(appID: id, name: name, at: clock(), weekday: comps.weekday ?? 2, hour: comps.hour ?? 12),
+                thawStartedAt: thawStart)
+    }
+
+    /// Perceived thaw latency: SIGCONT until the app's main thread answers an
+    /// Accessibility request. Only measurable with Accessibility permission.
+    func measureThawLatency(appID: String, name: String, root: ProcessIdentity?, since: Double) {
+        guard let root, AXIsProcessTrusted() else { return }
+        let timeout = engine.config.healthCheck.probeTimeoutMs / 1000
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self, Self.axResponsive(root.pid, timeout: timeout) == true else { return }
+            let ms = (self.clock() - since) * 1000
+            DispatchQueue.main.async {
+                self.execute(self.engine.thawOutcome(appID, name: name, outcome: ThawOutcome(alive: true, responsive: true),
+                                                     latencyMs: ms, faultedMB: nil, at: self.clock()))
+            }
+        }
+    }
+
+    // MARK: Executing actions
+
+    func execute(_ actions: [Action], immediate: Bool = false, thawStartedAt: Double? = nil) {
+        for a in actions {
+            if a.kind == .thaw, a.delaySeconds > 0, !immediate {
+                DispatchQueue.main.asyncAfter(deadline: .now() + a.delaySeconds) { [weak self] in self?.perform(a, thawStartedAt: nil) }
+            } else {
+                perform(a, thawStartedAt: thawStartedAt)
+            }
+        }
+    }
+
+    func perform(_ a: Action, thawStartedAt: Double?) {
+        let now = clock()
+        var outcome = a.dryRun ? "observe" : "ok"
+        if !a.dryRun {
+            switch a.kind {
+            case .freeze:
+                let r = Signals.freezeTree(a.processes, appID: a.appID, at: now, journal: journal)
+                if !r.ok {
+                    outcome = "failed: \(r.error ?? "unknown")"
+                    if !a.reasons.contains(where: { $0.code == "TREE_GREW" }) { engine.freezeFailed(a.appID, at: now) }
+                }
+            case .thaw:
+                let before = lastApps.first { $0.id == a.appID }?.residentMB
+                let results = Signals.thawTree(a.processes, journal: journal)
+                if results.allSatisfy({ $0 == .stale }) { outcome = "already gone" }
+                if outcome == "ok", scheduleHealthChecks { scheduleHealthCheck(a, startedAt: thawStartedAt ?? now, residentBefore: before) }
+            case .deprioritize:
+                outcome = "\(Signals.setBackground(a.processes, true)) processes"
+            case .restorePriority:
+                outcome = "\(Signals.setBackground(a.processes, false)) processes"
+            case .requestQuit:
+                let root = a.processes.first?.pid ?? 0
+                outcome = NSRunningApplication(processIdentifier: root)?.terminate() == true ? "requested" : "refused"
+            case .notify, .quarantine:
+                notify(title: a.kind == .quarantine ? "iClean quarantined \(a.name)" : a.name, body: a.message ?? a.summary, appID: a.appID)
+            }
+        }
+        ActionLog.append(ActionLogEntry(t: now, action: a, outcome: outcome), paths: paths)
+        traces.write(.action(a, at: now))
+        onAction?(a, outcome)
+    }
+
+    /// S5: after a thaw, check the app is alive and (with Accessibility) responsive.
+    func scheduleHealthCheck(_ a: Action, startedAt: Double, residentBefore: Double?) {
+        guard let root = a.processes.first else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.healthCheck(a, startedAt: startedAt, residentBefore: residentBefore)
+        }
+        let watch = engine.config.healthCheck.watchMinutes * 60
+        guard watch > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + watch) { [weak self] in
+            guard let self, Proc.startTime(root.pid) != root.startTime else { return }
+            // Gone within the watch window: only a crash report makes it unhealthy
+            // (people quit apps all the time).
+            if Self.crashReportExists(for: a.name, since: startedAt) {
+                self.execute(self.engine.thawOutcome(a.appID, name: a.name, outcome: ThawOutcome(alive: false, responsive: nil),
+                                                     latencyMs: nil, faultedMB: nil, at: self.clock()))
+            }
+        }
+    }
+
+    /// The first post-thaw check (run 2 s after the thaw): alive, and responsive when
+    /// Accessibility allows asking.
+    public func healthCheck(_ a: Action, startedAt: Double, residentBefore: Double?) {
+        guard let root = a.processes.first else { return }
+        let alive = Proc.startTime(root.pid) == root.startTime
+        let responsive = alive ? Self.axResponsive(root.pid, timeout: engine.config.healthCheck.probeTimeoutMs / 1000) : nil
+        let after = lastApps.first { $0.id == a.appID }?.residentMB
+        let faulted = residentBefore.flatMap { b in after.map { max(0, $0 - b) } }
+        execute(engine.thawOutcome(a.appID, name: a.name, outcome: ThawOutcome(alive: alive, responsive: responsive),
+                                   latencyMs: nil, faultedMB: faulted, at: clock()))
+    }
+
+    /// nil without Accessibility permission; false if the app does not answer in time.
+    static func axResponsive(_ pid: Int32, timeout: Double) -> Bool? {
+        guard AXIsProcessTrusted() else { return nil }
+        let el = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(el, Float(timeout))
+        var v: CFTypeRef?
+        return AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &v) != .cannotComplete
+    }
+
+    static func crashReportExists(for name: String, since: Double) -> Bool {
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/DiagnosticReports")
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.creationDateKey])) ?? []
+        return files.contains { f in
+            f.lastPathComponent.hasPrefix(name + "-") && f.pathExtension == "ips"
+                && ((try? f.resourceValues(forKeys: [.creationDateKey]).creationDate?.timeIntervalSince1970) ?? 0) >= since
+        }
+    }
+
+    func notify(title: String, body: String, appID: String?) {
+        let now = clock()
+        eventTimes = eventTimes.filter { now - $0 < 3600 }
+        guard engine.config.notifications.enabled, eventTimes.count < engine.config.notifications.maxPerHour else { return }
+        eventTimes.append(now)
+        events.append(DaemonEvent(t: now, title: title, body: body, appID: appID))
+        events = Array(events.suffix(50))
+    }
+
+    func record(_ message: String) {
+        let a = Action(kind: .notify, appID: "iclean", name: "iClean", reasons: [], dryRun: true, message: message)
+        ActionLog.append(ActionLogEntry(t: clock(), action: a, outcome: "info"), paths: paths)
+    }
+}
+
+/// The watchdog: a separate process that thaws everything in the journal if the
+/// daemon disappears for any reason, including SIGKILL.
+public enum Watchdog {
+    public static func run(parent: pid_t, paths: Paths) -> Never {
+        setsid()  // own process group, so killing the daemon's group does not take it down
+        let journal = JournalStore(url: paths.journal)
+        let kq = kqueue()
+        var ev = kevent(ident: UInt(parent), filter: Int16(EVFILT_PROC), flags: UInt16(EV_ADD | EV_ONESHOT),
+                        fflags: NOTE_EXIT, data: 0, udata: nil)
+        if kevent(kq, &ev, 1, nil, 0, nil) == 0 {
+            var out = kevent()
+            // Also wake every 5 s in case the parent vanished before registration.
+            var ts = timespec(tv_sec: 5, tv_nsec: 0)
+            while kill(parent, 0) == 0 || errno == EPERM {
+                if kevent(kq, nil, 0, &out, 1, &ts) > 0 { break }
+            }
+        }
+        _ = Signals.recover(journal: journal)
+        exit(0)
+    }
+}

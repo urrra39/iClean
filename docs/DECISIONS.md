@@ -21,3 +21,11 @@ One line each: what was decided and why. Newest at the bottom.
 17. **Config is JSON merged onto defaults; unknown keys are errors.** Stdlib only, and a typo never silently does nothing.
 18. **Golden traces are synthetic and deterministic.** Real traces would contain the maintainer's app list; the generator lives in the tests.
 19. **The macOS 13 floor applies to every target.** `MenuBarExtra` needs 13, a single floor keeps one package, and macOS 12 could not be tested here.
+20. **IPC is a Unix domain socket with one JSON line each way.** Works from a plain SwiftPM executable without a Mach service registration; the socket lives in iClean's 0700 directory and the peer's uid is checked.
+21. **One `Probe` protocol instead of many small adapter protocols.** The engine is pure and takes values, so the only seam tests need is "what does the daemon see"; signals are exercised for real against spawned `ic-hog` processes.
+22. **An app is never frozen until its S4 guards were inspected.** Missing guard data counts as unsafe (`SKIP_GUARDS_NOT_INSPECTED`); inspection runs only when iClean may act, which caps its cost.
+23. **Watchdog is a child process in its own session.** It waits on the daemon with `kqueue(EVFILT_PROC, NOTE_EXIT)` and replays the journal when the daemon dies, including by SIGKILL.
+24. **A corrupt journal falls back to resuming stopped processes inside app bundles.** Terminal job-control stops (plain CLI processes) are left alone.
+25. **Thaw latency is only measured with Accessibility permission.** It is the time from SIGCONT until the app's main thread answers an Accessibility request; without the permission iClean reports "not measured" rather than guessing.
+26. **LaunchAgent install uses `launchctl bootstrap`; tests install into an isolated `ICLEAN_HOME`.** The maintainer's real `~/Library/LaunchAgents` is never touched by tests.
+27. **Test builds use `-j 2` with retries.** The Command Line Tools' Swift Testing macro plugin fails at random under full parallelism; CI (Xcode) is not affected.

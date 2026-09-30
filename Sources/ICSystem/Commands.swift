@@ -1,0 +1,222 @@
+import AppKit
+import Foundation
+import ICCore
+
+/// Machine-readable daemon status for the CLI and the menu app.
+public struct Status: Codable, Sendable {
+    public var mode: Mode
+    public var profile: String
+    public var pressure: String
+    public var availablePercent: Int
+    public var swapUsedMB: Double
+    public var compressedMB: Double
+    public var health: HealthScore
+    public var forecast: String
+    public var focusSafe: [String]
+    public var conservative: Bool
+    public var frozen: [FrozenApp]
+    public var deprioritized: [String]
+    public var lastAction: String?
+    public var configError: String?
+    public var quarantined: [QuarantineEntry]
+    public var observeSince: Double
+    public var recentPressure: [Int]
+    public var recentSwapMB: [Double]
+}
+
+extension Daemon {
+    func findApp(_ query: String) -> AppSnapshot? {
+        let q = query.lowercased()
+        return lastApps.first { $0.id.lowercased() == q } ?? lastApps.first { $0.name.lowercased() == q }
+            ?? lastApps.first { $0.name.lowercased().contains(q) || $0.id.lowercased().contains(q) }
+    }
+
+    func encode<T: Encodable>(_ v: T) -> String {
+        let e = JSONEncoder()
+        e.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return String(decoding: (try? e.encode(v)) ?? Data(), as: UTF8.self)
+    }
+
+    public func status() -> Status {
+        let s = engine.recent.last ?? SystemSample(time: clock())
+        return Status(mode: engine.config.mode, profile: engine.lastProfile.rawValue, pressure: s.pressure.name,
+                      availablePercent: s.availablePercent, swapUsedMB: s.swapUsedMB, compressedMB: s.compressedMB,
+                      health: lastResult?.health ?? Health.score(s, swapOutMBPerMinute: 0, runawayApps: 0),
+                      forecast: engine.lastForecast.summary, focusSafe: engine.lastFocusSafe,
+                      conservative: engine.state.regret.isConservative(at: clock()),
+                      frozen: engine.state.frozen.values.sorted { $0.frozenAt < $1.frozenAt },
+                      deprioritized: engine.state.deprioritized.keys.sorted(), lastAction: engine.state.lastAction,
+                      configError: configError, quarantined: engine.state.quarantine.values.sorted { $0.at < $1.at },
+                      observeSince: engine.state.startedAt,
+                      recentPressure: engine.recent.map(\.pressure.rawValue), recentSwapMB: engine.recent.map(\.swapUsedMB))
+    }
+
+    public func statusText() -> String {
+        let s = status()
+        var l = ["iClean \(s.mode.rawValue) mode, profile \(s.profile). Mac Health \(s.health.score)/100 (\(s.health.band.rawValue))."]
+        l.append("Memory pressure \(s.pressure), \(s.availablePercent)% available, \(Int(s.compressedMB)) MB compressed, \(Int(s.swapUsedMB)) MB swap. Forecast: \(s.forecast).")
+        if !s.focusSafe.isEmpty { l.append("Focus Safe Mode: paused (\(s.focusSafe.joined(separator: ", ")))") }
+        if s.conservative { l.append("Conservative for 24 h: too many regretted freezes today.") }
+        if s.frozen.isEmpty { l.append("Nothing frozen.") }
+        for f in s.frozen {
+            l.append("\(f.dryRun ? "Would be frozen" : "Frozen"): \(f.name) for \(Int((clock() - f.frozenAt) / 60)) min [\(f.reasons.map(\.code).joined(separator: ", "))]")
+        }
+        if let last = s.lastAction { l.append("Last action: \(last)") }
+        if let e = s.configError { l.append("Config error (previous config in use): \(e)") }
+        if s.mode == .observe {
+            let hours = (clock() - s.observeSince) / 3600
+            l.append(hours >= 24
+                     ? "Observe mode has run \(Int(hours)) h. Review `iclean stats`, then `iclean mode active` to let iClean act."
+                     : "Observe mode: iClean only records what it would do.")
+        }
+        return l.joined(separator: "\n")
+    }
+
+    func explain(_ query: String) -> Response {
+        guard let app = findApp(query) else { return Response(ok: false, text: "No running app matches '\(query)'.") }
+        let ctx = engine.eligibilityContext(at: clock())
+        var l = ["\(app.name) (\(app.id))"]
+        l.append(String(format: "  memory %.0f MB resident, CPU %.1f%%, %d processes", app.residentMB, app.cpuPercent, app.processes.count))
+        l.append("  tier \(ctx.tier(app.id).rawValue)" + (Protection.isProtected(app) ? ", protected (can never be frozen)" : ""))
+        l.append(String(format: "  idle %.0f min, threshold %.0f min", ctx.idleMinutes(app), ctx.idleThreshold(app.id)))
+        if let f = engine.state.frozen[app.id] {
+            l.append("  \(f.dryRun ? "would be frozen (Observe mode)" : "FROZEN") since \(Int((clock() - f.frozenAt) / 60)) min: " + f.reasons.map(\.description).joined(separator: ", "))
+        } else {
+            let r = engine.state.lastSkips[app.id] ?? []
+            l.append(r.isEmpty ? "  eligible; not frozen because no trigger fired" : "  not frozen: " + r.map(\.description).joined(separator: ", "))
+        }
+        if let sc = engine.state.lastScores[app.id] { l.append(String(format: "  last score %.0f", sc)) }
+        if let r = engine.state.regret.perApp[app.id] { l.append(String(format: "  regret %.2f", r)) }
+        if let q = engine.state.quarantine[app.id] { l.append("  quarantined: \(q.reason)") }
+        let history = ActionLog.read(paths: paths, last: 1000).filter { $0.action.appID == app.id }.suffix(5)
+        for h in history {
+            l.append("  \(Date(timeIntervalSince1970: h.t).formatted(date: .omitted, time: .shortened)) \(h.action.summary) -> \(h.outcome)")
+        }
+        return Response(ok: true, text: l.joined(separator: "\n"))
+    }
+
+    func setMode(_ m: Mode) -> Response {
+        var c = engine.config
+        c.mode = m
+        do {
+            try Files.atomicWrite(c.encoded(), to: paths.config)
+        } catch {
+            return Response(ok: false, text: "Could not write config: \(error)")
+        }
+        reloadConfig()
+        configMTime = Self.mtime(paths.config)
+        if m == .observe { execute(engine.thawAll(reason: Code.thawUser, at: clock())) }
+        return Response(ok: true, text: "Mode is now \(m.rawValue).")
+    }
+
+    public func handle(_ req: Request) -> Response {
+        let now = clock()
+        switch req.cmd {
+        case "ping":
+            return Response(ok: true, text: "pong")
+        case "status":
+            return Response(ok: true, text: statusText(), data: req.json == true ? encode(status()) : nil)
+        case "why":
+            let d = Why.diagnose(samples: engine.recent, apps: lastApps, runaway: engine.lastRunaway,
+                                 forecast: engine.lastForecast) { [engine] id in
+                engine.state.lastActiveAt[id].map { (now - $0) / 60 } ?? 0
+            }
+            return Response(ok: true, text: d.text, data: req.json == true ? encode(d) : nil)
+        case "explain":
+            return explain(req.app ?? "")
+        case "thaw":
+            let acts: [Action]
+            if req.app == nil || req.app == "all" {
+                acts = engine.thawAll(reason: Code.thawUser, at: now)
+            } else {
+                let id = findApp(req.app!)?.id ?? engine.state.frozen.keys.first { $0.lowercased().contains(req.app!.lowercased()) } ?? req.app!
+                acts = engine.thaw(id, reason: Code.thawUser, at: now)
+            }
+            execute(acts, immediate: true)
+            return Response(ok: true, text: acts.isEmpty ? "Nothing to thaw." : acts.map(\.summary).joined(separator: "\n"))
+        case "freeze":
+            guard var app = findApp(req.app ?? "") else { return Response(ok: false, text: "No running app matches '\(req.app ?? "")'.") }
+            AppCollector.inspectGuards(&app, engine: engine, now: now)
+            let (a, refused) = engine.userFreeze(app, at: now)
+            guard let a else { return Response(ok: false, text: "Not frozen: " + refused.map(\.description).joined(separator: ", ")) }
+            execute([a])
+            return Response(ok: true, text: a.summary)
+        case "undo":
+            let acts = engine.undo(at: now)
+            execute(acts, immediate: true)
+            return Response(ok: true, text: acts.isEmpty ? "Nothing to undo." : acts.map(\.summary).joined(separator: "\n"))
+        case "mode":
+            guard let m = req.value.flatMap(Mode.init(rawValue:)) else { return Response(ok: true, text: "Mode: \(engine.config.mode.rawValue)") }
+            return setMode(m)
+        case "profile":
+            var c = engine.config
+            if req.value == "auto" { c.profiles.manual = nil }
+            else if let p = req.value.flatMap(ProfileName.init(rawValue:)) { c.profiles.manual = p }
+            else { return Response(ok: true, text: "Profile: \(engine.lastProfile.rawValue)" + (c.profiles.manual == nil ? " (automatic)" : " (manual)")) }
+            try? Files.atomicWrite(c.encoded(), to: paths.config)
+            reloadConfig()
+            configMTime = Self.mtime(paths.config)
+            return Response(ok: true, text: "Profile set to \(req.value!).")
+        case "stats":
+            let days = Int(req.value ?? "1") ?? 1
+            let d = DigestBuilder.build(state: engine.state, config: engine.config, now: now, days: days)
+            return Response(ok: true, text: d.text, data: req.json == true ? encode(d) : nil)
+        case "quarantine":
+            if let app = req.app {
+                let id = engine.state.quarantine.keys.first { $0 == app || engine.state.quarantine[$0]?.name.lowercased() == app.lowercased() } ?? app
+                return engine.releaseQuarantine(id) ? Response(ok: true, text: "Released \(id).") : Response(ok: false, text: "\(app) is not quarantined.")
+            }
+            let q = engine.state.quarantine.values.sorted { $0.at < $1.at }
+            return Response(ok: true, text: q.isEmpty ? "No quarantined apps." : q.map { "\($0.name) (\($0.appID)): \($0.reason)" }.joined(separator: "\n"))
+        case "habits":
+            if req.value == "reset" {
+                engine.resetHabits()
+                saveState()
+                return Response(ok: true, text: "Habit statistics cleared.")
+            }
+            return Response(ok: true, text: encode(engine.state.habits))
+        case "workspace":
+            let name = req.app ?? ""
+            let acts: [Action]
+            if req.value == "thaw" {
+                acts = engine.thawWorkspace(name, at: now)
+            } else if req.value == "freeze" {
+                var apps = lastApps
+                for i in apps.indices where engine.config.workspaces[name]?.contains(apps[i].id) == true {
+                    AppCollector.inspectGuards(&apps[i], engine: engine, now: now)
+                }
+                let (a, refused) = engine.freezeWorkspace(name, apps: apps, at: now)
+                if !refused.isEmpty {
+                    return Response(ok: false, text: "Workspace not frozen:\n" + refused.map { "  \($0.key): " + $0.value.map(\.description).joined(separator: ", ") }.joined(separator: "\n"))
+                }
+                acts = a
+            } else {
+                return Response(ok: true, text: engine.config.workspaces.map { "\($0.key): \($0.value.joined(separator: ", "))" }.sorted().joined(separator: "\n"))
+            }
+            execute(acts)
+            return Response(ok: true, text: acts.isEmpty ? "Nothing to do." : acts.map(\.summary).joined(separator: "\n"))
+        case "advise":
+            let a = Advisor.advise(days: Array(engine.state.days.values), physicalGB: engine.hardware.memoryGB)
+            return Response(ok: true, text: a.text, data: req.json == true ? encode(a) : nil)
+        case "events":
+            let since = Double(req.value ?? "0") ?? 0
+            return Response(ok: true, text: "", data: encode(events.filter { $0.t > since }))
+        case "reload":
+            if let e = reloadConfig() { return Response(ok: false, text: "Config rejected, previous config kept:\n\(e)") }
+            return Response(ok: true, text: "Config reloaded.")
+        case "deny", "allow":
+            guard let app = req.app else { return Response(ok: false, text: "Which app?") }
+            let id = findApp(app)?.id ?? app
+            var c = engine.config
+            if req.cmd == "deny" { c.deny = Array(Set(c.deny + [id])).sorted(); c.allow.removeAll { $0 == id } }
+            else { c.allow = Array(Set(c.allow + [id])).sorted(); c.deny.removeAll { $0 == id } }
+            try? Files.atomicWrite(c.encoded(), to: paths.config)
+            reloadConfig()
+            configMTime = Self.mtime(paths.config)
+            if req.cmd == "deny" { execute(engine.thaw(id, reason: Code.thawUser, at: now), immediate: true) }
+            return Response(ok: true, text: "\(id) \(req.cmd == "deny" ? "will never be frozen" : "may be frozen automatically").")
+        default:
+            return Response(ok: false, text: "Unknown command '\(req.cmd)'.")
+        }
+    }
+}

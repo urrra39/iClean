@@ -5,9 +5,9 @@
 set -eu
 cd "$(dirname "$0")/.."
 tries=0
-until swift build --build-tests >/tmp/iclean-build.$$ 2>&1; do
+until swift build --build-tests -j 2 >/tmp/iclean-build.$$ 2>&1; do
     tries=$((tries + 1))
-    if [ "$tries" -ge 5 ] || ! grep -q "TestingMacros" /tmp/iclean-build.$$; then
+    if [ "$tries" -ge 10 ] || ! grep -q "TestingMacros" /tmp/iclean-build.$$; then
         cat /tmp/iclean-build.$$
         rm -f /tmp/iclean-build.$$
         exit 1

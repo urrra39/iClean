@@ -99,6 +99,9 @@ func touchAll() {
 // Signals
 var contFlag: sig_atomic_t = 0
 signal(SIGCONT) { _ in contFlag = 1 }
+// SIGUSR2 means "the user is here": touch every page and report when done.
+var touchFlag: sig_atomic_t = 0
+signal(SIGUSR2) { _ in touchFlag = 1 }
 
 // Children: same flags minus --children, so the whole tree looks like one app.
 var kids: [Process] = []
@@ -138,6 +141,13 @@ if let port = opts.listen {
     }
     precondition(rc == 0 && Darwin.listen(fd, 8) == 0, "listen failed: \(errno)")
     heldFDs.append(fd)
+    // Accept and keep clients, like a dev server with an open browser tab.
+    Thread.detachNewThread {
+        while true {
+            let c = accept(fd, nil, nil)
+            if c >= 0 { heldFDs.append(c) }
+        }
+    }
 }
 if let target = opts.connect {
     let parts = target.split(separator: ":")
@@ -165,12 +175,15 @@ print("ready pid=\(getpid()) mb=\(opts.mb)")
 
 // Main loop, driven by a timer so GUI and CLI modes share it.
 let start = now()
+// Exit when the parent goes away, so a crashed test run never leaves hogs behind.
+let parentPID = getppid()
 var lastTouch = start
 var lastHB = start
 var lastGrow = start
 
 func tick() {
     let t = now()
+    if getppid() != parentPID { exit(0) }
     if contFlag != 0 {
         contFlag = 0
         switch opts.afterCont {
@@ -182,6 +195,11 @@ func tick() {
             touchAll()
             print("touched \(now())")
         }
+    }
+    if touchFlag != 0 {
+        touchFlag = 0
+        touchAll()
+        print("touched \(now())")
     }
     if opts.heartbeatMs > 0, t - lastHB >= UInt64(opts.heartbeatMs) * 1_000_000 {
         print("hb \(t)")

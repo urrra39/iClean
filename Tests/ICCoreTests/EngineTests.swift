@@ -39,6 +39,13 @@ import Testing
         #expect(r.trigger == Code.pressureCritical)
     }
 
+    @Test func uninspectedAppsAreNeverFrozen() {
+        let raw = app("com.example.raw", signals: ActivitySignals())
+        let e = engine(apps: [raw])
+        #expect(e.tick(TickInput(sample: sample(0, .critical), apps: [raw])).actions.isEmpty)
+        #expect(e.state.lastSkips[raw.id]?.map(\.code) == [Code.notInspected])
+    }
+
     @Test func observeModeOnlyRecords() {
         var c = activeConfig()
         c.mode = .observe
@@ -230,7 +237,7 @@ import Testing
         #expect(no1 == nil && r1.map(\.code) == [Code.protected])
         let (no2, r2) = e.userFreeze(app("com.example.d", visible: true), at: 0)
         #expect(no2 == nil && r2.map(\.code) == [Code.visibleWindow])
-        let (no3, r3) = e.userFreeze(app("com.example.e", signals: ActivitySignals(audioOutput: true)), at: 0)
+        let (no3, r3) = e.userFreeze(app("com.example.e", signals: ActivitySignals(audioOutput: true, activeConnection: false, recentWrite: false)), at: 0)
         #expect(no3 == nil && r3.map(\.code) == [Code.audio])
     }
 

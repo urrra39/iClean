@@ -376,17 +376,23 @@ public final class Engine {
         let ctx = context(now, cfg, profile: profile, wake: dueWake)
 
         // Evaluate every app so `explain` always has fresh reasons.
+        // Guards are only inspected when iClean might act, so they are not required here.
         var eligible: [AppSnapshot] = []
         for app in input.apps {
-            let r = Policy.skipReasons(app, ctx)
+            let r = Policy.skipReasons(app, ctx, requireInspection: false)
             state.lastSkips[app.id] = r
             if r.isEmpty { eligible.append(app) }
         }
         state.lastSkips = state.lastSkips.filter { id, _ in input.apps.contains { $0.id == id } }
+        func inspected(_ app: AppSnapshot) -> Bool {
+            let r = Policy.skipReasons(app, ctx)
+            if !r.isEmpty { state.lastSkips[app.id] = r }
+            return r.isEmpty
+        }
 
         for id in dueWake.sorted() {
             state.wakeRefreezeAt[id] = nil
-            if let app = eligible.first(where: { $0.id == id }) {
+            if let app = eligible.first(where: { $0.id == id }), inspected(app) {
                 out.append(freeze(app, reasons: [Reason(Code.wakeWindow)], relief: reliefEstimate(app), at: now))
             }
         }
@@ -423,6 +429,7 @@ public final class Engine {
         }
 
         if let last = state.lastRoundAt, now - last < Self.roundSpacing { return (out, trig) }
+        eligible = eligible.filter(inspected)
 
         let scored = eligible.filter { dueWake.contains($0.id) == false }.map { app -> (AppSnapshot, Double) in
             let risk = Policy.risk(tier: ctx.tier(app.id), regret: state.regret.perApp[app.id] ?? 0)

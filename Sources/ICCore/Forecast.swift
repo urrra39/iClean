@@ -46,6 +46,11 @@ public struct Forecast: Codable, Equatable, Sendable {
     public var armed: Bool
     public var stable: Bool
 
+    public init(armed: Bool, stable: Bool) {
+        self.armed = armed
+        self.stable = stable
+    }
+
     public var summary: String {
         guard let eta = etaWarning else { return stable ? "stable" : "no trend yet" }
         let low = etaWarningLow.map { String(format: "%.0f", $0) } ?? "?"

@@ -54,8 +54,9 @@ public enum Policy {
     public static let guardCodes: Set<String> = [Code.connActive, Code.listener, Code.writeRecent, Code.lockfile]
 
     /// All reasons an app must not be frozen now. Empty means safe to freeze.
-    /// Checks are listed in the order `iclean explain` prints them.
-    public static func skipReasons(_ app: AppSnapshot, _ ctx: PolicyContext) -> [Reason] {
+    /// Checks are listed in the order `iclean explain` prints them. With
+    /// `requireInspection`, an app whose S4 guards were not inspected is never safe.
+    public static func skipReasons(_ app: AppSnapshot, _ ctx: PolicyContext, requireInspection: Bool = true) -> [Reason] {
         var r: [Reason] = []
         let c = ctx.config
         if Protection.isProtected(app) {
@@ -101,13 +102,16 @@ public enum Policy {
         if s.servingListener == true { r.append(Reason(Code.listener)) }
         if s.recentWrite == true { r.append(Reason(Code.writeRecent)) }
         if s.lockHeld == true { r.append(Reason(Code.lockfile)) }
+        if requireInspection, (c.guards.connections && s.activeConnection == nil) || (c.guards.writes && s.recentWrite == nil) {
+            r.append(Reason(Code.notInspected))
+        }
         return r
     }
 
     /// True when only the expensive guard inspections are still unknown and everything
     /// else passes, so the daemon knows which apps to inspect (S4 sampling cost cap).
     public static func needsGuardInspection(_ app: AppSnapshot, _ ctx: PolicyContext) -> Bool {
-        skipReasons(app, ctx).isEmpty
+        skipReasons(app, ctx, requireInspection: false).isEmpty
             && (app.signals.activeConnection == nil || app.signals.recentWrite == nil)
     }
 

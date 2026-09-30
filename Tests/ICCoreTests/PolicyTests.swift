@@ -67,15 +67,20 @@ import Testing
         #expect(codes(app("com.a", cpu: 30), c) == [Code.cpuActive])
         #expect(codes(app("com.a", regular: false), c) == [Code.notRegular])
         #expect(codes(app("com.a", partial: true), c) == [Code.partialTree])
+        func sig(_ edit: (inout ActivitySignals) -> Void) -> ActivitySignals {
+            var s = ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false)
+            edit(&s)
+            return s
+        }
         let sig: [(ActivitySignals, String)] = [
-            (ActivitySignals(powerAssertion: true), Code.powerAssertion),
-            (ActivitySignals(audioOutput: true), Code.audio),
-            (ActivitySignals(audioInput: true), Code.microphone),
-            (ActivitySignals(busyChildren: true), Code.childBusy),
-            (ActivitySignals(activeConnection: true), Code.connActive),
-            (ActivitySignals(servingListener: true), Code.listener),
-            (ActivitySignals(recentWrite: true), Code.writeRecent),
-            (ActivitySignals(lockHeld: true), Code.lockfile),
+            (sig { $0.powerAssertion = true }, Code.powerAssertion),
+            (sig { $0.audioOutput = true }, Code.audio),
+            (sig { $0.audioInput = true }, Code.microphone),
+            (sig { $0.busyChildren = true }, Code.childBusy),
+            (sig { $0.activeConnection = true }, Code.connActive),
+            (sig { $0.servingListener = true }, Code.listener),
+            (sig { $0.recentWrite = true }, Code.writeRecent),
+            (sig { $0.lockHeld = true }, Code.lockfile),
         ]
         for (s, code) in sig { #expect(codes(app("com.a", signals: s), c) == [code]) }
     }
@@ -129,6 +134,12 @@ import Testing
         #expect(Policy.needsGuardInspection(app("com.a", signals: unknown), ctx()))
         #expect(!Policy.needsGuardInspection(app("com.a", front: true, signals: unknown), ctx()))
         #expect(!Policy.needsGuardInspection(app("com.a"), ctx()))
+        // Never safe until inspected, unless the guards are switched off.
+        #expect(codes(app("com.a", signals: unknown), ctx()) == [Code.notInspected])
+        var off = ctx()
+        off.config.guards.connections = false
+        off.config.guards.writes = false
+        #expect(codes(app("com.a", signals: unknown), off).isEmpty)
     }
 
     @Test func scoring() {
