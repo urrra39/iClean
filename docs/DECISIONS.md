@@ -29,3 +29,6 @@ One line each: what was decided and why. Newest at the bottom.
 25. **Thaw latency is only measured with Accessibility permission.** It is the time from SIGCONT until the app's main thread answers an Accessibility request; without the permission iClean reports "not measured" rather than guessing.
 26. **LaunchAgent install uses `launchctl bootstrap`; tests install into an isolated `ICLEAN_HOME`.** The maintainer's real `~/Library/LaunchAgents` is never touched by tests.
 27. **Test builds use `-j 2` with retries.** The Command Line Tools' Swift Testing macro plugin fails at random under full parallelism; CI (Xcode) is not affected.
+28. **Localization uses `.lproj/Localizable.strings`, not a String Catalog.** The Command Line Tools cannot compile `.xcstrings` (`xcstringstool` ships only with Xcode); Xcode can migrate the files into a catalog later.
+29. **Command-line tools sit in `iClean.app/Contents/Helpers`.** `iclean` and `iClean` are the same name on case-insensitive volumes.
+30. **Emergency hotkey uses Carbon `RegisterEventHotKey`.** It needs no Accessibility or Input Monitoring permission.

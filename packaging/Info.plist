@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.urrra39.iclean</string>
+    <key>CFBundleName</key>
+    <string>iClean</string>
+    <key>CFBundleDisplayName</key>
+    <string>iClean</string>
+    <key>CFBundleExecutable</key>
+    <string>iClean</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@VERSION@</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>uz</string>
+    </array>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>MIT License. Not affiliated with Apple Inc.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Optional. iClean asks a resumed app one Accessibility question to check that it responds. It never reads window content.</string>
+</dict>
+</plist>
