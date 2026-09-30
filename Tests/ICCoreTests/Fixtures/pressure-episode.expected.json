@@ -1,0 +1,22 @@
+{
+  "activations" : 9,
+  "closedFreezes" : 3,
+  "deprioritizations" : 9,
+  "forecastFalseAlarms" : 0,
+  "forecastHits" : 1,
+  "forecastLeadP50Minutes" : 17,
+  "forecastLeadP95Minutes" : 17,
+  "forecastMissed" : 0,
+  "freezes" : 5,
+  "freezesByApp" : {
+    "com.example.notes" : 2,
+    "com.figma.Desktop" : 1,
+    "com.google.Chrome" : 1,
+    "com.microsoft.VSCode" : 1
+  },
+  "predictedReliefMB" : 3258,
+  "regretted" : 0,
+  "skippedRecords" : 0,
+  "thaws" : 3,
+  "ticks" : 200
+}

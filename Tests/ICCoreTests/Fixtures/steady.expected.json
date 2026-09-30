@@ -1,0 +1,17 @@
+{
+  "activations" : 4,
+  "closedFreezes" : 0,
+  "deprioritizations" : 0,
+  "forecastFalseAlarms" : 0,
+  "forecastHits" : 0,
+  "forecastMissed" : 0,
+  "freezes" : 0,
+  "freezesByApp" : {
+
+  },
+  "predictedReliefMB" : 0,
+  "regretted" : 0,
+  "skippedRecords" : 0,
+  "thaws" : 0,
+  "ticks" : 120
+}
