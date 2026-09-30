@@ -161,15 +161,18 @@ public enum SessionProbe {
                               screenLocked: locked)
     }
 
-    /// Names of processes owned by other users too (screensharingd runs as root).
+    /// Names of all processes, including other users' (screensharingd runs as root),
+    /// in one `sysctl(KERN_PROC_ALL)` call.
     static func allProcessNames() -> Set<String> {
-        var out = Set<String>()
-        for pid in Proc.allPIDs() {
-            if let b = Proc.bsdInfo(pid) {
-                out.insert(withUnsafeBytes(of: b.pbi_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) })
-            }
-        }
-        return out
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
+        var size = 0
+        guard sysctl(&mib, 4, nil, &size, nil, 0) == 0 else { return [] }
+        var procs = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride + 16)
+        size = procs.count * MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, 4, &procs, &size, nil, 0) == 0 else { return [] }
+        return Set(procs.prefix(size / MemoryLayout<kinfo_proc>.stride).map { p in
+            withUnsafeBytes(of: p.kp_proc.p_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        })
     }
 }
 

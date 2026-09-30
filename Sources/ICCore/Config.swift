@@ -95,7 +95,9 @@ public struct Config: Codable, Equatable, Sendable {
     }
 
     public struct ForecastSettings: Codable, Equatable, Sendable {
-        public var enabled = true
+        /// Forecast-driven actions. Off until measured on real pressure events
+        /// (docs/SIGNATURE_FEATURES.md, S1). The ETA is computed and shown either way.
+        public var enabled = false
         /// Act early when the ETA to warning falls inside this horizon.
         public var horizonMinutes = 10.0
         /// Share of alarms allowed to be false before forecast-driven actions switch off.

@@ -193,7 +193,7 @@ public final class Daemon {
 
     func interval(for level: PressureLevel) -> Double {
         switch level {
-        case .normal: return engine.lastForecast.etaWarning != nil ? 5 : 15
+        case .normal: return engine.lastForecast.etaWarning != nil ? 5 : 30
         case .warning: return 3
         case .critical: return 2
         }

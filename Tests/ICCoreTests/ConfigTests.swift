@@ -13,6 +13,7 @@ import Testing
         #expect(c.mode == .observe)
         #expect(c.predictiveThaw == false)
         #expect(c.habits.preThaw == false)
+        #expect(c.forecast.enabled == false)
     }
 
     @Test func missingKeysTakeDefaults() throws {
