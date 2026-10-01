@@ -67,3 +67,50 @@ Measured with simulators and lab fixtures only (no personal accounts): `ic-chat-
 | E2 | Guards | Guards block 100% of freeze attempts made during active audio output, a call (microphone or camera) and a running download in the tests. |
 | E3 | Connections | 0 connection states that stay broken after thaw in the Chrome and simulator tests; otherwise the app class affected ships protected by default. |
 | E4 | Disclosure | Every observed side effect is fixed, mitigated by a default, or documented in the README's "Known side effects"; anything that cannot be fixed becomes a class protected by default.
+
+## Stage 4: v1.1 (added by amendment 2; required for `v1.1.0`)
+
+**Amendment 2 (2026-10-02, owner decision, [DECISIONS.md](DECISIONS.md) #37).** Made
+before any v1.1 measurement (no spike, lab run or trace analysis for Auto-Context Stash
+or the leak trend had been run). It adds this stage and changes nothing above.
+**Release rule:** v1.1.0 is tagged only when every must-pass criterion below passes and
+the stage 1 regression subset (C1, C2, C3, C10, C12, C13, C14) still passes on the
+v1.1 build; otherwise the release is `v1.1.0-rc.N` with the failures listed. Lab work
+starts after the 7-day soak's wrap-up (not before 2026-10-09 01:30 local time).
+
+### Auto-Context Stash (`iclear context`, `iclear hook`)
+
+| # | Criterion | Threshold |
+|---|---|---|
+| X1 | Shell-hook overhead | Added time per prompt or directory change, measured inside the shell over ≥ 1,000 events per shell (zsh and bash on the reference machine), daemon running and not running: **p95 ≤ 5 ms**. Shells that cannot be tested here (fish) are listed as not tested. |
+| X2 | Wrong-app stash | **0** apps stashed that were not in the leaving context's group, over ≥ 200 scripted switches between ≥ 3 contexts of lab fixture apps (scope-locked). |
+| X3 | Enter-to-usable latency | Reported as p50/p95 (N ≥ 100) from the end of the dwell time until every app of the new context is shown and the frontmost app is restored; must-pass **p95 ≤ 3 s**. Never described as instant. |
+| X4 | False triggers | **0** switches over ≥ 200 scripted events that must not switch: moves between subdirectories of one context, `cd /tmp` and `cd ~` round trips, a context left and re-entered within the dwell time, switches inside the cooldown. |
+| X5 | Undo | **50/50** `iclear context undo` runs restore the previous state: the same apps paused or running, hidden or shown, and the same frontmost app. |
+| X6 | Crash mid-switch | **50/50** `kill -9` trials of the lab daemon during a switch: every lab process running and every app hidden by the switch shown again within 2.0 s. |
+| X7 | Defaults | Suggest mode by default; automatic switching only per context and only in Active mode; Observe mode records "would switch" and does nothing else (tests). |
+| X8 | Real use (reported, not a gate) | After the soak, with the hook in suggest mode on the owner's terminal: suggestions shown, accepted and dismissed, reported as counts. |
+
+### Leak trend (`iclear leaks`)
+
+Evaluated on synthetic process trees (`ic-hog`) with known growth, noise, step changes
+and sawtooth caches, at least 30 growing and 30 non-growing trees, sampled by the daemon
+as in normal use.
+
+| # | Criterion | Threshold |
+|---|---|---|
+| L1 | Recall | Of trees growing ≥ 50 MB/h for ≥ 3 h while not in use, **≥ 90%** flagged within 3 h of the minimum data (2 h, 12 samples). |
+| L2 | Precision | Of flagged trees, **≥ 90%** truly growing (≥ 10 MB/h). |
+| L3 | False alarms | Flags on non-growing trees (flat with noise, single step, sawtooth caches): **≤ 0.05 per tree per day**. |
+| L4 | Rate and ETA error | Reported as distributions (N ≥ 30); must-pass: median absolute error of the growth rate **≤ 25%** of the true rate. |
+| L5 | Notifications (ship rule) | Leak notifications ship **on** only if L1-L4 pass **and** the retrospective check on the soak's 7-day Observe trace meets: of trees flagged there, ≥ 80% have a footprint 1 h later within ±30% (or ±100 MB) of the predicted value. Otherwise `iclear leaks` and the menu list only. |
+| L6 | Never acts by itself | No quit without an explicit preview and confirmation; never a force-kill (tests). |
+
+### Optional research spikes (nothing ships on these)
+
+Each is stopped, and reported as stopped, if its kill criterion holds:
+(a) thermal: throughput retention under sustained synthetic load with and without
+same-user background load, public thermal state only; kill if the gain is below 10% or
+the load cannot be run safely; (b) swap: whether thawing a previously frozen and pressured
+fixture lowers `vm.swapusage` without raising pressure; kill if no drop of ≥ 10% within
+10 minutes; (c) Chrome renderer stop in a throwaway profile, documentation only.
