@@ -489,7 +489,8 @@ extension Lab {
             } else {
                 log("stash \(i): \(s?.text.split(separator: "\n").first ?? "no answer"); all paused and hidden: \(allPaused)")
             }
-            usleep(UInt32.random(in: 1_000_000...4_000_000))
+            // Past the daemon's 2 s settle window, in which activations do not pop a stash.
+            usleep(UInt32.random(in: 2_500_000...5_000_000))
             // Activating a stashed app (as from the Dock) pops just that app. Only fixtures
             // whose app has no other instance (such as the user's own) are activated this way.
             if i % 5 == 4, let first = fixtures.first(where: { Lab.onlyInstance($0) }), let url = first.app.bundleURL {

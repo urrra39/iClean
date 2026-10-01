@@ -155,10 +155,20 @@ extension Daemon {
                 ActionLog.append(ActionLogEntry(t: now, action: act, outcome: "ok"), paths: paths)
             }
             if restoreFocus {
+                // The app in front now, if the stash did not take the front app with it.
+                let current = s.previousFrontmost == nil ? NSWorkspace.shared.runningApplications.first { $0.isActive } : nil
                 // unhide() does not restore stacking order (FEASIBILITY 1.0 a): activate back to front.
                 let visible = apps.filter { !$0.wasHidden }.sorted { $0.order > $1.order }
-                for a in visible where a.appID != s.previousFrontmost { activate(a) }
-                if let f = visible.first(where: { $0.appID == s.previousFrontmost }) { activate(f) }
+                for a in visible where a.appID != s.previousFrontmost { activate(a.processes.first) }
+                if let f = visible.first(where: { $0.appID == s.previousFrontmost }) {
+                    bringToFront(f.processes.first)
+                } else if let current,
+                    let id = Proc.startTime(current.processIdentifier).map({
+                        ProcessIdentity(pid: current.processIdentifier, startTime: $0)
+                    })
+                {
+                    bringToFront(id)
+                }
             }
             let alive = apps.filter { a in a.processes.first.map { Proc.startTime($0.pid) == $0.startTime } ?? false }.count
             lines.append(
@@ -177,8 +187,23 @@ extension Daemon {
 
     /// Brings an app to the front through LaunchServices (activate() is refused for
     /// background processes) and waits briefly for it.
-    func activate(_ a: StashedApp) {
-        guard let root = a.processes.first, let app = NSRunningApplication(processIdentifier: root.pid) else { return }
+    /// Activates and checks: some apps (Electron) take a moment, and a later activation of
+    /// another popped app can still be landing. Up to three tries.
+    func bringToFront(_ root: ProcessIdentity?) {
+        guard let root else { return }
+        for _ in 0..<3 {
+            activate(root)
+            for _ in 0..<6 {
+                if NSRunningApplication(processIdentifier: root.pid)?.isActive == true { return }
+                usleep(50_000)
+            }
+        }
+    }
+
+    func activate(_ root: ProcessIdentity?) {
+        guard let root, Proc.startTime(root.pid) == root.startTime, let app = NSRunningApplication(processIdentifier: root.pid) else {
+            return
+        }
         if AXIsProcessTrusted() {
             // Targets this exact process.
             let el = AXUIElementCreateApplication(root.pid)
