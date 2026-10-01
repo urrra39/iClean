@@ -58,7 +58,7 @@ extension Lab {
     static func expectedDownload(mb: Double) -> Data {
         let total = Int(mb * 1_048_576)
         var d = Data(count: total)
-        d.withUnsafeMutableBytes { p in
+        d.withUnsafeMutableBytes { (p: UnsafeMutableRawBufferPointer) in
             for o in 0..<total { p[o] = UInt8(truncatingIfNeeded: o &* 2_654_435_761 >> 13) }
         }
         return d

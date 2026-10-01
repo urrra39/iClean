@@ -232,7 +232,7 @@ final class HTTPServer {
             }
             let n = min(chunk, total - sent)
             var d = Data(count: n)
-            d.withUnsafeMutableBytes { p in
+            d.withUnsafeMutableBytes { (p: UnsafeMutableRawBufferPointer) in
                 for k in 0..<n { p[k] = UInt8(truncatingIfNeeded: (sent + k) &* 2_654_435_761 >> 13) }
             }
             c.send(
