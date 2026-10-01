@@ -115,8 +115,8 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | F6 `before` | `launchAdvisor`, `featureCommandsAnswer` | **NOT TESTED** continuously (a one-shot estimate) |
 | F7 Unsaved guard | `keepListUnsavedAndSharedWindows` (planner) | lab `unsaved` (spike g) |
 | App classes (COMM, MEDIA, BROWSER) | `AppClassTests` (defaults, cooldown, browser caution, wake window never during a call, compat) | lab `sideeffects` |
-| Auto-Context Stash (v1.1) | `ContextTests`, `ContextIntegrationTests`; selftest `context switch (isolated)` | lab X2-X6 after the soak |
-| Leak trend (v1.1) | `LeakTests`, `leakQuitNeedsPreviewAndConfirmation`; selftest `leak trend (synthetic)` | lab L1-L4 after the soak; L5 on the soak's Observe trace |
+| Auto-Context Stash (v1.1) | `ContextTests`, `ContextIntegrationTests`; selftest `context switch (isolated)` | lab `context` (X2-X6) after the soak |
+| Leak trend (v1.1) | `LeakTests`, `leakQuitNeedsPreviewAndConfirmation`; selftest `leak trend (synthetic)` | lab `leaks` (L1-L4) after the soak; `leak-retro` (L5) on the soak's Observe trace |
 | Everything together | | lab `combined` (≥ 60 min) |
 
 ## Safety invariants

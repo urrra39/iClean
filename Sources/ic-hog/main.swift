@@ -20,6 +20,7 @@ struct Options {
     var lockFile: String?  // hold an flock on this file
     var afterCont: String?  // crash | hang
     var gui = false  // show a small AppKit window
+    var app = false  // a regular (Dock) app without a window, for app-level tests
     var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
     var lifeline: Int32 = 0  // exit when this process ends instead of when the parent changes
     var profile: Profile?  // footprint over time (leak-trend tests)
@@ -91,6 +92,7 @@ func parse() -> Options {
         case "--lock": o.lockFile = v()
         case "--after-cont": o.afterCont = v()
         case "--gui": o.gui = true
+        case "--app": o.app = true
         case "--exit-after": o.exitAfter = Double(v())!
         case "--lifeline": o.lifeline = Int32(v())!
         case "--profile": o.profile = Profile(v())
@@ -171,7 +173,7 @@ var kids: [Process] = []
 if opts.children > 0 {
     var args = Array(CommandLine.arguments.dropFirst())
     if let i = args.firstIndex(of: "--children") { args.removeSubrange(i...(i + 1)) }
-    args.removeAll { $0 == "--gui" }
+    args.removeAll { $0 == "--gui" || $0 == "--app" }
     for _ in 0..<opts.children {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
@@ -299,14 +301,16 @@ if opts.cpu {
     }
 }
 
-if opts.gui {
+if opts.gui || opts.app {
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
-    let w = NSWindow(
-        contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
-        styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-    w.title = "ic-hog \(getpid())"
-    w.makeKeyAndOrderFront(nil)
+    if opts.gui {
+        let w = NSWindow(
+            contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
+            styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        w.title = "ic-hog \(getpid())"
+        w.makeKeyAndOrderFront(nil)
+    }
     Timer.scheduledTimer(withTimeInterval: 0.001, repeats: true) { _ in tick() }
     // SIGUSR1 asks the app to activate itself (used to time activation notifications).
     signal(SIGUSR1, SIG_IGN)

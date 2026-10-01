@@ -16,4 +16,5 @@ until swift build --build-tests -j 2 --scratch-path "$S" >/tmp/iclear-build.$$ 2
     fi
 done
 rm -f /tmp/iclear-build.$$
-exec swift test --skip-build --scratch-path "$S" "$@"
+# Serial, as in CI: GUI suites hide and activate apps, which other GUI suites would see.
+exec swift test --skip-build --no-parallel --scratch-path "$S" "$@"
