@@ -267,6 +267,7 @@ case "validate":
             if running.contains(f.pid) { lab.log("refused: \(f.name) (\(f.pid)) was already running") }
             return !running.contains(f.pid)
         }
+        lab.everStarted = lab.fixtures
         lab.log("fixtures: " + lab.fixtures.map { "\($0.name) \($0.pid) (\($0.tree().count) processes)" }.joined(separator: ", "))
     }
     let hog = tool("ic-hog")

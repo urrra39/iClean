@@ -21,6 +21,8 @@ final class Lab {
     var registryTimers: [String: DispatchSourceTimer] = [:]
     /// Lab daemons started by this run; stopped on every exit path (they resume what they paused).
     var daemons: [Process] = []
+    /// Every fixture this run started, even while a phase works on a subset.
+    var everStarted: [AppFixture] = []
     let condLock = NSLock()
     var conditions: [String: Int] = [:]
     var forecast = ForecastState()
@@ -105,7 +107,10 @@ final class Lab {
         // Scope first: recovery must not reach anything the lab did not start.
         lockScope()
         _ = Signals.recover(journal: journal)
-        for f in fixtures { f.kill() }
+        regLock.lock()
+        let all = everStarted + fixtures.filter { f in !everStarted.contains { $0 === f } }
+        regLock.unlock()
+        for f in all { f.kill() }
         GUIFixture.killAll()
         SpawnedHog.killAll()
         ScopeLock.set(nil)
@@ -572,7 +577,11 @@ extension Lab {
             guard let g = try? GUIFixture(probe: probe, dir: dir, name: name, frame: i == 0 ? "160,180,360,240" : "560,220,360,240") else {
                 return nil
             }
-            return AppFixture(kind: "probe", name: name, app: g.app, dataDir: dir.appendingPathComponent(name), docs: [])
+            let f = AppFixture(kind: "probe", name: name, app: g.app, dataDir: dir.appendingPathComponent(name), docs: [])
+            regLock.lock()
+            everStarted.append(f)
+            regLock.unlock()
+            return f
         }
     }
 
