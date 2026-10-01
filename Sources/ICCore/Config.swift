@@ -214,7 +214,7 @@ extension Config {
         let config: Config
         do {
             config = try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: merged))
-        } catch let DecodingError.typeMismatch(_, ctx), let DecodingError.dataCorrupted(ctx) {
+        } catch DecodingError.typeMismatch(_, let ctx), DecodingError.dataCorrupted(let ctx) {
             let path = ctx.codingPath.map(\.stringValue).joined(separator: ".")
             throw ConfigError.invalid([ConfigIssue(severity: .error, path: path, message: ctx.debugDescription)])
         }
