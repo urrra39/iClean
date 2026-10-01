@@ -99,6 +99,9 @@ of these; `iclear compat <app>` shows them for one app.
   attempt to pause the test Chrome. When the lab paused it anyway for 10-300 s, every page
   answered within 0.03 s of resume, form input and timers survived, WebSocket pages
   reconnected within 1.1 s, and a WebRTC data channel and a service worker kept working.
+  Chrome itself also freezes hidden, CPU-heavy tabs when Energy Saver is on (the Page
+  Lifecycle "frozen" state, Chrome 133 and later) and, under Memory Saver, discards
+  inactive tabs, which reload when you return to them.
 - **"Not Responding"**: while paused, an app can show as "Not Responding" in Force Quit,
   Activity Monitor or its Dock menu. That is what a paused process looks like; activating
   it resumes it. Do not force-quit it.
@@ -127,7 +130,7 @@ Older synthetic benchmarks: [BENCHMARKS.md](docs/BENCHMARKS.md).
 | Permission | Required? | Used for | If denied |
 |---|---|---|---|
 | none | | pausing, resuming, stash, `why`, health score, guards, call detection (iClear reads only *whether* the microphone or camera is in use, never audio or video) | everything works |
-| Accessibility | optional | checking that a resumed app answers; resume latency; stall forensics; "unsaved changes" in stash; bringing back the exact frontmost app after a pop | hangs after resume are not detected; latency and stalls show "not measured"; unsaved state is "unknown" |
+| Accessibility | optional | checking that a resumed app answers; resume latency; stall forensics; bringing back the exact frontmost app after a pop. A stash also asks apps for unsaved changes this way, but no app reported them in the lab (each showed "unknown"), so that check is not validated | hangs after resume are not detected; latency and stalls show "not measured" |
 | Input Monitoring | optional | experimental predictive resume (off by default) | nothing changes |
 | Microphone | only for `iclear selftest` | its call check runs iClear's own test tool, which records a few seconds and discards them | that check is skipped |
 | Screen Recording, Camera | not used | | |
@@ -193,7 +196,8 @@ is the only thing that acts during a call, and never on the call itself
 ## How it compares
 
 These projects solve overlapping problems, and several did so earlier. From reading
-their READMEs on 2026-09-30:
+their READMEs and product pages (the first eight rows on 2026-09-30, the rest on
+2026-10-02):
 
 | Project | Approach | Difference from iClear |
 |---|---|---|
@@ -206,11 +210,19 @@ their READMEs on 2026-09-30:
 | [MemoryShield](https://github.com/MaatheusGois/MemoryShield) | Per-process memory history; can auto-kill over a threshold | History and alerts exist there too. iClear does not kill |
 | [mac-memory-guard](https://github.com/TomGranot/mac-memory-guard) | Warns before a memory freeze, lets you quit apps one by one | Warning-first and human-in-the-loop. iClear acts on its own |
 | [WattMate](https://wattmateapp.com/) | Per-app watts as battery minutes, with a measured before/after | Does battery minutes and receipts already; iClear's battery estimates are not new and are not validated |
+| [AppHalt](https://apphalt.app/) ([README](https://github.com/Gabrielnion/AppHalt)) | Menu-bar pause and resume of the apps you pick, keeping windows and documents; the paid Pro adds auto-pause after an idle period and a never-pause list | Polished manual control and per-app rules. iClear decides from memory pressure and per-app guards, and starts in Observe mode |
+| [MacFreeze](https://github.com/exadeci/mac_freeze) | Freezes apps matching your glob patterns after a per-app inactivity delay (SIGSTOP/SIGCONT) and unfreezes all of them when it quits | Simple and configurable, and freezes regardless of memory pressure. iClear acts under pressure, checks audio, calls, connections and writes first, and journals every pause |
+| [wintertime](https://github.com/actuallymentor/wintertime-mac-background-freezer) | Freezes the apps on its list whenever they lose focus (via `pkill`), to save battery, with a panic button that unfreezes everything; tested on macOS 10.13 | Focus-driven and battery-oriented. iClear is pressure-driven and recovers from a journal even after its own crash |
+| [ShiftPlus](https://shiftplus.app/blog/shift-mac/) | Hotkey workspace switcher: closes or hides apps outside the workspace and launches the right ones with browser profiles, Spaces and terminal variables | Rebuilds a workspace by closing and reopening apps. iClear's stash pauses and hides apps in place, keeping their state; it does not manage browser profiles or Spaces |
+| [ContextResume](https://github.com/yigitbozyaka/ContextResume) | Per-git-branch notes (git state, last failing command, your intent) shown on branch switch, through a shell prompt hook | Remembers what you were doing, not which apps were open; it does not pause or manage apps |
+| [direnv](https://direnv.net/) | Loads and unloads environment variables per directory through a shell hook | Adjacent, different problem: the shell's environment, not apps |
+| [SceneShift](https://tandukuda.github.io/SceneShift/) | Windows only: a terminal tool that kills, suspends, resumes or relaunches presets of apps, with undo | The same suspend-and-restore idea on Windows; iClear is for macOS and acts on memory pressure |
+| [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon command line: asks apps to quit rather than force-killing them, lowers rival processes with `nice` only when it can restore them exactly, explains why swap stays, and deletes old caches in two folders | Quits instead of pausing and deletes caches; iClear pauses, keeps state and does not delete files. Both restore priority changes exactly |
 
-As of 2026-09-30, we did not find a pressure ETA forecast, regret-aware freezing,
+As of 2026-10-02, we did not find a pressure ETA forecast, regret-aware freezing,
 connection/write guards before pausing, a post-resume quarantine or trace replay in
-those projects or in our GitHub searches ([NOVELTY.md](docs/NOVELTY.md)). Not finding
-something is not proof that it does not exist.
+those projects or in our GitHub and web searches ([NOVELTY.md](docs/NOVELTY.md)). Not
+finding something is not proof that it does not exist.
 
 ## Tested on
 

@@ -110,7 +110,11 @@ ko'rsatadi.
   qilishga bo'lgan har bir urinishni rad etdi. Laboratoriya uni baribir 10-300 soniyaga
   pauza qilganda, har bir sahifa davom ettirilgandan keyin 0.03 soniya ichida javob berdi,
   formadagi ma'lumot va taymerlar saqlanib qoldi, WebSocket sahifalari 1.1 soniya ichida
-  qayta ulandi, WebRTC ma'lumot kanali va service worker ishlashda davom etdi.
+  qayta ulandi, WebRTC ma'lumot kanali va service worker ishlashda davom etdi. Chrome'ning
+  o'zi ham Energy Saver yoqilganda yashirin, protsessorni ko'p ishlatadigan tablarni
+  muzlatadi (Page Lifecycle "frozen" holati, Chrome 133 va undan keyingi) va Memory Saver
+  rejimida faol bo'lmagan tablarni xotiradan chiqaradi, ularga qaytganingizda qayta
+  yuklanadi.
 - **"Not Responding" (javob bermayapti)**: pauza paytida ilova Force Quit, Activity Monitor
   yoki Dock menyusida "Not Responding" bo'lib ko'rinishi mumkin. Pauzadagi jarayon shunday
   ko'rinadi; uni faollashtirsangiz davom etadi. Uni majburan yopmang.
@@ -142,7 +146,7 @@ Eski sintetik o'lchovlar: [BENCHMARKS.md](docs/BENCHMARKS.md).
 | Ruxsat | Majburiymi? | Nima uchun | Rad etilsa |
 |---|---|---|---|
 | hech qanday | | pauza, davom ettirish, stash, `why`, salomatlik bahosi, himoyalar, qo'ng'iroqni aniqlash (iClear mikrofon yoki kamera *ishlatilayotganini* biladi, xolos; ovoz yoki tasvirni hech qachon olmaydi) | hammasi ishlaydi |
-| Maxsus imkoniyatlar (Accessibility) | ixtiyoriy | davom ettirilgan ilova javob berishini tekshirish; kechikish; qotib qolish tahlili; stash'da "saqlanmagan o'zgarishlar"; pop'dan keyin aynan oldingi ilovani oldinga chiqarish | davom ettirishdan keyingi qotish aniqlanmaydi; kechikish va qotishlar "o'lchanmagan"; saqlanmagan holat "noma'lum" |
+| Maxsus imkoniyatlar (Accessibility) | ixtiyoriy | davom ettirilgan ilova javob berishini tekshirish; kechikish; qotib qolish tahlili; pop'dan keyin aynan oldingi ilovani oldinga chiqarish. Stash shu yo'l bilan saqlanmagan o'zgarishlarni ham so'raydi, lekin laboratoriyada hech bir ilova ularni bildirmadi (har biri "noma'lum" bo'ldi), shuning uchun bu tekshiruv tasdiqlanmagan | davom ettirishdan keyingi qotish aniqlanmaydi; kechikish va qotishlar "o'lchanmagan" |
 | Kiritishni kuzatish (Input Monitoring) | ixtiyoriy | tajribaviy oldindan davom ettirish (o'chirilgan) | hech narsa o'zgarmaydi |
 | Mikrofon | faqat `iclear selftest` uchun | uning qo'ng'iroq tekshiruvi iClear'ning o'z sinov vositasini ishga tushiradi, u bir necha soniya yozib, darhol tashlab yuboradi | o'sha tekshiruv o'tkazib yuboriladi |
 | Ekranni yozib olish, Kamera | ishlatilmaydi | | |
@@ -212,7 +216,8 @@ paytida harakat qiladigan yagona narsa, va qo'ng'iroqning o'ziga hech qachon teg
 ## Boshqalar bilan taqqoslash
 
 Bu loyihalar o'xshash muammolarni hal qiladi va ularning bir nechtasi buni ilgariroq
-qilgan. 2026-09-30 sanasida ularning README fayllarini o'qib chiqildi:
+qilgan. Ularning README fayllari va sahifalari o'qib chiqildi (birinchi sakkiz qator
+2026-09-30 da, qolganlari 2026-10-02 da):
 
 | Loyiha | Yondashuv | iClear dan farqi |
 |---|---|---|
@@ -225,10 +230,18 @@ qilgan. 2026-09-30 sanasida ularning README fayllarini o'qib chiqildi:
 | [MemoryShield](https://github.com/MaatheusGois/MemoryShield) | Har bir jarayon xotira tarixi; chegaradan oshganda avtomatik o'chira oladi | Tarix va ogohlantirishlar u yerda ham bor. iClear o'chirmaydi |
 | [mac-memory-guard](https://github.com/TomGranot/mac-memory-guard) | Xotira tufayli qotishdan oldin ogohlantiradi va ilovalarni birma-bir yopishga imkon beradi | Avval ogohlantiradi, qarorni inson qiladi. iClear o'zi harakat qiladi |
 | [WattMate](https://wattmateapp.com/) | Ilovalar quvvatini batareya daqiqalariga aylantiradi, oldin/keyin o'lchovi bilan | Batareya daqiqalari va "nima qaytardi" o'lchovi u yerda allaqachon bor; iClear'ning batareya taxminlari yangi emas va tasdiqlanmagan |
+| [AppHalt](https://apphalt.app/) ([README](https://github.com/Gabrielnion/AppHalt)) | Siz tanlagan ilovalarni menyu panelidan pauza qilish va davom ettirish, oynalar va hujjatlar saqlanadi; pullik Pro versiyada bo'sh turgandan keyin avtomatik pauza va "hech qachon pauza qilinmasin" ro'yxati bor | Qo'lda boshqarish va ilovalar bo'yicha qoidalar qulay. iClear xotira bosimi va har bir ilova himoyalari asosida qaror qiladi, Kuzatish rejimida boshlanadi |
+| [MacFreeze](https://github.com/exadeci/mac_freeze) | Glob naqshlariga mos ilovalarni har biri uchun belgilangan bo'sh vaqtdan keyin muzlatadi (SIGSTOP/SIGCONT), o'zi yopilganda hammasini davom ettiradi | Oddiy va sozlanadigan, xotira bosimidan qat'i nazar muzlatadi. iClear bosim ostida harakat qiladi, avval audio, qo'ng'iroq, ulanish va yozishni tekshiradi, har bir pauzani jurnalga yozadi |
+| [wintertime](https://github.com/actuallymentor/wintertime-mac-background-freezer) | Ro'yxatidagi ilovalarni fokusdan chiqqanda muzlatadi (`pkill` orqali), batareyani tejash uchun; hammasini davom ettiradigan favqulodda tugmasi bor; macOS 10.13 da sinalgan | Fokusga va batareyaga qaratilgan. iClear bosimga asoslanadi va o'zi ishdan chiqsa ham jurnaldan tiklaydi |
+| [ShiftPlus](https://shiftplus.app/blog/shift-mac/) | Tugma bilan ish to'plamini almashtiradi: to'plamga kirmagan ilovalarni yopadi yoki yashiradi, keraklilarini brauzer profillari, Spaces va terminal o'zgaruvchilari bilan ochadi | Ish to'plamini ilovalarni yopib-ochib qayta quradi. iClear stash ilovalarni joyida yashirib pauza qiladi va holatini saqlaydi; brauzer profillari yoki Spaces'ni boshqarmaydi |
+| [ContextResume](https://github.com/yigitbozyaka/ContextResume) | Har bir git branch uchun eslatma (git holati, oxirgi xato bergan buyruq, niyatingiz), branch almashganda shell prompt hook orqali ko'rsatadi | Nima qilayotganingizni eslab qoladi, qaysi ilovalar ochiq bo'lganini emas; ilovalarni pauza qilmaydi va boshqarmaydi |
+| [direnv](https://direnv.net/) | Shell hook orqali har bir katalog uchun muhit o'zgaruvchilarini yuklaydi va olib tashlaydi | Yondosh, boshqa muammo: ilovalar emas, shell muhiti |
+| [SceneShift](https://tandukuda.github.io/SceneShift/) | Faqat Windows: ilovalar to'plamini o'chiradigan, to'xtatadigan, davom ettiradigan yoki qayta ochadigan terminal vositasi, bekor qilish bilan | Windows'dagi o'xshash to'xtatish-tiklash g'oyasi; iClear macOS uchun va xotira bosimiga qarab ishlaydi |
+| [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon buyruq qatori: ilovalardan yopilishni so'raydi (majburan o'chirmaydi), raqib jarayonlarni `nice` bilan faqat aniq tiklay olsagina pasaytiradi, svop nega qolishini tushuntiradi, ikki papkadagi eski keshlarni o'chiradi | Pauza o'rniga yopadi va kesh o'chiradi; iClear pauza qiladi, holatni saqlaydi va fayl o'chirmaydi. Ikkalasi ham ustuvorlik o'zgarishini aynan qaytaradi |
 
-2026-09-30 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi
+2026-10-02 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi
 muzlatish, pauzadan oldingi ulanish/yozish himoyalari, davom ettirishdan keyingi
-karantin yoki iz qayta ijrosini bu loyihalarda ham, GitHub qidiruvlarimizda ham
+karantin yoki iz qayta ijrosini bu loyihalarda ham, GitHub va veb qidiruvlarimizda ham
 topmadik ([NOVELTY.md](docs/NOVELTY.md)). Topilmagani mavjud emasligini isbotlamaydi.
 
 ## Qayerda sinalgan

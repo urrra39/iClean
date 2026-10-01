@@ -84,6 +84,29 @@ wakes, Power Nap, live drain), Wake, DarkWake and LidGuard.
 "Not found" is not proof of absence. README claims follow the form "as of 2026-10-01,
 we did not find X in: …".
 
+## Prior-art update (2026-10-02)
+
+Re-read on 2026-10-02 (READMEs, product pages, crates.io API, GitHub search):
+
+| Project | What it does (from its README or site) | Difference |
+|---|---|---|
+| [AppHalt](https://apphalt.app/) ([README](https://github.com/Gabrielnion/AppHalt)) | Pause and resume chosen apps from the menu bar, windows and documents kept; Pro ($9.99 one-time) adds auto-pause after a user-set idle period, groups and a never-pause list. Not described as open source. | Manual or idle-driven; iClear is pressure-driven, guard-checked, Observe-first. |
+| [MacFreeze](https://github.com/exadeci/mac_freeze) | SIGSTOP/SIGCONT freezing of apps matching glob patterns after a per-app delay; unfreezes everything when disabled or quit. Swift, macOS 10.14+. | No memory-pressure trigger or guards. |
+| [wintertime](https://github.com/actuallymentor/wintertime-mac-background-freezer) | Freezes listed apps when they are not in focus (its README says it runs `pkill ... -f REGEX` for each item), panic button; "Tested on High Sierra 10.13.5". | Focus-driven, battery-oriented. |
+| [ShiftPlus](https://shiftplus.app/blog/shift-mac/) | Hotkey (or menu) workspace switch: "closes or hides" apps outside the workspace, launches the rest, browser profiles, Spaces, terminal variables; 14-day trial. Not triggered by directory changes. | Closes and reopens instead of pausing in place. |
+| [ContextResume](https://github.com/yigitbozyaka/ContextResume) | Per-branch developer context (git state, last failing command, intent) through a shell prompt hook that "calls Node only when your branch changes"; does not manage apps. | Closest to Auto-Context's trigger (shell hook on branch change), but restores notes, not apps. |
+| [direnv](https://direnv.net/) | Loads and unloads environment variables per directory through a shell hook. | Adjacent: environment, not apps. Its hook model informs `iclear hook`. |
+| [SceneShift](https://tandukuda.github.io/SceneShift/) | Windows 10+ terminal tool: kill, suspend, resume or relaunch presets of apps; session history with undo. | Windows only. |
+| [amphetamine](https://github.com/GriffinCanCode/amphetamine) (crate 0.1.2, 2026-08) | "Reclaim memory and win scheduler contention on Apple Silicon, safely": quit requests via the app's own terminate (no force-kill), `nice` demotion only from nice 0 with a verified restore path and `amph restore`, notes that swap drains only as the owning processes exit, deletes old caches under `~/Library/Caches` and `~/Library/Logs`. | Quits and deletes caches; iClear pauses and does not delete files. |
+| Chrome ([Energy Saver freezing](https://developer.chrome.com/blog/freezing-on-energy-saver), [Memory Saver](https://support.google.com/chrome/answer/12929150)) | From Chrome 133, CPU-intensive tabs hidden and silent for over five minutes are frozen (Page Lifecycle "frozen") under Energy Saver; Memory Saver deactivates inactive tabs, which reload on return. | Inside one browser; iClear acts on whole apps. |
+
+Still not found under the name given: "Stash" by StarchyBomb (no GitHub user or
+repository by that name; web results are unrelated apps called Stash).
+
+As of 2026-10-02, we did not find a pressure ETA forecast, regret-aware freezing,
+connection/write guards before pausing, a post-resume quarantine or trace replay in the
+projects above. Not found is not proof of absence.
+
 ## What the README may say
 
 Only dated, evidence-backed statements of the form "as of 2026-09-30, we did not find
