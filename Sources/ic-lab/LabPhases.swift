@@ -279,6 +279,7 @@ extension Lab {
         struct Row: Codable {
             var minutes = 0.0, stashes = 0, popsOK = 0, pressureEpisodes = 0, daemonFreezes = 0, calls = 0, callsDetected = 0
             var hangs = 0, docChanges = 0, leftStopped = 0, leftHidden = 0, crashReports = 0, daemonDied = false
+            var beforeAnswers: [String] = []
             var failures: [String] = []
         }
         var r = Row()
@@ -348,6 +349,14 @@ extension Lab {
                     if detections() > n0 { r.callsDetected += 1 }
                     sim.kill()
                 }
+            case 9:
+                // F6: `iclear before` from the daemon's own history of the fixtures.
+                for f in fixtures {
+                    let a = IPC.send(Request("before", app: f.app.bundleIdentifier ?? f.name), path: paths.socket.path, timeout: 10)
+                    r.beforeAnswers.append(
+                        "min \(minute) \(f.name): " + (a?.text.split(separator: ".").first.map(String.init) ?? "no answer"))
+                }
+                sleep(60)
             default:
                 sleep(60)
             }
@@ -396,6 +405,8 @@ extension Lab {
             | Left paused / hidden after teardown | \(r.leftStopped) / \(r.leftHidden) |
             | New crash reports | \(r.crashReports) |
             | Failures | \(r.failures.count)\(r.failures.isEmpty ? "" : ": " + r.failures.prefix(5).joined(separator: "; ")) |
+
+            `iclear before` answers: \(r.beforeAnswers.suffix(4).joined(separator: "; "))
             """
         save("combined", r, md)
     }
