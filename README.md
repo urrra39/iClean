@@ -93,14 +93,7 @@ No root, no kernel extension, no SIP changes, no network access, no telemetry.
 
 Requires macOS 13 or later, Apple Silicon or Intel.
 
-**Release download.** Get `iClean-1.0.0.zip` (menu-bar app) or
-`iclean-1.0.0-macos.tar.gz` (command-line tools) from the
-[Releases](https://github.com/urrra39/iClean/releases) page. The builds are ad-hoc
-signed, not notarized, so the first launch needs one extra step: right-click the app,
-choose Open, then confirm. For the command-line tools, run
-`xattr -d com.apple.quarantine iclean icleand ic-hog` after unpacking.
-
-**From source:**
+**From source** (the only install path today):
 
 ```sh
 git clone https://github.com/urrra39/iClean.git && cd iClean
@@ -108,8 +101,11 @@ scripts/build-release.sh           # universal binaries, dist/iClean.app
 cp -R dist/iClean.app /Applications/
 ```
 
-**Homebrew:** a formula and a cask template are in `packaging/homebrew/`. They are not
-in a public tap yet.
+The build is ad-hoc signed, not notarized. If macOS blocks the first launch,
+right-click the app, choose Open, then confirm. The command-line tools are in
+`dist/iclean-1.0.0/` and inside the app at `iClean.app/Contents/Helpers/`.
+
+Prebuilt release downloads and a Homebrew tap are planned but not published yet.
 
 ## Quickstart (60 seconds)
 
@@ -180,7 +176,7 @@ rm -rf /Applications/iClean.app
 
 [Architecture](docs/ARCHITECTURE.md) · [Safety](docs/SAFETY.md) ·
 [Feasibility study](docs/FEASIBILITY.md) · [Decisions](docs/DECISIONS.md) ·
-[Trace format](docs/TRACE_FORMAT.md) · [Quality](docs/QUALITY.md) ·
+[Trace format](docs/TRACE_FORMAT.md) ·
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 MIT License. Not affiliated with Apple Inc. macOS and MacBook are trademarks of Apple

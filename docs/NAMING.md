@@ -25,9 +25,9 @@ Choices made because of the collisions:
 - **Bundle identifier:** `io.github.urrra39.iclean` (the maintainer's GitHub namespace).
 - **LaunchAgent label:** `io.github.urrra39.iclean`.
 - **Homebrew:** on 2026-09-30, neither `Formula/i/iclean.rb` in homebrew-core nor
-  `Casks/i/iclean.rb` in homebrew-cask existed (GitHub API returned 404). The templates
-  in `packaging/homebrew/` use `iclean` in the maintainer's own tap. If the name is
-  taken by the time of a core submission, the package identifier becomes `iclean-mac`.
+  `Casks/i/iclean.rb` in homebrew-cask existed (GitHub API returned 404). Homebrew
+  packages will use `iclean`. If the name is taken by the time of a submission, the
+  package identifier becomes `iclean-mac`.
   The product name stays iClean.
 - The README says the project is not affiliated with Apple Inc. and is unrelated to
   cleaners with similar names.
