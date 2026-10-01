@@ -444,7 +444,7 @@ extension Lab {
     func stash(cycles: Int, tools: URL) {
         struct Row: Codable {
             var cycles = 0, stashOK = 0, popOK = 0, boundsOK = 0, boundsChecked = 0, frontWanted = 0, frontRestored = 0
-            var leftStopped = 0, leftHidden = 0, crashes = 0, hangs = 0, activationPops = 0, activationPopOK = 0
+            var leftStopped = 0, leftHidden = 0, crashes = 0, hangs = 0, activationPops = 0, activationPopOK = 0, docChanges = 0
             var worstPoints = 0.0
             var popMs: [Double] = []
         }
@@ -536,6 +536,10 @@ extension Lab {
                     if dpts <= 4 { r.boundsOK += 1 } else { log("bounds: \(f.name) window \(num) moved \(dpts) pt") }
                 }
                 if AXIsProcessTrusted(), f.axPing(timeout: 5) == nil { r.hangs += 1 }
+                if !f.docsIntact() {
+                    r.docChanges += 1
+                    log("DATA: a document of \(f.name) changed")
+                }
             }
             if wasFront {
                 r.frontWanted += 1
@@ -563,6 +567,7 @@ extension Lab {
             | Apps left paused / hidden after pop | \(r.leftStopped) / \(r.leftHidden) |
             | Activation pops just that app | \(r.activationPopOK)/\(r.activationPops) |
             | Post-pop hangs (no answer in 5 s) | \(AXIsProcessTrusted() ? "\(r.hangs)" : "not measured") |
+            | Document changes (SHA-256) | \(r.docChanges) |
             | New crash reports | \(r.crashes) |
             | Pop to all apps shown | \(dist(r.popMs)) |
             """
