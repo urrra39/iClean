@@ -11,7 +11,11 @@ import ICSystem
 final class Soak {
     struct Day: Codable {
         var date = ""
+        /// W2: the lab part running while the Mac is awake (on power only, since the owner's
+        /// 2026-10-02 decision; before that, all awake time).
         var awakeSeconds = 0.0
+        /// Awake on battery with the lab part paused (nil in records written before the change).
+        var batteryPausedSeconds: Double?
         var freezeCycles = 0, freezeFailures = 0, stashCycles = 0, stashFailures = 0, policyFreezes = 0
         var pressureEpisodes = 0, daemonRestarts = 0, fixtureRespawns = 0, leftStopped = 0, hangs = 0
         var crashReports: [String] = []
@@ -22,6 +26,8 @@ final class Soak {
         var startedAt = Date().timeIntervalSince1970
         var days: [Day] = []
         var lastPressure = 0.0
+        /// When the lab part started running on power only (owner decision, 2026-10-02).
+        var powerOnlySince: Double?
     }
 
     let dir: URL
@@ -37,6 +43,9 @@ final class Soak {
     var lastTick = Date().timeIntervalSince1970
     var cpuMark: [Int32: (cpu: UInt64, t: Double)] = [:]
     var running = true
+    /// On battery the lab part (fixtures, lab daemon, cycles) is paused; the Observe
+    /// instance is a separate LaunchAgent and keeps running.
+    var pausedOnBattery = false
 
     init(dir: URL, tools: URL) {
         self.dir = dir
@@ -246,7 +255,8 @@ final class Soak {
         let md = """
             # Soak report \(d.date)
 
-            Soak started \(Date(timeIntervalSince1970: state.startedAt)). Awake time this day: \(String(format: "%.1f", d.awakeSeconds / 3600)) h.
+            Soak started \(Date(timeIntervalSince1970: state.startedAt)). Lab part running while awake this day: \(String(format: "%.1f", d.awakeSeconds / 3600)) h\
+            \(d.batteryPausedSeconds.map { String(format: "; awake on battery with the lab part paused: %.1f h", $0 / 3600) } ?? "").
 
             | Measure | Value |
             |---|---|
@@ -278,17 +288,29 @@ final class Soak {
         }
         // A long gap means the Mac slept; only awake time counts.
         let gap = now - lastTick
-        if gap < 180 { day.awakeSeconds += gap }
         lastTick = now
+        if let pid = observePID(), let (c, r) = overhead(pid, now: now) {
+            day.observeCPU.append(c)
+            day.observeRSS.append(r)
+        }
+        // The lab part runs on power only, so the soak does not drain the battery.
+        if SmartBattery().read(now: now).map({ !$0.onAC }) ?? false {
+            if !pausedOnBattery { pauseLab() }
+            if gap < 180 { day.batteryPausedSeconds = (day.batteryPausedSeconds ?? 0) + gap }
+            report(day)
+            save()
+            return
+        }
+        if pausedOnBattery {
+            pausedOnBattery = false
+            log("on power: lab part resumed")
+        }
+        if gap < 180 { day.awakeSeconds += gap }
         ensureDaemon()
         ensureFixtures()
         if let d = daemon, let (c, r) = overhead(d.processIdentifier, now: now) {
             day.labCPU.append(c)
             day.labRSS.append(r)
-        }
-        if let pid = observePID(), let (c, r) = overhead(pid, now: now) {
-            day.observeCPU.append(c)
-            day.observeRSS.append(r)
         }
         stashStep(now: now)
         pressureStep(now: now)
@@ -302,15 +324,47 @@ final class Soak {
         save()
     }
 
+    /// Battery: pop a running stash, resume everything, stop the lab daemon, close fixtures.
+    func pauseLab() {
+        pausedOnBattery = true
+        if stashUntil != nil {
+            _ = ask("pop", app: stashName)
+            stashUntil = nil
+        }
+        _ = ask("thaw", app: "all")
+        if let d = daemon, d.isRunning {
+            d.terminate()
+            d.waitUntilExit()
+        }
+        daemon = nil
+        for p in probes { p.kill() }
+        probes = []
+        cpuMark = [:]
+        log("on battery: lab part paused (fixtures closed, lab daemon stopped)")
+    }
+
     func run() {
         log("soak supervisor started; Accessibility \(AXIsProcessTrusted())")
         if state.days.isEmpty { log("soak start recorded: \(Date(timeIntervalSince1970: state.startedAt))") }
+        if state.powerOnlySince == nil {
+            let now = Date().timeIntervalSince1970
+            state.powerOnlySince = now
+            if day.date != today { state.days.append(Day(date: today)) }
+            day.notes.append(
+                "From \(Date(timeIntervalSince1970: now)) the lab part runs on power only (owner decision); "
+                    + "awake time on battery is recorded separately and does not count toward W2.")
+            save()
+        }
         var nextTick = 0.0
         while running {
             let now = Date().timeIntervalSince1970
             if now >= nextTick {
                 tick()
                 nextTick = now + 60
+            }
+            if pausedOnBattery {
+                sleep(30)
+                continue
             }
             freezeCycle()
             sleep(UInt32.random(in: 5...20))
