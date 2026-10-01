@@ -22,6 +22,12 @@
   and the leak trend on synthetic series.
 - `ic-hog --profile` shapes a footprint over time (growth, noise, a step, a sawtooth
   cache, a faster clock) for the leak-trend lab.
+- Fix: at the trace size cap, the file still being written could be deleted first (files
+  were deleted in name order, and `day.jsonl` sorts before its rotated `day.jsonl.1`), so
+  traces could be wiped; reading also returned a rotated file's older records last. The
+  oldest file now goes first and the current one is kept. Note: with many apps a day of
+  traces can exceed the 20 MB default (`trace.maxMB`), so `simulate --since 7d` and
+  `advise` see less than a week.
 - Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
   (amendment 2).
 
