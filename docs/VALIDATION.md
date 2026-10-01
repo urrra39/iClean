@@ -64,7 +64,7 @@ timers, WebSocket chat, WebRTC data channel loopback, service worker, paused med
 audio, microphone call, download). The chat server sends a message every 10 s, pings
 every 5 s and drops a client it has not heard from for 30 s, as chat servers do.
 
-### Guards (E2): 123 of 123 freeze attempts blocked
+### Guards (E2): every freeze attempt during audio, a call or a download was blocked
 
 Attempts go through the lab daemon's direct-request path (`iclear freeze`), which skips
 the idle and tier checks but never a guard.
@@ -76,7 +76,7 @@ the idle and tier checks but never a guard.
 | Chrome tab playing audio | 20 | 20 | 0 | `SKIP_AUDIO_ACTIVE` 9/20 (all 20 also blocked by `SKIP_POWER_ASSERTION`) |
 | Chrome tab in a call (microphone) | 20 | 20 | 0 | `SKIP_MIC_ACTIVE` 18/20, `SKIP_AUDIO_RECENT` 14/20 (all 20 also `SKIP_POWER_ASSERTION`) |
 | Chrome download (200 MB over 90 s) | 40 | 40 | 0 | `SKIP_POWER_ASSERTION` 40/40, `SKIP_WRITE_RECENT` 40/40 |
-| Player within the 1-minute audio cooldown | 3 | 3 | 0 | `SKIP_AUDIO_ACTIVE` 1, `SKIP_AUDIO_RECENT` 1 (see below) |
+| Player within the 1-minute audio cooldown (re-run, fresh daemon home) | 3 | 3 | 0 | `SKIP_AUDIO_RECENT` 3/3; allowed 70 s after the audio stopped, as configured |
 
 Findings, each fixed with a test:
 
@@ -91,10 +91,11 @@ Findings, each fixed with a test:
 - With two copies of an app running (the lab's Chrome and the owner's), launchd-parented
   helpers such as Chrome's crash handler were claimed by both copies, which hid the lab's
   copy from the scope-locked daemon (`launchdHelpersJoinOnlyASingleCopy`, commit c50fdb3).
-- The cooldown row: the media simulator had been quarantined in an earlier, interrupted
-  run (it was killed right after a resume, which the health check treats as a crash),
-  so the "allowed after the cooldown" step could not be shown. The lab now starts each
-  run with a fresh daemon home; the player part is re-run below.
+- The cooldown row comes from a re-run of the player part: in the first full run the
+  media simulator was still quarantined from an earlier, interrupted run (it had been
+  killed right after a resume, which the health check treats as a crash). The lab now
+  starts each run with a fresh daemon home. The re-run's player-playing row matched the
+  first run: 20/20 blocked with `SKIP_AUDIO_ACTIVE`.
 
 ### What a pause does (E1, E3)
 
@@ -145,9 +146,14 @@ writes, lock files), so the lab paused it directly to measure the effect of a pa
 `kill -9` of a scope-locked lab daemon while all four real-app fixtures (Chrome, VS Code,
 TextEdit, Preview) were frozen: **100/100** trials had every fixture running again,
 recovery p50 76.3 ms, p95 80.4 ms, p99 83.3 ms, max 88.4 ms (N=100; on battery,
-thermal nominal). The 50 trials with an active stash did not arm in the first run (the
-lab refreshed its registry only when each daemon started, and Chrome's new helpers left
-it out of scope); they are re-run with a registry refresh every second.
+thermal nominal). With an active stash (Chrome, VS Code and two lab GUI apps; TextEdit and Preview are
+system apps, which iClear never pauses or stashes): **50/50** trials had every app
+running again and unhidden within 2 s, p50 84.9 ms, p95 94.5 ms, p99 97.7 ms, max
+97.7 ms. In 4 of the 50 trials Chrome was kept out of the stash by the planner (Chrome
+holds a power assertion for a few seconds after it starts), so 3 apps were stashed;
+they recovered like the rest. A first attempt had not armed any stash: the lab refreshed
+its registry only when each daemon started, and Chrome's new helpers left Chrome out of
+the scope lock; the registry is now refreshed every second.
 
 ## Reclaim on real apps (§8.4 item 3)
 
@@ -167,3 +173,81 @@ The episodes are not independent: after a thaw, compressed or swapped pages stay
 RAM until the app touches them (10 s after thaw the apps were still at their reduced
 size), so later episodes found the apps already small. What frozen apps give back
 depends on real pressure: at "normal" pressure macOS reclaims little from them.
+
+## Paired runs (C8)
+
+Each pair runs the probe for 20 s with the shield's level-1 action (the background
+priority band on the competing processes) and 20 s without it, in alternating order,
+under 2 × 12 spinning processes. Reported: the probe's p99, the 95% bootstrap interval of
+the median paired reduction, and a side-effect probe (the probe's own p50).
+
+**Anti-Beachball mitigation (N = 30 pairs, on battery 50-60%, thermal nominal):** median
+p99 reduction **−3.4%** (95% interval −7.6% to −1.7%: the band made the UI probe slightly
+*worse*); off p99 median 0.93 ms, on 1.02 ms; side-effect probe +25.9%. The rule needs a
+≥ 25% reduction with the interval excluding 0: **not met, ships off.** As spike f found,
+CPU contention does not stall a main thread at default priority on this Mac.
+
+**Call Mode (N = 20 pairs, Accessibility on, battery 49%, thermal nominal):** median
+p99 reduction of the call probe's timer jitter **71.2%** (95% interval 24.7% to 83.1%);
+off p99 median 0.322 ms, on 0.083 ms. The effect clears the ≥ 20% bar, but the
+side-effect probe (the same timer's p50) went from 0.007 ms to 0.015 ms (+100%), and the
+competing work fell from 10.6 to 5.2 cores. The rule allows no side-effect probe to
+regress by more than 5%: **not met, Call Mode ships off.** In absolute terms the call's
+10 ms timer stayed within 0.33 ms (p99) under 24 competing processes even without Call
+Mode. A first run used a probe bug (`ic-call-sim` counted one coalesced tick again on
+every later tick, reporting 10-100 ms "jitter"); it was discarded and the probe fixed
+(6b4ba83).
+
+## Stash and pop (C7)
+
+50 cycles, 4 apps (Chrome, VS Code, two lab GUI apps), each cycle making a different app
+frontmost first, Accessibility on, battery 50%, thermal nominal.
+
+| Measure | First run | After the fixes |
+|---|---|---|
+| Window bounds within 4 points | 350/350 windows, worst 0.0 pt | |
+| Previous frontmost app frontmost again | **47/50** | |
+| Apps left paused / hidden after pop | 0 / 0 | |
+| Post-pop hangs (no answer in 5 s) | 0 | |
+| New crash reports | 0 | |
+| Pop until every app is shown | p50 823 ms, p95 855 ms, p99 992 ms (N=50) | |
+
+The three misses: VS Code twice (it was frontmost before the stash and not again after
+pop; Electron takes a moment to come forward) and Chrome once (the planner had kept it
+out of that stash, and pop then put the popped apps in front of it). Fixed in 0b8844d:
+pop confirms the restored frontmost app and retries, and keeps the current app in front
+when the stash did not include the front app. Two other defects found here and fixed
+before the run above, each with a test: hiding the frontmost app first let macOS activate
+an app still waiting to be stashed, which popped it again (03f2986), and the lab's
+registry missed VS Code's launchd-started crash handler.
+
+## Unsaved-changes signal (spike g, F7)
+
+With Accessibility granted, `UnsavedWork.check` (the window `AXEdited` attribute) gave
+**no signal** for any lab app: Chrome, VS Code, TextEdit and Preview, 5 readings each,
+including TextEdit after its document was edited through Accessibility. The signal is
+not reliable on this Mac, so F7 stays as built: a stash reports an app's unsaved state as
+"unknown" and stashes it with that note (`keepListUnsavedAndSharedWindows`). Pausing does
+not discard unsaved work; it stays in the paused app's memory.
+
+## Soak on real apps (C1, C3, C4, C5, C6)
+
+Four real apps at once (Chrome, VS Code, TextEdit, Preview), freeze holds log-uniform
+0.2-20 s, Accessibility on, battery 40-50%, thermal nominal; the second hundred cycles
+with 8,192 MB (45% of RAM) of incompressible memory held, pressure "warning".
+
+| App | Type | Cycles | Under pressure | Hangs (no answer in 5 s) | Left stopped | Document changes | New crash reports | Thaw to responsive, no induced pressure | Under induced pressure |
+|---|---|---|---|---|---|---|---|---|---|
+| Google Chrome | Chromium | 297 | 100 | 0 | 0 | 0 | 0 | p50 3.9, p95 6.3, p99 9.9, max 14.4 ms (N=197) | p50 3.8, p95 5.1, p99 7.0, max 35.2 ms (N=100) |
+| Visual Studio Code | Electron | 300 | 100 | 0 | 0 | 0 | 0 | p50 4.0, p95 5.1, p99 6.6, max 10.2 ms (N=200) | p50 3.8, p95 4.9, p99 5.5, max 5.9 ms (N=100) |
+| TextEdit | native | 300 | 100 | 0 | 0 | 0 | 0 | p50 3.7, p95 4.4, p99 11.9, max 35.1 ms (N=200) | p50 3.7, p95 4.7, p99 34.9, max 35.0 ms (N=100) |
+| Preview | native | 300 | 100 | 0 | 0 | 0 | 0 | p50 3.5, p95 4.5, p99 12.3, max 34.1 ms (N=200) | p50 3.7, p95 4.6, p99 5.4, max 5.5 ms (N=100) |
+
+- Chrome completed 297 cycles: 3 freezes were refused by the lab's scope lock, because
+  Chrome started a helper between the lab's two readings of its process tree (a harness
+  race, fixed in 11453e6). A clean re-run follows below.
+- TextEdit and Preview are system apps, which iClear itself never pauses; the lab
+  paused them directly to test the mechanism on native apps.
+- "Under induced pressure" means the cycles ran while the lab held 8 GB at "warning"
+  pressure; whether each app's memory had been compressed before its thaw was not
+  checked per cycle (the reclaim episodes above show it is at "warning").

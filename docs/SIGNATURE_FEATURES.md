@@ -26,10 +26,10 @@ results are in [VALIDATION.md](VALIDATION.md).
 | F1 | Workspace Stash (`iclear stash`, `iclear pop`) | **on** (only when you ask) | A user command; hard blocks for audio, microphone, power assertions and call apps on camera; lab stash/pop cycles in VALIDATION.md |
 | F2 | `iclear selftest` | **on** | Uses only its own test processes |
 | F3 | Battery estimates (`iclear battery`) | estimates shown, labelled "estimate" with a range; **target mode experimental and off** | No valid unplugged trial set exists (C9 needs 3 × 30 min); the one valid short trial is not evidence |
-| F4 | Call Mode | **off** | Ships on only if C8 is met; see VALIDATION.md |
-| F5 | Anti-Beachball | forensics **on** (needs Accessibility); mitigation **off** | Mitigation ships on only if C8 is met; CPU contention did not stall the UI thread in spike f |
+| F4 | Call Mode | **off** | C8 not met: p99 jitter −71% (95% interval 25-83%) but the side-effect probe +100% and competing work halved; the call timer stayed within 0.33 ms without it |
+| F5 | Anti-Beachball | forensics **on** (needs Accessibility); mitigation **off** | C8 not met: N = 30 pairs, median p99 change −3.4% (95% interval −7.6% to −1.7%), side-effect probe +25.9% |
 | F6 | `iclear before <app>` | **on** | Refuses with fewer than 30 samples of the app on this Mac |
-| F7 | Unsaved-changes guard in stash | used when the app reports it through Accessibility; otherwise "unknown" and the stash notes it | Spike g needs Accessibility; see VALIDATION.md |
+| F7 | Unsaved-changes guard in stash | reported as "unknown" and noted in the stash; an app that reports `AXEdited` is blocked unless `--force-unsaved` | Spike g with Accessibility: no signal from Chrome, VS Code, TextEdit or Preview, even after an edit; pausing keeps unsaved work in memory |
 | - | Thermal shield | **off** | Not tested: the lab cannot make the Mac hot safely |
 | - | App classes (COMM, MEDIA, BROWSER) | **on**: chat, mail, calendar and media apps Tier S; 10-minute audio cooldown; browsers wait twice as long | Side-effect lab in VALIDATION.md; `iclear compat <app>` explains each app |
 

@@ -123,7 +123,8 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | 1.0 #1 Restoration records (priority band, hidden state) | `restorationsKeepTheOriginalValueAndOnlyUndoChanges`, `backgroundBandIsJournaledAndRestored` |
 | 1.0 #2 Stashes never outlive the daemon | `staleStashIsDroppedOnStart`, `powerOffResumesStashesAndFreezes`, `daemonKilledMidPopRecoversTheRest`; lab `crash` (stash trials) |
 | 1.0 #3 Disk headroom before a stash | `refusesWithoutDiskHeadroom` |
-| 1.0 #4 Call apps never paused during a call | `hardBlocksCannotBeOverridden`, `callModeLowersOthersAndRestoresWithinTwoSeconds` |
+| 1.0 #4 Call apps never paused during a call | `hardBlocksCannotBeOverridden`, `callModeLowersOthersAndRestoresWithinTwoSeconds`, `microphoneAndFlickerKeepTheCooldown`; lab `sideeffects` (E2) |
+| 1.0 #6 Lab work stays in its lab | `scopeLockRefusesUnregisteredProcesses`, `everyCommandRunsThroughTheCLI` |
 | 1.0 #5 Estimates self-disarm | `receiptsDisarmUnreliableEstimates`, `disarmsWhenItDoesNotHelp` |
 
 ## Red team (1.0)
@@ -141,4 +142,9 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | Battery target with an app that keeps waking | never paused twice in one target | `targetNeverPausesAnAppTwice` |
 | Priority band after a daemon crash | restored by recovery | `backgroundBandIsJournaledAndRestored` |
 | Migration with a half-written old journal | stops, nothing moved | `halfWrittenOldJournal` |
+| Direct freeze request with stale signals (side-effect lab) | uses the app's state when the request arrives | `freezeRequestUsesCurrentSignals` |
+| Audio or microphone reading that flickers (side-effect lab, Chrome) | three readings combined; cooldown from the first silent reading, microphone included | `microphoneAndFlickerKeepTheCooldown`, `audioCooldown` |
+| Two copies of an app with launchd-started helpers (side-effect lab) | helpers join only a single copy | `launchdHelpersJoinOnlyASingleCopy` |
+| Stash hides the frontmost app and macOS activates a stashed one (stash lab) | hidden back to front; activations in the first 2 s ignored | `activationPopsOnlyThatApp` (settle window), lab `stash` |
+| Exited test process keeps a pipe handler spinning (paired-run lab) | handler removed at end of file | `exitedTestProcessStopsReading` |
 | Accessibility revoked mid-run | unsaved state becomes "unknown" (stash still pauses, with a note); the stall probe stops | `keepListUnsavedAndSharedWindows` (unknown path); the revocation itself is **NOT TESTED** (needs a TCC change) |
