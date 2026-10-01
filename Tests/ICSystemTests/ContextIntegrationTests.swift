@@ -148,6 +148,50 @@ import Testing
         #expect(Daemon.gitBranch(root.appendingPathComponent("repo/detached").path) == nil)
     }
 
+    /// L6: a quit request needs the preview first and then `--yes`; it is the app's own
+    /// Quit (the app decides), and only apps in the growth list can be asked.
+    @Test func leakQuitNeedsPreviewAndConfirmation() throws {
+        let paths = tempHome()
+        let fx = try fixtures(["LeakA"], in: paths)
+        defer { for f in fx { f.kill() } }
+        let (d, _) = try daemon(fx, paths, rules: [])
+        defer { d.shutdown() }
+        let now = Date().timeIntervalSince1970
+        d.footprints.samples[fx[0].id] = stride(from: now - 3 * 3600, through: now, by: 60).map {
+            FootprintSample(t: $0, mb: 400 + 60 * ($0 - now + 3 * 3600) / 3600, active: false)
+        }
+        d.footprints.names[fx[0].id] = "LeakA"
+        let list = d.handle(Request("leaks"))
+        #expect(list.ok && list.text.contains("LeakA: growth of 60 MB/h"), "\(list.text)")
+        #expect(list.text.contains("A trend, not a diagnosis."))
+        let preview = d.handle(Request("leaks", value: #"{"quit":"LeakA"}"#))
+        #expect(preview.ok && preview.text.contains("Would ask LeakA to quit") && preview.text.contains("--yes"))
+        func alive() -> Bool { kill(fx[0].pid, 0) == 0 }
+        #expect(alive())
+        #expect(!d.handle(Request("leaks", value: #"{"quit":"NotListed","yes":true}"#)).ok)
+        let r = d.handle(Request("leaks", value: #"{"quit":"LeakA","yes":true}"#))
+        #expect(r.ok, "\(r.text)")
+        #expect(eventually { !alive() })
+    }
+
+    /// Leak notifications are off by default; when on, at most one per app per day.
+    @Test func leakNotificationsOncePerDay() throws {
+        let paths = tempHome()
+        let (d, _) = try daemon([], paths, rules: [])
+        defer { d.shutdown() }
+        let now = d.clock()
+        d.footprints.samples["com.example.grower"] = stride(from: now - 3 * 3600, through: now, by: 60).map {
+            FootprintSample(t: $0, mb: 400 + 60 * ($0 - now + 3 * 3600) / 3600, active: false)
+        }
+        func count() -> Int { d.events.filter { $0.title.hasSuffix("keeps growing") }.count }
+        d.leaksTick(now: now)
+        #expect(count() == 0)
+        d.engine.config.leaks.notify = true
+        d.leaksTick(now: now)
+        d.leaksTick(now: now + 700)
+        #expect(count() == 1)
+    }
+
     @Test func hooksAndCommands() throws {
         for shell in ["zsh", "bash", "fish", "git"] {
             let r = run("iclear", ["hook", shell])

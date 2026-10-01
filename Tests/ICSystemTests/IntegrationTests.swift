@@ -574,6 +574,8 @@ import Testing
             "URLSession", "NWConnection", "NWListener", "AF_INET", "CFSocketCreate", "http://", "https://",
             "SMJobBless", "AuthorizationExecuteWithPrivileges", "setuid(", "seteuid(", "task_for_pid",
             "memorystatus_control", "pid_suspend",
+            // L6: a quit request is the app's own Quit; product code never force-quits an app.
+            "forceTerminate",
         ]
         var hits: [String] = []
         for dir in ["ICCore", "ICSystem", "icleard", "iclear", "iClearMenu"] {

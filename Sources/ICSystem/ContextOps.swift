@@ -282,7 +282,7 @@ extension Daemon {
     }
 
     func leaksReport(quit: String?, confirm: Bool) -> Response {
-        let now = Date().timeIntervalSince1970
+        let now = clock()
         let found = footprints.findings(now: now, settings: engine.config.leaks)
         if let quit {
             guard let f = found.first(where: { $0.appID.lowercased() == quit.lowercased() || $0.name.lowercased() == quit.lowercased() }),

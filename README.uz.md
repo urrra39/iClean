@@ -82,6 +82,43 @@ fonda tez-tez uyg'onib turadi.
 
 Har birining holati va dalillari: [SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md).
 
+## v1.1 uchun ishlab chiqilmoqda (chiqarilmagan, tasdiqlanmagan)
+
+Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](docs/RELEASE_CRITERIA.md),
+4-bosqich) 7 kunlik soak tugagandan keyin boshlanadi; ungacha faqat
+[FEASIBILITY.md](docs/FEASIBILITY.md#11-spikes-2026-10-02) dagi dastlabki tajribalar o'lchangan.
+
+- **Auto-Context Stash** (`iclear hook zsh|bash|fish`, `iclear context add | list |
+  remove | status | pause | resume | undo | suggest`). Kichik shell hook iClear'ga
+  terminalingiz qaysi papkada ekanini aytadi. Boshqa loyihada 20 soniya o'tgach, iClear
+  bitta almashtirishni *taklif qiladi*: tark etilgan loyiha ilovalarini yashiradi
+  (`context:<nom>` sifatida) va yangi loyiha ilovalarini qaytaradi. Ikkala loyiha
+  ishlatadigan ilovalar, shuningdek pauza qilib bo'lmaydigan ilovalar (audio, mikrofon,
+  qo'ng'iroq) ishlashda davom etadi; qat'iy to'siq (masalan, diskda joy yetmasligi)
+  butun almashtirishni to'xtatadi. Avtomatik almashtirish har bir kontekst uchun alohida
+  yoqiladi va faqat Faol rejimda ishlaydi; Kuzatish rejimi faqat "almashtirgan bo'lardi"
+  deb yozadi. Loyiha ichidagi ko'chishlar, `cd ~` va `/tmp` almashtirmaydi; har bir
+  almashtirishdan keyin 5 daqiqalik tanaffus bor; `iclear context undo` oxirgisini bekor
+  qiladi. Almashtirish bir zumda bo'lmaydi: taxminan qaytarish (pop) qancha vaqt olsa,
+  shuncha oladi (1.0 laboratoriyasida p50 1.34 s). Cheklovlar: faqat terminallarni
+  ko'radi, shuning uchun faqat IDE ichida qilingan ish ko'rinmaydi; turli loyihalardagi
+  terminallar kutish vaqti ichida xabar bersa, joriy kontekst o'zgarmaydi; fish, tmux
+  va boshqa multiplekserlar sinalmagan. Dastlabki tajribada hook har bir papka
+  almashishiga taxminan 1-2 ms qo'shdi (zsh va bash).
+- **Xotira o'sishi tendensiyasi** (`iclear leaks`; menyuda: O'sish). Har bir ilovaning
+  xotira hajmini daqiqasiga bir marta o'lchaydi va ilova ishlatilmayotganda (oxirgi 10
+  daqiqada oldingi planda bo'lmagan) barqaror o'sishni kamida 2 soat va 12 o'lchovdan
+  keyin xabar qiladi: "soatiga X MB o'sish (oraliq), shu tezlikda HH:MM atrofida Y GB",
+  ishonch darajasi bilan. Bu tendensiya, xotira oqishi tashxisi emas: keshlar va loglar
+  ham o'sadi. Bir martalik sakrash (hujjat ochilgan) va to'lib-bo'shaydigan keshlar
+  xabar qilinmaydi. Xotira bosimi bilan faqat tizim prognozi orqali bog'lanadi va u
+  "taxmin" deb belgilanadi. Tarix xotirada saqlanadi va daemon qayta ishga tushganda
+  qaytadan boshlanadi. Bildirishnomalar o'chirilgan va yolg'on signal tekshiruvi (L5)
+  o'tmaguncha o'chiq qoladi. `iclear leaks quit <ilova>` avval nima bo'lishini
+  ko'rsatadi; `--yes` bilan ilovadan o'zining Quit buyrug'i orqali yopilishni so'raydi
+  va uni majburan yopmaydi. "Tozalash" tugmasi yo'q: macOS'da boshqa ilovani xotira
+  bo'shatishga yoki axlat yig'ishga majburlash usuli yo'q.
+
 ## Ma'lum yon ta'sirlar
 
 Pauza ilovaga nima qilishi simulyatorlar va mahalliy sahifalardagi Chrome bilan
