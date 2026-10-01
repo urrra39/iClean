@@ -32,6 +32,8 @@ final class Soak {
     var probes: [GUIFixture] = []
     var stashUntil: Double?
     var stashName = ""
+    /// About one stash/pop every 12 minutes; freeze/thaw cycles run in between.
+    var nextStash = Date().timeIntervalSince1970 + 300
     var lastTick = Date().timeIntervalSince1970
     var cpuMark: [Int32: (cpu: UInt64, t: Double)] = [:]
     var running = true
@@ -154,8 +156,10 @@ final class Soak {
                 log("pop \(stashName): \(r?.text ?? "no answer")")
             }
             stashUntil = nil
+            nextStash = now + 720
             return
         }
+        guard now >= nextStash else { return }
         stashName = "soak\(Int(now))"
         // Fixtures are hidden, so the stash only pauses them and pop changes nothing on screen.
         let r = ask("stash", app: stashName, value: "{}")
@@ -165,6 +169,7 @@ final class Soak {
             day.stashFailures += 1
             log("stash: \(r?.text.split(separator: "\n").first ?? "no answer")")
             _ = ask("pop", app: stashName)
+            nextStash = now + 720
         }
     }
 
