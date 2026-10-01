@@ -21,15 +21,16 @@ var buffers = 0
 
 let q = DispatchQueue(label: "call-sim", qos: .userInteractive)
 let timer = DispatchSource.makeTimerSource(flags: .strict, queue: q)
-var expected = now() + 10_000_000
+// Jitter is how far each interval between ticks is from 10 ms. (Lateness against a fixed
+// schedule would count one missed tick again on every later tick.)
+var last: UInt64 = 0
 timer.schedule(deadline: .now() + .milliseconds(10), repeating: .milliseconds(10), leeway: .nanoseconds(0))
 timer.setEventHandler {
     let t = now()
     lock.lock()
-    jitter.append(abs(Double(Int64(t) - Int64(expected))) / 1e6)
+    if last > 0 { jitter.append(abs(Double(Int64(t) - Int64(last)) / 1e6 - 10)) }
     lock.unlock()
-    expected += 10_000_000
-    if t > expected + 100_000_000 { expected = t + 10_000_000 }  // resync after a long gap
+    last = t
 }
 timer.resume()
 

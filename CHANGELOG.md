@@ -40,6 +40,19 @@
   ⌃⌥⌘S / ⌃⌥⌘P stash and pop when `stash.hotkeys` is on.
 - `ICLEAR_LAB=1` (scope lock) and `ICLEAR_OBSERVE_ONLY=1` for lab and observation
   instances.
+- **App classes** and `iclear compat <app>`: chat, mail, calendar and media apps are
+  Tier S by default; no app is paused while it plays audio or uses the microphone, or
+  for `audioCooldownMinutes` (10) after; browsers wait `browserIdleFactor` (2×) longer
+  and need wake windows of at least 30 s. Rule packs in `packaging/rules/`.
+- Fixed, found by the side-effect lab: a direct `iclear freeze` used audio and
+  microphone readings up to 30 s old; Chrome's audio and microphone readings flicker
+  between samples (now three readings are combined and the cooldown starts at the first
+  silent one); with two copies of an app running, launchd-started helpers were claimed
+  by both; `iclear pop --all` with nothing stashed reported an error.
+- Fixed: test processes started by the selftest and lab kept a CPU core busy after they
+  exited (a pipe handler spun at end of file).
+- Release criteria amended once by owner decision (DECISIONS.md #36): the 7-day soak is
+  reported after release, and a side-effect gate is required for 1.0.0.
 
 ## 0.1.0 (beta)
 
