@@ -56,3 +56,7 @@
 "battery.estimate" = "(taxmin)";
 "battery.uncalibrated" = "(taxmin, hali kalibrlanmagan)";
 "battery.unreliable" = "(taxmin, bu Mac'da ishonchsiz)";
+"context.suggest" = "%@ ga o'tilsinmi? Joriy loyiha ilovalari yashiriladi.";
+"context.accept" = "O'tish";
+"context.dismiss" = "Hozir emas";
+"leaks" = "O'sish";

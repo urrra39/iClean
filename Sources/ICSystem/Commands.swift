@@ -22,6 +22,9 @@ public struct Status: Codable, Sendable {
     public var observeSince: Double
     public var recentPressure: [Int]
     public var recentSwapMB: [Double]
+    /// Auto-Context: the current context and a switch waiting for the user.
+    public var context: String?
+    public var contextSuggested: String?
 }
 
 extension Daemon {
@@ -50,7 +53,8 @@ extension Daemon {
             deprioritized: engine.state.deprioritized.keys.sorted(), lastAction: engine.state.lastAction,
             configError: configError, quarantined: engine.state.quarantine.values.sorted { $0.at < $1.at },
             observeSince: engine.state.startedAt,
-            recentPressure: engine.recent.map(\.pressure.rawValue), recentSwapMB: engine.recent.map(\.swapUsedMB))
+            recentPressure: engine.recent.map(\.pressure.rawValue), recentSwapMB: engine.recent.map(\.swapUsedMB),
+            context: contextState.current, contextSuggested: contextState.suggested)
     }
 
     public func statusText() -> String {

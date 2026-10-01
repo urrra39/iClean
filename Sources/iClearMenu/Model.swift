@@ -109,6 +109,8 @@ final class Model: ObservableObject {
     func neverFreeze(_ id: String) { run("deny", app: id) }
     func undo() { run("undo") }
     func setMode(_ m: Mode) { run("mode", value: m.rawValue) }
+    func acceptContext() { run("context", app: "accept") }
+    func dismissContext() { run("context", app: "dismiss") }
     func setProfile(_ p: String) { run("profile", value: p) }
 
     func show(_ cmd: String, title: String) {

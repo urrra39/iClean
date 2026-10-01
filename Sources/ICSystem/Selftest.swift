@@ -205,30 +205,34 @@ public enum Selftest {
             )
         }
 
-        check("stash/pop (isolated daemon)") {
-            guard let f = gui, let id = f.identity else { return (.skip, "no GUI fixture", 0) }
-            let paths = Paths(environment: ["ICLEAR_HOME": home.appendingPathComponent("stash").path, "ICLEAR_INSTANCE": "selftest"])
+        /// icleard in its own home, scope-locked to `registry` (it can signal nothing else).
+        func isolatedDaemon(_ dir: String, registry: [ProcessIdentity], config: Config? = nil) -> (Process, Paths)? {
+            let paths = Paths(environment: ["ICLEAR_HOME": home.appendingPathComponent(dir).path, "ICLEAR_INSTANCE": "selftest"])
             try? paths.ensure()
-            try? JSONEncoder().encode([id]).write(to: paths.labRegistry)
+            try? JSONEncoder().encode(registry).write(to: paths.labRegistry)
+            if let config { try? config.encoded().write(to: paths.config) }
             let d = Process()
             d.executableURL = URL(fileURLWithPath: tool("icleard"))
             d.environment = ProcessInfo.processInfo.environment.merging(
                 ["ICLEAR_HOME": paths.home.path, "ICLEAR_INSTANCE": "selftest", "ICLEAR_LAB": "1"]) { _, n in n }
             d.standardError = FileHandle.nullDevice
-            guard (try? d.run()) != nil else { return (.fail, "could not start icleard", 0) }
+            guard (try? d.run()) != nil else { return nil }
+            for _ in 0..<100 {
+                if IPC.send(Request("ping"), path: paths.socket.path, timeout: 1)?.ok == true { return (d, paths) }
+                usleep(50_000)
+            }
+            d.terminate()
+            d.waitUntilExit()
+            return nil
+        }
+
+        check("stash/pop (isolated daemon)") {
+            guard let f = gui, let id = f.identity else { return (.skip, "no GUI fixture", 0) }
+            guard let (d, paths) = isolatedDaemon("stash", registry: [id]) else { return (.fail, "isolated daemon did not start", 0) }
             defer {
                 d.terminate()
                 d.waitUntilExit()
             }
-            var up = false
-            for _ in 0..<100 {
-                if IPC.send(Request("ping"), path: paths.socket.path, timeout: 1)?.ok == true {
-                    up = true
-                    break
-                }
-                usleep(50_000)
-            }
-            guard up else { return (.fail, "isolated daemon did not answer", 0) }
             var ok = 0
             var firstProblem: String?
             let n = quick ? 1 : 10
@@ -256,6 +260,83 @@ public enum Selftest {
                 }
             }
             return (ok == n ? .pass : .fail, "\(ok)/\(n) stash and pop cycles" + (firstProblem.map { "; first problem: \($0)" } ?? ""), n)
+        }
+
+        check("context switch (isolated)") {
+            guard let a = gui, let aID = a.identity,
+                let b = try? GUIFixture(probe: tool("ic-ui-probe"), dir: home, name: "SelftestProbeB", frame: "560,160,360,220"),
+                let bID = b.identity
+            else { return (.skip, "no GUI fixtures", 0) }
+            defer { b.kill() }
+            var config = Config()
+            config.contexts = [
+                ContextRule(name: "one", path: "/opt/iclear-selftest/one", apps: [a.id]),
+                ContextRule(name: "two", path: "/opt/iclear-selftest/two", apps: [b.id]),
+            ]
+            guard let (d, paths) = isolatedDaemon("context", registry: [aID, bID], config: config) else {
+                return (.fail, "isolated daemon did not start", 0)
+            }
+            defer {
+                d.terminate()
+                d.waitUntilExit()
+            }
+            func ask(_ sub: String, _ name: String? = nil) -> Bool {
+                let v = name.map { #"{"name":"\#($0)"}"# }
+                return IPC.send(Request("context", app: sub, value: v), path: paths.socket.path, timeout: 20)?.ok == true
+            }
+            func paused(_ f: GUIFixture) -> Bool { Proc.bsdInfo(f.pid)?.pbi_status == UInt32(SSTOP) && f.isHidden }
+            func running(_ f: GUIFixture) -> Bool { Proc.bsdInfo(f.pid)?.pbi_status != UInt32(SSTOP) && !f.isHidden }
+            func within(_ seconds: Double, _ cond: () -> Bool) -> Bool {
+                let end = Date().addingTimeInterval(seconds)
+                while Date() < end {
+                    if cond() { return true }
+                    usleep(20_000)
+                }
+                return cond()
+            }
+            guard ask("switch", "one") else { return (.fail, "could not enter the first context", 0) }
+            var ok = 0
+            var firstProblem: String?
+            let n = quick ? 1 : 5
+            for _ in 0..<n {
+                let toTwo = ask("switch", "two") && within(3) { paused(a) && running(b) }
+                let back = ask("switch", "one") && within(3) { running(a) && paused(b) }
+                if toTwo && back {
+                    ok += 1
+                } else if firstProblem == nil {
+                    firstProblem =
+                        toTwo ? "switching back did not restore the first group" : "the first switch did not stash and show the right apps"
+                }
+            }
+            _ = IPC.send(Request("pop", app: "context:two"), path: paths.socket.path, timeout: 20)
+            let clean = within(3) { running(a) && running(b) }
+            return (
+                ok == n && clean ? .pass : .fail,
+                "\(ok)/\(n) round trips between two contexts" + (clean ? "" : "; apps not all running at the end")
+                    + (firstProblem.map { "; first problem: \($0)" } ?? ""), n
+            )
+        }
+
+        check("leak trend (synthetic)") {
+            // Three hours at one sample a minute: steady growth is found with a rate near
+            // the true one; flat noise, one step and a sawtooth cache are not.
+            func series(_ f: (Double) -> Double) -> [FootprintSample] {
+                stride(from: 0.0, through: 3 * 3600, by: 60).map { FootprintSample(t: $0, mb: f($0 / 3600), active: false) }
+            }
+            let wiggle = { (h: Double) in 20 * sin(h * 41) }
+            let grow = LeakTrend.analyze(
+                appID: "g", name: "G", samples: series { 600 + 80 * $0 + wiggle($0) }, now: 3 * 3600, settings: LeakSettings())
+            let quiet = [
+                series { 900 + wiggle($0) }, series { $0 < 1.5 ? 500 : 900 },
+                series { 400 + 300 * ($0 * 2).truncatingRemainder(dividingBy: 1) },
+            ]
+            .filter { LeakTrend.analyze(appID: "q", name: "Q", samples: $0, now: 3 * 3600, settings: LeakSettings()) != nil }
+            let rate = grow?.rateMBPerHour ?? 0
+            let ok = abs(rate - 80) <= 20 && quiet.isEmpty
+            return (
+                ok ? .pass : .fail,
+                String(format: "growth of 80 MB/h found at %.0f MB/h; %d of 3 non-growing series flagged", rate, quiet.count), 4
+            )
         }
 
         check("pressure sensor") {

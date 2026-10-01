@@ -205,7 +205,8 @@ extension Daemon {
             return Response(ok: false, text: "No context \(to).")
         }
         let fromRule = engine.config.contexts.first { $0.name == contextState.current }
-        let plan = ContextPlanner.plan(from: fromRule, to: rule, running: lastApps)
+        // A fresh snapshot: the last sample can be up to one interval old.
+        let plan = ContextPlanner.plan(from: fromRule, to: rule, running: visibleApps(probe.collect(now: clock()).apps))
         var lines: [String] = []
         var stashed: [String] = []
         if let fromRule, !plan.stash.isEmpty {
@@ -214,6 +215,12 @@ extension Daemon {
                 _ = pop(fromRule.stashName, restoreFocus: false, reason: Code.thawUser)
             }
             let r = stash(fromRule.stashName, options: StashOptions(only: plan.stash))
+            if !r.ok {
+                // One transaction: a hard block (or a journal error) stops the whole switch.
+                // Apps that only have to stay running (a call, audio) do not.
+                let refusal = r.data.flatMap { try? JSONDecoder().decode(StashPlan.self, from: Data($0.utf8)) }?.refusal
+                if refusal != "nothing to stash" { return Response(ok: false, text: "Did not switch to \(to).\n" + r.text) }
+            }
             lines.append(r.text.split(separator: "\n").first.map(String.init) ?? "")
             if r.ok { stashed = journal.read().stashes.first { $0.name == fromRule.stashName }?.apps.map(\.appID) ?? [] }
         }

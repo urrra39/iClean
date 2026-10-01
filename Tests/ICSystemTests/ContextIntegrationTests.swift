@@ -57,6 +57,28 @@ import Testing
         #expect(d.journal.read().isEmpty)
     }
 
+    /// A switch is one transaction: when the leaving group's stash is refused (here: too
+    /// little disk for the paused memory), the new group stays stashed and nothing moves.
+    @Test func hardBlockStopsTheSwitch() throws {
+        let paths = tempHome()
+        let fx = try fixtures(["CtxG", "CtxH"], in: paths)
+        defer { for f in fx { f.kill() } }
+        let rules = [ContextRule(name: "one", path: "~/one", apps: [fx[0].id]), ContextRule(name: "two", path: "~/two", apps: [fx[1].id])]
+        let (d, probe) = try daemon(fx, paths, rules: rules)
+        defer { d.shutdown() }
+        #expect(d.stash("context:two", options: StashOptions(only: [fx[1].id])).ok)
+        #expect(eventually { paused(fx[1]) && running(fx[0]) })
+        d.contextState.current = "one"
+        probe.freeDiskGB = 0.5
+        let r = d.handle(Request("context", app: "switch", value: #"{"name":"two"}"#))
+        #expect(!r.ok && r.text.contains("Did not switch"), "\(r.text)")
+        #expect(running(fx[0]) && paused(fx[1]) && d.contextState.current == "one")
+        #expect(d.journal.read().stashes.map(\.name) == ["context:two"])
+        probe.freeDiskGB = 100
+        _ = d.pop("context:two")
+        #expect(eventually { fx.allSatisfy(running) })
+    }
+
     /// X6: the daemon dies right after a switch stashed the leaving group; recovery (the
     /// next start or the watchdog) resumes and shows every app.
     @Test func crashAfterSwitchRecovers() throws {

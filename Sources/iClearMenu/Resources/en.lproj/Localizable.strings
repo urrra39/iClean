@@ -56,3 +56,7 @@
 "battery.estimate" = "(estimate)";
 "battery.uncalibrated" = "(estimate, not calibrated yet)";
 "battery.unreliable" = "(estimate, unreliable on this Mac)";
+"context.suggest" = "Switch to %@? The current project's apps are stashed.";
+"context.accept" = "Switch";
+"context.dismiss" = "Not now";
+"leaks" = "Growth";
