@@ -107,6 +107,9 @@ extension Daemon {
     }
 
     func setMode(_ m: Mode) -> Response {
+        if observeOnly, m == .active {
+            return Response(ok: false, text: "This instance is observe-only (ICLEAR_OBSERVE_ONLY=1) and cannot switch to Active.")
+        }
         var c = engine.config
         c.mode = m
         do {
@@ -233,6 +236,19 @@ extension Daemon {
         case "events":
             let since = Double(req.value ?? "0") ?? 0
             return Response(ok: true, text: "", data: encode(events.filter { $0.t > since }))
+        case "stash":
+            let opts = (req.value?.data(using: .utf8)).flatMap { try? JSONDecoder().decode(StashOptions.self, from: $0) } ?? StashOptions()
+            return stash(req.app ?? "", options: opts)
+        case "pop":
+            if let v = req.value, v.hasPrefix("app:") { return pop(req.app, app: String(v.dropFirst(4))) }
+            return pop(req.app ?? "all")
+        case "stashes":
+            return stashList()
+        case "stash-show":
+            return stashShow(req.app ?? "")
+        case "stash-drop":
+            // Dropping a stash never leaves apps paused: they are resumed without taking focus.
+            return pop(req.app ?? "", restoreFocus: false)
         case "reload":
             if let e = reloadConfig() { return Response(ok: false, text: "Config rejected, previous config kept:\n\(e)") }
             return Response(ok: true, text: "Config reloaded.")

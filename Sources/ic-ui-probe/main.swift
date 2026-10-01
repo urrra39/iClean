@@ -10,6 +10,8 @@ setvbuf(stdout, nil, _IOLBF, 0)
 var frame = NSRect(x: 200, y: 200, width: 420, height: 260)
 var title = "ic-ui-probe"
 var lockPath: String?
+var lifeline: pid_t?
+var heartbeat = false
 var it = CommandLine.arguments.dropFirst().makeIterator()
 while let a = it.next() {
     switch a {
@@ -18,6 +20,13 @@ while let a = it.next() {
         if v.count == 4 { frame = NSRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
     case "--title": title = it.next() ?? title
     case "--lock-poll": lockPath = it.next()  // take this flock on the main thread every 200 ms
+    case "--out":
+        if let p = it.next() {
+            freopen(p, "a", stdout)
+            setvbuf(stdout, nil, _IOLBF, 0)
+        }
+    case "--lifeline": lifeline = it.next().flatMap { pid_t($0) }  // exit when this process exits
+    case "--heartbeat": heartbeat = true  // print every 5 ms tick (short tests only)
     default:
         FileHandle.standardError.write(Data("unknown option \(a)\n".utf8))
         exit(2)
@@ -27,8 +36,9 @@ while let a = it.next() {
 let parent = getppid()
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
-let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                      backing: .buffered, defer: false)
+let window = NSWindow(
+    contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
+    backing: .buffered, defer: false)
 window.title = title
 window.setFrame(frame, display: true)
 window.makeKeyAndOrderFront(nil)
@@ -43,20 +53,24 @@ var lockFD: Int32 = -1
 if let p = lockPath { lockFD = open(p, O_RDWR | O_CREAT, 0o644) }
 let timer = Timer(timeInterval: 0.005, repeats: true) { _ in
     let t = now()
-    if getppid() != parent { exit(0) }  // never outlive the lab
+    // Never outlive the lab: exit with the parent, or with the lifeline process when
+    // started through LaunchServices (whose parent is launchd).
+    if let l = lifeline { if kill(l, 0) != 0 && errno == ESRCH { exit(0) } } else if getppid() != parent { exit(0) }
     let gap = Double(t - last) / 1e6 - 5
     last = t
     if gap > 0 { gaps.append(gap) }
     if gap >= 50 {
+        // Either a stall or a pause by SIGSTOP; whoever paused it knows which. The tick
+        // that ends the gap is when the main thread is responsive again.
         stalls += 1
-        print("stall \(Int(gap)) \(t)")
+        print("gap \(Int(gap)) \(t)")
     }
     if lockFD >= 0, t - lastLock > 200_000_000 {
         lastLock = t
         flock(lockFD, LOCK_EX)
         flock(lockFD, LOCK_UN)
     }
-    print("hb \(t)")
+    if heartbeat { print("hb \(t)") }
 }
 RunLoop.main.add(timer, forMode: .common)
 
@@ -66,7 +80,8 @@ let usr1 = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
 usr1.setEventHandler {
     let s = gaps.sorted()
     func p(_ q: Double) -> Double { s.isEmpty ? 0 : s[min(s.count - 1, Int(Double(s.count - 1) * q))] }
-    print(String(format: "stats n=%d p50=%.2f p95=%.2f p99=%.2f max=%.2f stalls=%d", s.count, p(0.5), p(0.95), p(0.99), s.last ?? 0, stalls))
+    print(
+        String(format: "stats n=%d p50=%.2f p95=%.2f p99=%.2f max=%.2f stalls=%d", s.count, p(0.5), p(0.95), p(0.99), s.last ?? 0, stalls))
     gaps.removeAll(keepingCapacity: true)
     stalls = 0
 }

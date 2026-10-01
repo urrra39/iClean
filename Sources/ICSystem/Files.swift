@@ -33,6 +33,8 @@ public struct Paths: Sendable {
     public var socket: URL { base.appendingPathComponent("icleard.sock") }
     public var lock: URL { base.appendingPathComponent("icleard.lock") }
     public var hardware: URL { base.appendingPathComponent("hardware.json") }
+    /// Lab mode only: identities of the processes the lab harness registered.
+    public var labRegistry: URL { base.appendingPathComponent("lab-registry.json") }
 
     public func ensure() throws {
         try FileManager.default.createDirectory(
@@ -124,7 +126,7 @@ public final class JournalStore: @unchecked Sendable {
         defer { lock.unlock() }
         var j = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
         body(&j)
-        if j.entries.isEmpty {
+        if j.isEmpty {
             try? FileManager.default.removeItem(at: url)
         } else {
             try Files.writeJSON(j, to: url)

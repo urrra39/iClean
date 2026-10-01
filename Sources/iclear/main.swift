@@ -71,6 +71,9 @@ let usage = """
       doctor [--report]                what works on this Mac
       install | uninstall [--purge]    manage the per-user LaunchAgent
       migrate [--dry-run] [--remove-old]   move an iClean install to iClear
+      stash <name> [--keep a,b] [--include a,b] [--include-heavy] [--force-unsaved] [--dry-run]
+      stash [list | show <name> | drop <name>]
+      pop [<name> | --all | --app <app>]
       bench [--quick]                  run the benchmark scenarios (spawns test processes only)
       completions [zsh | bash | fish]
       version
@@ -263,6 +266,26 @@ case "install":
         guard m.ok else { fail("install stopped: the iClean install could not be migrated safely.") }
     }
     do { out(try installer.install()) } catch { fail("install failed: \(error)") }
+
+case "stash":
+    switch rest.first {
+    case nil, "list": ask("stashes")
+    case "show": ask("stash-show", app: rest.dropFirst().first)
+    case "drop": ask("stash-drop", app: rest.dropFirst().first)
+    default:
+        func list(_ flag: String) -> [String] { option(flag)?.split(separator: ",").map(String.init) ?? [] }
+        let opts = StashOptions(
+            keep: list("--keep"), include: list("--include"), includeHeavy: rest.contains("--include-heavy"),
+            forceUnsaved: rest.contains("--force-unsaved"), dryRun: rest.contains("--dry-run"))
+        ask("stash", app: rest[0], value: String(decoding: try! JSONEncoder().encode(opts), as: UTF8.self))
+    }
+
+case "pop":
+    if let app = option("--app") {
+        ask("pop", app: rest.first { !$0.hasPrefix("--") && $0 != app }, value: "app:\(app)")
+    } else {
+        ask("pop", app: rest.contains("--all") ? "all" : rest.first ?? "all")
+    }
 
 case "migrate":
     let m = Migration.run(paths, removeOld: rest.contains("--remove-old"), dryRun: rest.contains("--dry-run"))

@@ -52,6 +52,11 @@ public final class Daemon {
     var observers: [NSObjectProtocol] = []
     var lastLevel: PressureLevel = .normal
     public var clock: () -> Double = { Date().timeIntervalSince1970 }
+    /// `ICLEAR_OBSERVE_ONLY=1`: this instance records what it would do and never acts,
+    /// whatever its config says (the real-use trace during the soak).
+    public var observeOnly = ProcessInfo.processInfo.environment["ICLEAR_OBSERVE_ONLY"] == "1"
+    /// `ICLEAR_LAB=1`: act only on processes registered in the lab registry (scope lock).
+    public var labMode = ProcessInfo.processInfo.environment["ICLEAR_LAB"] == "1"
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
     /// Test hook: called after every executed action.
@@ -104,9 +109,20 @@ public final class Daemon {
     public func start(watchdogExecutable: URL?, live: Bool = true) throws {
         lockFD = open(paths.lock.path, O_RDWR | O_CREAT, 0o600)
         guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { throw StartError.alreadyRunning }
+        if labMode { ScopeLock.load(paths.labRegistry) }
+        enforceObserveOnly()
         let rec = Signals.recover(journal: journal)
-        if rec.thawed > 0 || rec.stale > 0 || rec.corrupt {
-            record("Recovered from a previous run: thawed \(rec.thawed), stale \(rec.stale)" + (rec.corrupt ? ", journal was corrupt" : ""))
+        if rec.thawed > 0 || rec.stale > 0 || rec.corrupt || rec.restored > 0 {
+            record(
+                "Recovered from a previous run: thawed \(rec.thawed), stale \(rec.stale), restored \(rec.restored)"
+                    + (rec.corrupt ? ", journal was corrupt" : ""))
+        }
+        if rec.stashesDropped > 0 {
+            notify(
+                title: "Stashes dropped",
+                body:
+                    "\(rec.stashesDropped) stash(es) did not survive iClear stopping (restart, crash or reboot). Their apps were resumed.",
+                appID: nil)
         }
         // Frozen entries in the saved state were just thawed by recovery.
         for id in engine.state.frozen.keys.sorted() where engine.state.frozen[id]?.dryRun == false {
@@ -167,6 +183,11 @@ public final class Daemon {
             ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
                 self?.saveState()
             })
+        // Shutdown, restart and logout: resume everything so apps can quit normally.
+        observers.append(
+            ws.addObserver(forName: NSWorkspace.willPowerOffNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.powerOff()
+            })
         observers.append(
             DistributedNotificationCenter.default().addObserver(
                 forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main
@@ -174,6 +195,19 @@ public final class Daemon {
                 self?.pendingEvents.append(.unlock)
                 self?.tick()
             })
+    }
+
+    /// Shutdown, restart or logout is coming: resume every stash and every freeze now.
+    public func powerOff() {
+        pop("all", restoreFocus: false, reason: Code.thawShutdown)
+        execute(engine.thawAll(reason: Code.thawShutdown, at: clock()), immediate: true)
+        _ = Signals.recover(journal: journal)
+        saveState()
+    }
+
+    /// Observe-only instances keep Observe mode whatever the config file says.
+    func enforceObserveOnly() {
+        if observeOnly { engine.config.mode = .observe }
     }
 
     func startTimers() {
@@ -233,6 +267,16 @@ public final class Daemon {
         let sample = probe.sample(now: now)
         var r = probe.collect(now: now)
         lastLevel = sample.pressure
+        if labMode {
+            // Scope lock: the engine only ever sees processes the lab registered.
+            ScopeLock.load(paths.labRegistry)
+            let allowed = ScopeLock.allowed ?? []
+            r.apps = r.apps.filter { a in !a.processes.isEmpty && a.processes.allSatisfy { allowed.contains($0) } }
+        }
+        // Stashed apps belong to their stash, not to the policy engine.
+        let stashed = stashedAppIDs
+        if !stashed.isEmpty { r.apps = r.apps.filter { !stashed.contains($0.id) } }
+        stashLifecycle()
 
         if let pct = sample.batteryPercent, sample.onBattery, let last = lastBatteryPercent,
             last > engine.config.lowBatteryPercent, pct <= engine.config.lowBatteryPercent
@@ -289,6 +333,7 @@ public final class Daemon {
         do {
             let (c, warnings) = try Config.load(json: data)
             engine.config = c
+            enforceObserveOnly()
             traces.update(settings: c.trace)
             configError = nil
             record("Config reloaded" + (warnings.isEmpty ? "" : " with warnings: " + warnings.map(\.description).joined(separator: "; ")))
@@ -310,6 +355,7 @@ public final class Daemon {
 
     /// Activation handler. SIGCONT goes out before any other work.
     public func handleActivation(pid: Int32, bundleID: String?, name: String) {
+        if popOnActivation(pid: pid, bundleID: bundleID) { return }
         let frozen = engine.state.frozen
         let appID =
             bundleID.flatMap { frozen[$0] != nil ? $0 : nil }
@@ -374,9 +420,9 @@ public final class Daemon {
                 if results.allSatisfy({ $0 == .stale }) { outcome = "already gone" }
                 if outcome == "ok", scheduleHealthChecks { scheduleHealthCheck(a, startedAt: thawStartedAt ?? now, residentBefore: before) }
             case .deprioritize:
-                outcome = "\(Signals.setBackground(a.processes, true)) processes"
+                outcome = "\(Signals.setBackground(a.processes, true, appID: a.appID, journal: journal, at: now)) processes"
             case .restorePriority:
-                outcome = "\(Signals.setBackground(a.processes, false)) processes"
+                outcome = "\(Signals.setBackground(a.processes, false, appID: a.appID, journal: journal, at: now)) processes"
             case .requestQuit:
                 let root = a.processes.first?.pid ?? 0
                 outcome = NSRunningApplication(processIdentifier: root)?.terminate() == true ? "requested" : "refused"

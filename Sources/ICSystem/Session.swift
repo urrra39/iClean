@@ -151,6 +151,29 @@ public enum Windows {
         return WindowFacts(visiblePIDs: visible, fullscreenPIDs: full)
     }
 
+    /// Normal windows per process with their window numbers, in every Space and whether
+    /// on screen or not (bounds only; no titles). Front to back for on-screen windows.
+    public static func frames() -> [Int32: [Rect]] {
+        windows().mapValues { $0.map(\.rect) }
+    }
+
+    public static func windows() -> [Int32: [(number: Int, rect: Rect, onScreen: Bool)]] {
+        let list = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        var out: [Int32: [(number: Int, rect: Rect, onScreen: Bool)]] = [:]
+        for w in list {
+            guard (w[kCGWindowLayer as String] as? Int) == 0, let pid = w[kCGWindowOwnerPID as String] as? Int32,
+                let number = w[kCGWindowNumber as String] as? Int,
+                (w[kCGWindowAlpha as String] as? Double ?? 1) > 0.01,
+                let b = w[kCGWindowBounds as String] as? [String: CGFloat],
+                let r = CGRect(dictionaryRepresentation: b as CFDictionary), r.width >= 100, r.height >= 50
+            else { continue }
+            out[pid, default: []].append(
+                (number, Rect(x: r.minX, y: r.minY, width: r.width, height: r.height), (w[kCGWindowIsOnscreen as String] as? Bool) ?? false)
+            )
+        }
+        return out
+    }
+
     static func activeDisplays() -> [CGDirectDisplayID] {
         var n: UInt32 = 0
         CGGetActiveDisplayList(0, nil, &n)
@@ -191,6 +214,29 @@ public enum SessionProbe {
             procs.prefix(size / MemoryLayout<kinfo_proc>.stride).map { p in
                 withUnsafeBytes(of: p.kp_proc.p_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
             })
+    }
+}
+
+/// F7 unsaved-work signal: windows that report `AXEdited`. Needs Accessibility; nil
+/// when it cannot be checked (no permission, or the app exposes no such attribute).
+public enum UnsavedWork {
+    public static func check(_ pid: Int32, timeout: Float = 0.5) -> Bool? {
+        guard AXIsProcessTrusted() else { return nil }
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, timeout)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+            let windows = value as? [AXUIElement]
+        else { return nil }
+        var sawAttribute = false
+        for w in windows {
+            var edited: CFTypeRef?
+            if AXUIElementCopyAttributeValue(w, kAXEditedAttribute as CFString, &edited) == .success {
+                sawAttribute = true
+                if (edited as? Bool) == true { return true }
+            }
+        }
+        return sawAttribute ? false : nil
     }
 }
 

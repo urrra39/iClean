@@ -24,7 +24,9 @@ var expected = now() + 10_000_000
 timer.schedule(deadline: .now() + .milliseconds(10), repeating: .milliseconds(10), leeway: .nanoseconds(0))
 timer.setEventHandler {
     let t = now()
-    lock.lock(); jitter.append(abs(Double(Int64(t) - Int64(expected))) / 1e6); lock.unlock()
+    lock.lock()
+    jitter.append(abs(Double(Int64(t) - Int64(expected))) / 1e6)
+    lock.unlock()
     expected += 10_000_000
     if t > expected + 100_000_000 { expected = t + 10_000_000 }  // resync after a long gap
 }
@@ -34,19 +36,22 @@ timer.resume()
 var queueRef: AudioQueueRef?
 var lastBuffer: UInt64 = 0
 if audio {
-    var fmt = AudioStreamBasicDescription(mSampleRate: 48000, mFormatID: kAudioFormatLinearPCM,
-                                          mFormatFlags: kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked,
-                                          mBytesPerPacket: 2, mFramesPerPacket: 1, mBytesPerFrame: 2, mChannelsPerFrame: 1,
-                                          mBitsPerChannel: 16, mReserved: 0)
-    let status = AudioQueueNewInput(&fmt, { _, aq, buf, _, _, _ in
-        let t = now()
-        lock.lock()
-        if lastBuffer > 0, Double(t - lastBuffer) / 1e6 > 25 { glitches += 1 }
-        lastBuffer = t
-        buffers += 1
-        lock.unlock()
-        AudioQueueEnqueueBuffer(aq, buf, 0, nil)
-    }, nil, nil, nil, 0, &queueRef)
+    var fmt = AudioStreamBasicDescription(
+        mSampleRate: 48000, mFormatID: kAudioFormatLinearPCM,
+        mFormatFlags: kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked,
+        mBytesPerPacket: 2, mFramesPerPacket: 1, mBytesPerFrame: 2, mChannelsPerFrame: 1,
+        mBitsPerChannel: 16, mReserved: 0)
+    let status = AudioQueueNewInput(
+        &fmt,
+        { _, aq, buf, _, _, _ in
+            let t = now()
+            lock.lock()
+            if lastBuffer > 0, Double(t - lastBuffer) / 1e6 > 25 { glitches += 1 }
+            lastBuffer = t
+            buffers += 1
+            lock.unlock()
+            AudioQueueEnqueueBuffer(aq, buf, 0, nil)
+        }, nil, nil, nil, 0, &queueRef)
     if status == noErr, let aq = queueRef {
         for _ in 0..<4 {
             var b: AudioQueueBufferRef?
@@ -63,14 +68,17 @@ if audio {
 func printStats() {
     lock.lock()
     let s = jitter.sorted()
-    let g = glitches, b = buffers
+    let g = glitches
+    let b = buffers
     jitter.removeAll(keepingCapacity: true)
     glitches = 0
     buffers = 0
     lock.unlock()
     func p(_ x: Double) -> Double { s.isEmpty ? 0 : s[min(s.count - 1, Int(Double(s.count - 1) * x))] }
-    print(String(format: "stats n=%d p50=%.3f p95=%.3f p99=%.3f max=%.3f buffers=%d glitches=%d",
-                 s.count, p(0.5), p(0.95), p(0.99), s.last ?? 0, b, g))
+    print(
+        String(
+            format: "stats n=%d p50=%.3f p95=%.3f p99=%.3f max=%.3f buffers=%d glitches=%d",
+            s.count, p(0.5), p(0.95), p(0.99), s.last ?? 0, b, g))
 }
 
 signal(SIGUSR1, SIG_IGN)
@@ -88,6 +96,11 @@ let watch = DispatchSource.makeTimerSource(queue: .main)
 watch.schedule(deadline: .now() + 1, repeating: 1)
 watch.setEventHandler { if getppid() != parent { exit(0) } }
 watch.resume()
-if duration > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + duration) { printStats(); exit(0) } }
+if duration > 0 {
+    DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+        printStats()
+        exit(0)
+    }
+}
 print("ready pid=\(getpid())")
 dispatchMain()

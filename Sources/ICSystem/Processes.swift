@@ -1,3 +1,4 @@
+import AppKit
 import Darwin
 import Foundation
 import ICCore
@@ -80,6 +81,25 @@ public enum Proc {
         return out
     }
 
+    /// Thread scheduling info (PROC_PIDLISTTHREADS returns handles for PROC_PIDTHREADINFO).
+    public static func threads(_ pid: Int32) -> [proc_threadinfo] {
+        var handles = [UInt64](repeating: 0, count: 512)
+        let n = Int(proc_pidinfo(pid, PROC_PIDLISTTHREADS, 0, &handles, Int32(handles.count * 8))) / 8
+        return handles.prefix(max(0, n)).compactMap { h in
+            var ti = proc_threadinfo()
+            let sz = Int32(MemoryLayout<proc_threadinfo>.size)
+            return proc_pidinfo(pid, PROC_PIDTHREADINFO, h, &ti, sz) == sz ? ti : nil
+        }
+    }
+
+    /// Whether a process is in the Darwin background band. `getpriority` always reads 0
+    /// for other processes, so this looks at thread priorities: in the band every thread
+    /// runs at priority 4 or below (FEASIBILITY, 1.0 spike e).
+    public static func isBackground(_ pid: Int32) -> Bool {
+        let t = threads(pid)
+        return !t.isEmpty && t.allSatisfy { $0.pth_curpri <= 4 }
+    }
+
     /// `pid` and every ancestor up to launchd.
     public static func ancestors(of pid: Int32) -> Set<Int32> {
         var out: Set<Int32> = []
@@ -93,9 +113,38 @@ public enum Proc {
 }
 
 /// Sends signals only to processes whose identity still matches (safety invariant 2).
+/// Validation scope lock: in lab mode, iClear may act only on processes the lab
+/// registered (PID + start time). Outside lab mode it is off (`allowed == nil`).
+public enum ScopeLock {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var allowedSet: Set<ProcessIdentity>?
+
+    public static var allowed: Set<ProcessIdentity>? {
+        lock.lock()
+        defer { lock.unlock() }
+        return allowedSet
+    }
+
+    public static func set(_ ids: Set<ProcessIdentity>?) {
+        lock.lock()
+        allowedSet = ids
+        lock.unlock()
+    }
+
+    public static func permits(_ id: ProcessIdentity) -> Bool { allowed?.contains(id) ?? true }
+
+    /// Lab registry file: a JSON array of process identities written by the lab harness.
+    public static func load(_ url: URL) {
+        let ids = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode([ProcessIdentity].self, from: $0) } ?? []
+        set(Set(ids))
+    }
+}
+
 public enum Signals {
     public enum Outcome: Equatable, Sendable {
         case sent
+        /// Lab mode: the process is not registered by the lab, so it is never touched.
+        case outOfScope
         /// No process with this PID, or it now has a different start time (reused PID).
         case stale
         case failed(Int32)
@@ -103,6 +152,7 @@ public enum Signals {
 
     /// Verifies PID, start time and owner, then signals.
     public static func send(_ sig: Int32, to id: ProcessIdentity) -> Outcome {
+        guard ScopeLock.permits(id) else { return .outOfScope }
         guard let b = Proc.bsdInfo(id.pid),
             UInt64(b.pbi_start_tvsec) * 1_000_000 + UInt64(b.pbi_start_tvusec) == id.startTime
         else { return .stale }
@@ -116,13 +166,15 @@ public enum Signals {
     /// removed from the journal again (all-or-nothing, safety invariant 4).
     /// `send` is replaceable so tests can inject a failure part-way through a tree.
     public static func freezeTree(
-        _ ids: [ProcessIdentity], appID: String, at now: Double, journal: JournalStore,
+        _ ids: [ProcessIdentity], appID: String, at now: Double, journal: JournalStore, stash: String? = nil,
         send: (Int32, ProcessIdentity) -> Outcome = { Signals.send($0, to: $1) }
     )
         -> (ok: Bool, stopped: [ProcessIdentity], error: String?)
     {
         do {
-            try journal.update { $0.add(ids.map { JournalEntry(pid: $0.pid, startTime: $0.startTime, appID: appID, frozenAt: now) }) }
+            try journal.update {
+                $0.add(ids.map { JournalEntry(pid: $0.pid, startTime: $0.startTime, appID: appID, frozenAt: now, stash: stash) })
+            }
         } catch {
             return (false, [], "journal write failed: \(error)")
         }
@@ -136,6 +188,10 @@ public enum Signals {
                 for s in stopped.reversed() { _ = Signals.send(SIGCONT, to: s) }
                 try? journal.update { $0.remove(Set(ids)) }
                 return (false, [], "SIGSTOP \(id.pid) failed: \(String(cString: strerror(e)))")
+            case .outOfScope:
+                for s in stopped.reversed() { _ = Signals.send(SIGCONT, to: s) }
+                try? journal.update { $0.remove(Set(ids)) }
+                return (false, [], "process \(id.pid) is outside the lab scope")
             }
         }
         // The root process vanished: this is not the app we meant to freeze any more.
@@ -159,7 +215,7 @@ public enum Signals {
 
     /// Thaws everything in the journal (identity-checked) and clears it. Used on daemon
     /// start, by the watchdog, and by `iclear thaw --all` when the daemon is not running.
-    public static func recover(journal: JournalStore) -> (thawed: Int, stale: Int, corrupt: Bool) {
+    public static func recover(journal: JournalStore) -> (thawed: Int, stale: Int, corrupt: Bool, restored: Int, stashesDropped: Int) {
         switch journal.load() {
         case .ok(let j):
             var thawed = 0
@@ -172,26 +228,91 @@ public enum Signals {
                     stale += 1
                 }
             }
+            // Processes run again first; then priority bands and hidden state go back.
+            var restored = 0
+            for r in Recovery.restorations(j, startTime: Proc.startTime) where apply(r) { restored += 1 }
             try? FileManager.default.removeItem(at: journal.url)
-            return (thawed, stale, false)
+            return (thawed, stale, false, restored, j.stashes.count)
         case .corrupt:
             // Without a readable journal, resume every stopped same-user process that
             // belongs to an app bundle. Job-control stops in terminals (plain CLI
-            // processes) are left alone.
+            // processes) are left alone. Hidden apps cannot be told apart from apps the
+            // user hid, so they stay hidden.
             var thawed = 0
             for p in Proc.table().values where p.stopped && p.path.contains(".app/") {
                 if send(SIGCONT, to: p.identity) == .sent { thawed += 1 }
             }
-            return (thawed, 0, true)
+            return (thawed, 0, true, 0, 0)
         }
     }
 
-    /// Background priority band for a tree (ladder step 1), or back to normal.
-    public static func setBackground(_ ids: [ProcessIdentity], _ on: Bool) -> Int {
+    /// Puts back one journaled change. Returns true if anything was done.
+    @discardableResult
+    static func apply(_ r: Restoration) -> Bool {
+        guard !r.previous, ScopeLock.permits(r.identity), Proc.startTime(r.pid) == r.startTime else { return false }
+        switch r.kind {
+        case .background:
+            return setpriority(PRIO_DARWIN_PROCESS, id_t(r.pid), 0) == 0
+        case .hidden:
+            return NSRunningApplication(processIdentifier: r.pid)?.unhide() != nil
+        }
+    }
+
+    /// Background priority band for a tree (ladder step 1), journaled with each
+    /// process's previous state before it changes; `on: false` puts the journaled
+    /// state back and forgets it. Returns the number of processes changed.
+    @discardableResult
+    public static func setBackground(
+        _ ids: [ProcessIdentity], _ on: Bool, appID: String = "", journal: JournalStore? = nil,
+        at now: Double = Date().timeIntervalSince1970
+    ) -> Int {
+        let live = ids.filter { Proc.startTime($0.pid) == $0.startTime && ScopeLock.permits($0) }
         var n = 0
-        for id in ids where Proc.startTime(id.pid) == id.startTime {
-            if setpriority(PRIO_DARWIN_PROCESS, id_t(id.pid), on ? PRIO_DARWIN_BG : 0) == 0 { n += 1 }
+        if on {
+            try? journal?.update { j in
+                for id in live {
+                    j.record(
+                        Restoration(
+                            kind: .background, pid: id.pid, startTime: id.startTime, appID: appID, previous: Proc.isBackground(id.pid),
+                            at: now))
+                }
+            }
+            for id in live where setpriority(PRIO_DARWIN_PROCESS, id_t(id.pid), PRIO_DARWIN_BG) == 0 { n += 1 }
+        } else {
+            let records = journal?.read().restorations.filter { $0.kind == .background } ?? []
+            for id in live {
+                // Without a record (old state unknown), leave the band only if iClear set it now.
+                let previous = records.first { $0.identity == id }?.previous ?? false
+                if !previous, setpriority(PRIO_DARWIN_PROCESS, id_t(id.pid), 0) == 0 { n += 1 }
+            }
+            try? journal?.update { $0.removeRestorations(.background, Set(ids)) }
         }
         return n
+    }
+
+    /// Hides an app (journaled first) and waits until it has no on-screen windows.
+    /// Returns false if windows were still visible after `timeout`.
+    public static func hide(_ root: ProcessIdentity, appID: String, journal: JournalStore, at now: Double, timeout: Double = 3) -> Bool {
+        guard ScopeLock.permits(root), Proc.startTime(root.pid) == root.startTime,
+            let app = NSRunningApplication(processIdentifier: root.pid)
+        else { return false }
+        try? journal.update {
+            $0.record(Restoration(kind: .hidden, pid: root.pid, startTime: root.startTime, appID: appID, previous: app.isHidden, at: now))
+        }
+        // hide() reports false even when it works (FEASIBILITY 1.0 a); the window list decides.
+        _ = app.hide()
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if !Windows.facts().visiblePIDs.contains(root.pid) { return true }
+            usleep(10_000)
+        }
+        return !Windows.facts().visiblePIDs.contains(root.pid)
+    }
+
+    /// Unhides an app only if iClear hid it, then forgets the record.
+    public static func unhide(_ root: ProcessIdentity, journal: JournalStore) {
+        let r = journal.read().restorations.first { $0.kind == .hidden && $0.identity == root }
+        if let r { apply(r) }
+        try? journal.update { $0.removeRestorations(.hidden, [root]) }
     }
 }

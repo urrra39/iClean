@@ -85,8 +85,17 @@ public struct Config: Codable, Equatable, Sendable {
     public var runaway = RunawaySettings()
     public var trace = TraceSettings()
     public var notifications = NotificationSettings()
+    public var stash = StashSettings()
 
     public init() {}
+
+    public struct StashSettings: Codable, Equatable, Sendable {
+        /// A stash is popped automatically after this long (a reminder comes at 90%).
+        public var maxAgeHours = 24.0
+        /// Control-Option-Command-S stashes as "quick", Control-Option-Command-P pops it.
+        public var hotkeys = false
+        public init() {}
+    }
 
     public struct ProfileSettings: Codable, Equatable, Sendable {
         /// Manual override; `nil` means automatic.
@@ -288,6 +297,7 @@ extension Config {
         check((1...500).contains(trace.maxMB), "trace.maxMB", "must be 1...500")
         check((1...365).contains(trace.retentionDays), "trace.retentionDays", "must be 1...365")
         check(notifications.maxPerHour >= 0, "notifications.maxPerHour", "must be >= 0")
+        check((0.1...168).contains(stash.maxAgeHours), "stash.maxAgeHours", "must be 0.1...168")
 
         for (id, w) in wakeWindows {
             check(

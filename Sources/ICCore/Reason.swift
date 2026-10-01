@@ -25,6 +25,9 @@ public enum Code {
     public static let userRequest = "USER_REQUEST"
     public static let workspace = "WORKSPACE"
     public static let wakeWindow = "WAKE_WINDOW"
+    public static let stash = "STASH"
+    public static let stashExpired = "THAW_STASH_EXPIRED"
+    public static let callMode = "CALL_MODE"
 
     // Why an app was skipped
     public static let protected = "SKIP_PROTECTED"

@@ -46,11 +46,13 @@ public struct SmartBattery: BatterySensor {
         // live in BatteryData (RemainingCapacity) or the AppleRaw* keys on older Macs.
         let data = p["BatteryData"] as? [String: Any] ?? [:]
         let percent = num("CurrentCapacity") ?? 0
-        let remaining_mAh = (data["RemainingCapacity"] as? NSNumber)?.doubleValue ?? num("AppleRawCurrentCapacity")
+        let remainingMAh =
+            (data["RemainingCapacity"] as? NSNumber)?.doubleValue ?? num("AppleRawCurrentCapacity")
             ?? ((data["NominalChargeCapacity"] as? NSNumber)?.doubleValue).map { $0 * percent / 100 } ?? 0
-        guard mV > 0, remaining_mAh > 0 else { return nil }
-        return BatteryReading(time: now, onAC: (p["ExternalConnected"] as? Bool) ?? false, percent: percent,
-                              remainingWh: remaining_mAh * mV / 1e6, dischargeW: Double(-mA) * mV / 1e6)
+        guard mV > 0, remainingMAh > 0 else { return nil }
+        return BatteryReading(
+            time: now, onAC: (p["ExternalConnected"] as? Bool) ?? false, percent: percent,
+            remainingWh: remainingMAh * mV / 1e6, dischargeW: Double(-mA) * mV / 1e6)
     }
 }
 
@@ -58,8 +60,9 @@ public struct SmartBattery: BatterySensor {
 /// the kernel does not report it; nil if the call fails (older macOS or no access).
 public func processEnergyNJ(_ pid: Int32) -> UInt64? {
     var ri = rusage_info_v6()
-    let ok = withUnsafeMutablePointer(to: &ri) {
-        $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V6, $0) }
-    } == 0
+    let ok =
+        withUnsafeMutablePointer(to: &ri) {
+            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V6, $0) }
+        } == 0
     return ok ? ri.ri_energy_nj : nil
 }

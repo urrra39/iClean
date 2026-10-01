@@ -724,6 +724,9 @@ public final class Engine {
 
     public func resetHabits() { state.habits = HabitTable() }
 
+    /// Records the last action done outside the engine (stash, pop) for the status line.
+    public func noteAction(_ text: String?) { state.lastAction = text ?? state.lastAction }
+
     public func eligibilityContext(at now: Double) -> PolicyContext {
         context(now, effectiveConfig(config, hardware: hardware, profile: lastProfile), profile: lastProfile)
     }

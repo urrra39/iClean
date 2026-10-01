@@ -61,6 +61,17 @@ public enum SystemSampler {
             lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled, freeDiskGB: disk)
     }
 
+    /// Memory other work could use without paging: free + inactive + speculative + purgeable, MB.
+    public static func availableMB() -> Double {
+        var st = vm_statistics64()
+        var c = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
+        _ = withUnsafeMutablePointer(to: &st) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(c)) { host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &c) }
+        }
+        let pages = UInt64(st.free_count) + UInt64(st.inactive_count) + UInt64(st.speculative_count) + UInt64(st.purgeable_count)
+        return Double(pages) * Double(vm_kernel_page_size) / 1_048_576
+    }
+
     /// Cheap pressure-only read for the fast poll.
     public static func pressure() -> PressureLevel {
         PressureLevel(sysctlValue: Sysctl.int("kern.memorystatus_vm_pressure_level") ?? 1)
