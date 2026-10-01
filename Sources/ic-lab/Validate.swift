@@ -28,7 +28,8 @@ final class Lab {
         self.out = out
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         logURL = out.appendingPathComponent("run.log")
-        journal = JournalStore(url: out.appendingPathComponent("lab-journal.json"))
+        // One journal per lab process: two phases running at once never share one.
+        journal = JournalStore(url: out.appendingPathComponent("lab-journal-\(getpid()).json"))
     }
 
     func log(_ s: String) {

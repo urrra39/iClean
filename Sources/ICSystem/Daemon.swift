@@ -283,26 +283,34 @@ public final class Daemon {
 
     // MARK: Tick
 
+    /// The apps this instance may consider: lab registry (scope lock), ignore registry,
+    /// and nothing that belongs to a stash.
+    func visibleApps(_ all: [AppSnapshot]) -> [AppSnapshot] {
+        var apps = all
+        if labMode {
+            // Scope lock: the engine only ever sees processes the lab registered.
+            ScopeLock.load(paths.labRegistry)
+            let allowed = ScopeLock.allowed ?? []
+            apps = apps.filter { a in !a.processes.isEmpty && a.processes.allSatisfy { allowed.contains($0) } }
+        }
+        if let url = ignoreRegistry,
+            let ids = (try? Data(contentsOf: url)).flatMap({ try? JSONDecoder().decode(Set<ProcessIdentity>.self, from: $0) })
+        {
+            apps = apps.filter { a in !a.processes.contains { ids.contains($0) } }
+        }
+        // Stashed apps belong to their stash, not to the policy engine.
+        let stashed = stashedAppIDs
+        if !stashed.isEmpty { apps = apps.filter { !stashed.contains($0.id) } }
+        return apps
+    }
+
     public func tick() {
         let now = clock()
         reloadConfigIfChanged()
         let sample = probe.sample(now: now)
         var r = probe.collect(now: now)
         lastLevel = sample.pressure
-        if labMode {
-            // Scope lock: the engine only ever sees processes the lab registered.
-            ScopeLock.load(paths.labRegistry)
-            let allowed = ScopeLock.allowed ?? []
-            r.apps = r.apps.filter { a in !a.processes.isEmpty && a.processes.allSatisfy { allowed.contains($0) } }
-        }
-        if let url = ignoreRegistry,
-            let ids = (try? Data(contentsOf: url)).flatMap({ try? JSONDecoder().decode(Set<ProcessIdentity>.self, from: $0) })
-        {
-            r.apps = r.apps.filter { a in !a.processes.contains { ids.contains($0) } }
-        }
-        // Stashed apps belong to their stash, not to the policy engine.
-        let stashed = stashedAppIDs
-        if !stashed.isEmpty { r.apps = r.apps.filter { !stashed.contains($0.id) } }
+        r.apps = visibleApps(r.apps)
         stashLifecycle()
 
         if let pct = sample.batteryPercent, sample.onBattery, let last = lastBatteryPercent,

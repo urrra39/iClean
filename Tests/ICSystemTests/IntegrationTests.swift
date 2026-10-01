@@ -370,6 +370,22 @@ import Testing
         #expect(d.reloadConfig() == nil && d.engine.config.idleMinutes == 20)
     }
 
+    /// Side-effect lab finding: a direct freeze request must use what the app is doing
+    /// now, not the last tick (up to 30 s old). Music that just started blocks it.
+    @Test func freezeRequestUsesCurrentSignals() throws {
+        let h = try hog()
+        defer { h.kill() }
+        let probe = FakeProbe()
+        probe.apps = [hogApp("com.example.player", [h])]
+        let d = try testDaemon(probe)
+        defer { d.shutdown() }
+        d.tick()
+        probe.apps[0].signals.audioOutput = true
+        let r = d.handle(Request("freeze", app: "com.example.player"))
+        #expect(!r.ok && r.text.contains(Code.audio), "\(r.text)")
+        #expect(!isStopped(h.pid))
+    }
+
     @Test func ipcRoundTrip() throws {
         let probe = FakeProbe()
         let d = try testDaemon(probe)

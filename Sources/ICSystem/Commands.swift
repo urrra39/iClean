@@ -25,10 +25,11 @@ public struct Status: Codable, Sendable {
 }
 
 extension Daemon {
-    func findApp(_ query: String) -> AppSnapshot? {
+    func findApp(_ query: String, in apps: [AppSnapshot]? = nil) -> AppSnapshot? {
+        let list = apps ?? lastApps
         let q = query.lowercased()
-        return lastApps.first { $0.id.lowercased() == q } ?? lastApps.first { $0.name.lowercased() == q }
-            ?? lastApps.first { $0.name.lowercased().contains(q) || $0.id.lowercased().contains(q) }
+        return list.first { $0.id.lowercased() == q } ?? list.first { $0.name.lowercased() == q }
+            ?? list.first { $0.name.lowercased().contains(q) || $0.id.lowercased().contains(q) }
     }
 
     func encode<T: Encodable>(_ v: T) -> String {
@@ -152,7 +153,12 @@ extension Daemon {
             execute(acts, immediate: true)
             return Response(ok: true, text: acts.isEmpty ? "Nothing to thaw." : acts.map(\.summary).joined(separator: "\n"))
         case "freeze":
-            guard var app = findApp(req.app ?? "") else { return Response(ok: false, text: "No running app matches '\(req.app ?? "")'.") }
+            // Collected now: audio, microphone and power assertions from the last tick can be
+            // up to 30 s old, and a call or music that just started must still block the freeze.
+            let current = visibleApps(probe.collect(now: now).apps)
+            guard var app = findApp(req.app ?? "", in: current) else {
+                return Response(ok: false, text: "No running app matches '\(req.app ?? "")'.")
+            }
             AppCollector.inspectGuards(&app, engine: engine, now: now)
             let (a, refused) = engine.userFreeze(app, at: now)
             guard let a else { return Response(ok: false, text: "Not frozen: " + refused.map(\.description).joined(separator: ", ")) }

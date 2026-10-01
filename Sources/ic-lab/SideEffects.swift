@@ -136,6 +136,16 @@ extension Lab {
         func reasonsOf(_ text: String) -> [String] {
             text.split(whereSeparator: { !($0.isLetter || $0 == "_") }).map(String.init).filter { $0.hasPrefix("SKIP_") }
         }
+        /// Waits until the daemon lists the app (it samples every 30 s at normal pressure).
+        func waitVisible(_ id: String) -> Bool {
+            for _ in 0..<45 {
+                let r = IPC.send(Request("explain", app: id), path: paths.socket.path, timeout: 10)
+                if r?.ok == true && !(r?.text.hasPrefix("No running app") ?? true) { return true }
+                sleep(2)
+            }
+            note("the daemon never listed \(id)")
+            return false
+        }
         /// Freeze attempts through the daemon while `active` holds. Only an answer naming a
         /// guard counts as blocked; "no such app" and the like are inconclusive.
         func attempts(_ trigger: String, _ id: String, n: Int, every: Double, while active: () -> Bool) -> Guard {
@@ -164,9 +174,9 @@ extension Lab {
 
         // 1. Audio: a playing player, then the cooldown after it stops.
         if let (media, id) = simApp(tools.appendingPathComponent("ic-media-sim"), name: "MediaSim", args: []) {
-            sleep(8)  // the daemon samples every few seconds
+            _ = waitVisible(id)
             if !AudioActivity.pids().output.contains(media.pid) { note("ic-media-sim's audio output was not visible to CoreAudio") }
-            guards.append(attempts("player playing audio", id, n: 20, every: 1) { AudioActivity.pids().output.contains(media.pid) })
+            guards.append(attempts("player playing audio", id, n: 20, every: 2) { AudioActivity.pids().output.contains(media.pid) })
             kill(media.pid, SIGUSR1)  // pause
             let stopped = Date()
             var cooldown = Guard(trigger: "player within the audio cooldown (1 min configured)")
@@ -198,7 +208,7 @@ extension Lab {
 
         // 2. A call: microphone input in a regular app.
         if let (call, id) = simApp(tools.appendingPathComponent("ic-call-sim"), name: "CallSim", args: ["--audio", "--app"]) {
-            sleep(8)
+            _ = waitVisible(id)
             if AudioActivity.pids().input.contains(call.pid) {
                 guards.append(
                     attempts("call app using the microphone", id, n: 20, every: 1) { AudioActivity.pids().input.contains(call.pid) })
@@ -353,6 +363,7 @@ extension Lab {
             regLock.unlock()
         }
         sleep(15)
+        _ = waitVisible(chromeID)
 
         // E2 in Chrome: audio in a tab, a call in a tab, a download.
         let inChrome = { (pids: Set<Int32>) in chrome.tree().contains { pids.contains($0.pid) } }
@@ -360,7 +371,7 @@ extension Lab {
         sleep(8)
         let audioOn = { inChrome(AudioActivity.pids().output) }
         if audioOn() {
-            guards.append(attempts("Chrome tab playing audio", chromeID, n: 20, every: 1, while: audioOn))
+            guards.append(attempts("Chrome tab playing audio", chromeID, n: 20, every: 2, while: audioOn))
         } else {
             note(
                 "Chrome audio guard not exercised: no audio output seen from Chrome (\(reports("audio", since: Date().timeIntervalSince1970 - 5).last?["state"] ?? "no report"))"
@@ -370,7 +381,7 @@ extension Lab {
         sleep(8)
         let micOn = { inChrome(AudioActivity.pids().input) }
         if micOn() {
-            guards.append(attempts("Chrome tab in a call (microphone)", chromeID, n: 20, every: 1, while: micOn))
+            guards.append(attempts("Chrome tab in a call (microphone)", chromeID, n: 20, every: 2, while: micOn))
         } else {
             note(
                 "Chrome call guard not exercised: no microphone input seen from Chrome (\(reports("call", since: Date().timeIntervalSince1970 - 5).last?["state"] ?? "no report"))"

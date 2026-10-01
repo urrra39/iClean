@@ -9,7 +9,7 @@ until swift build --build-tests --enable-code-coverage -j 2 >/tmp/iclear-cov.$$ 
 done
 rm -f /tmp/iclear-cov.$$
 swift test --skip-build --enable-code-coverage --filter ICCoreTests >/dev/null
-bin=$(find .build/debug -name '*PackageTests.xctest' -maxdepth 1 | head -1)
-[ -f "$bin/Contents/MacOS/$(basename "$bin" .xctest)" ] && bin="$bin/Contents/MacOS/$(basename "$bin" .xctest)"
-xcrun llvm-cov report "$bin" -instr-profile .build/debug/codecov/default.profdata \
-    $(find Sources/ICCore -name '*.swift' | sort) | tail -n +1
+# SwiftPM puts products in .build/debug or, with the newer build system, .build/out/Products/Debug.
+bin=$(find .build -path '*ICCoreTests.xctest/Contents/MacOS/ICCoreTests' -type f | head -1)
+prof=$(find .build -path '*codecov/default.profdata' -type f | head -1)
+xcrun llvm-cov report "$bin" -instr-profile "$prof" $(find Sources/ICCore -name '*.swift' | sort)
