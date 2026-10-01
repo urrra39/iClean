@@ -70,6 +70,7 @@ public final class Daemon {
     var shieldBackground: [ShieldTrigger: [ProcessIdentity]] = [:]
     var shieldFrozen: [ShieldTrigger: [String]] = [:]
     var jitter: JitterProbe?
+    var pollCount = 0
     var stallTimer: DispatchSourceTimer?
     var stallEvents: [StallEvent] = []
     var lastVM: (t: Double, pageins: UInt64, swapins: UInt64)?
@@ -244,7 +245,13 @@ public final class Daemon {
             guard let self else { return }
             let level = SystemSampler.pressure()
             if level != self.lastLevel { self.tick() }
-            self.shieldPoll()
+            // Every second while a shield can act; otherwise every 5 s, which still counts
+            // calls (the window list and process scan behind it are the poll's main cost).
+            self.pollCount += 1
+            let c = self.engine.config
+            if c.callMode.enabled || c.thermalShield.enabled || c.antiBeachball.mitigation.enabled || self.pollCount % 5 == 0 {
+                self.shieldPoll()
+            }
             if self.watchdog?.isRunning == false { self.startWatchdog() }
         }
         p.resume()

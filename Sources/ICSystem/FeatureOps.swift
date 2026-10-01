@@ -226,7 +226,8 @@ extension Daemon {
             if call.inCall {
                 callDetections += 1
                 record("Call detected (microphone, camera or screen sharing in use)")
-                if jitter == nil { jitter = JitterProbe() }
+                // The 10 ms jitter timer only runs when Call Mode can use what it measures.
+                if jitter == nil && engine.config.callMode.enabled { jitter = JitterProbe() }
             } else {
                 record("Call ended")
             }
