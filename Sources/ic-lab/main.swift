@@ -230,6 +230,15 @@ case "stall":
     print("Accessibility round trip: " + (AXIsProcessTrusted() ? "available" : "not run (Accessibility not granted to this process)"))
     probe.kill()
 
+case "session":
+    let ctx = SessionProbe.context(frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier, windows: Windows.facts())
+    print(
+        "camera=\(ctx.cameraInUse) mic=\(ctx.microphoneInUse) screenSharing=\(ctx.screenSharing) mirrored=\(ctx.displayMirrored) fullscreen=\(ctx.frontmostFullscreen)"
+    )
+    print(
+        "sharing processes present: \(SessionProbe.allProcessNames().intersection(["screensharingd", "CptHost", "ScreenSharingSubscriber"]))"
+    )
+
 default:
-    print("usage: ic-lab signals | energy | prio | stall")
+    print("usage: ic-lab signals | energy | prio | stall | session")
 }

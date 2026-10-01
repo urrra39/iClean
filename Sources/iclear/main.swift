@@ -74,6 +74,10 @@ let usage = """
       stash <name> [--keep a,b] [--include a,b] [--include-heavy] [--force-unsaved] [--dry-run]
       stash [list | show <name> | drop <name>]
       pop [<name> | --all | --app <app>]
+      battery [target <2h30m | off>]   battery minutes per app (estimates)
+      beachball [stats | log]          recorded stalls of the frontmost app and their causes
+      before <app>                     will launching this app push memory pressure up?
+      shield                           Call Mode, thermal and stall shield status
       bench [--quick]                  run the benchmark scenarios (spawns test processes only)
       completions [zsh | bash | fish]
       version
@@ -286,6 +290,24 @@ case "pop":
     } else {
         ask("pop", app: rest.contains("--all") ? "all" : rest.first ?? "all")
     }
+
+case "battery":
+    if rest.first == "target" {
+        guard rest.count > 1 else { fail("usage: iclear battery target <2h30m | off>") }
+        ask("battery", value: rest[1])
+    } else {
+        ask("battery")
+    }
+
+case "beachball":
+    ask("beachball", value: rest.first ?? "stats")
+
+case "before":
+    guard let app = rest.first else { fail("usage: iclear before <app>") }
+    ask("before", app: app)
+
+case "shield":
+    ask("shield")
 
 case "migrate":
     let m = Migration.run(paths, removeOld: rest.contains("--remove-old"), dryRun: rest.contains("--dry-run"))

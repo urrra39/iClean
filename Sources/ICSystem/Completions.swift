@@ -3,7 +3,7 @@ public enum Completions {
     static let commands = [
         "status", "why", "explain", "thaw", "freeze", "undo", "mode", "profile", "stats", "advise",
         "quarantine", "habits", "workspace", "simulate", "trace", "config", "doctor", "install",
-        "uninstall", "migrate", "stash", "pop", "bench", "completions", "version", "help",
+        "uninstall", "migrate", "stash", "pop", "battery", "beachball", "before", "shield", "bench", "completions", "version", "help",
     ]
     static let sub: [String: [String]] = [
         "mode": ["observe", "active"], "profile": ["work", "batterySaver", "presentation", "dev", "auto"],
@@ -11,7 +11,7 @@ public enum Completions {
         "config": ["path", "show", "validate", "allow", "deny", "import", "export"], "thaw": ["--all"],
         "completions": ["zsh", "bash", "fish"], "doctor": ["--report"], "uninstall": ["--purge"], "migrate": ["--dry-run", "--remove-old"],
         "stash": ["list", "show", "drop", "--keep", "--include", "--include-heavy", "--force-unsaved", "--dry-run"],
-        "pop": ["--all", "--app"],
+        "pop": ["--all", "--app"], "battery": ["target"], "beachball": ["stats", "log"],
     ]
 
     public static func script(for shell: String) -> String {

@@ -57,6 +57,21 @@ public final class Daemon {
     public var observeOnly = ProcessInfo.processInfo.environment["ICLEAR_OBSERVE_ONLY"] == "1"
     /// `ICLEAR_LAB=1`: act only on processes registered in the lab registry (scope lock).
     public var labMode = ProcessInfo.processInfo.environment["ICLEAR_LAB"] == "1"
+    // Battery (F3), Call Mode and thermal shield (F4), stall forensics (F5).
+    var battery = BatteryState()
+    var lastEnergy: [ProcessIdentity: (nj: UInt64, t: Double)] = [:]
+    var batteryReadings: [BatteryReading] = []
+    public internal(set) var appPowers: [AppPower] = []
+    var callDetector = CallDetector()
+    var shieldStates: [ShieldTrigger: ShieldState] = [:]
+    var shieldBackground: [ShieldTrigger: [ProcessIdentity]] = [:]
+    var shieldFrozen: [ShieldTrigger: [String]] = [:]
+    var jitter: JitterProbe?
+    var stallTimer: DispatchSourceTimer?
+    var stallEvents: [StallEvent] = []
+    var lastVM: (t: Double, pageins: UInt64, swapins: UInt64)?
+    var lastDisk: [ProcessIdentity: (bytes: UInt64, t: Double)] = [:]
+    public internal(set) var callDetections = 0
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
     /// Test hook: called after every executed action.
@@ -75,6 +90,8 @@ public final class Daemon {
         traces = TraceWriter(dir: paths.traces, settings: config.0.trace)
         configMTime = Self.mtime(paths.config)
         try? Files.writeJSON(hardware, to: paths.hardware, pretty: true)
+        battery =
+            ((try? Files.readJSON(BatteryState.self, from: paths.base.appendingPathComponent("battery.json"))) ?? nil) ?? BatteryState()
     }
 
     /// Loads the config, creating the default (Observe mode) on first run. An invalid
@@ -136,6 +153,7 @@ public final class Daemon {
         installSignalHandlers()
         installObservers()
         startTimers()
+        startStallProbe()
     }
 
     public func shutdown(reason: String = Code.thawShutdown) {
@@ -223,6 +241,7 @@ public final class Daemon {
             guard let self else { return }
             let level = SystemSampler.pressure()
             if level != self.lastLevel { self.tick() }
+            self.shieldPoll()
             if self.watchdog?.isRunning == false { self.startWatchdog() }
         }
         p.resume()
@@ -307,6 +326,7 @@ public final class Daemon {
         let result = engine.tick(input)
         lastResult = result
         lastApps = r.apps
+        batteryTick(r.apps, now: now)
         execute(result.actions)
         if now - lastSave >= 60 { saveState() }
         tickTimer?.schedule(deadline: .now() + interval(for: sample.pressure))

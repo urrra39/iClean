@@ -28,6 +28,9 @@ public enum Code {
     public static let stash = "STASH"
     public static let stashExpired = "THAW_STASH_EXPIRED"
     public static let callMode = "CALL_MODE"
+    public static let thermalShield = "THERMAL_SHIELD"
+    public static let antiBeachball = "ANTI_BEACHBALL"
+    public static let batteryTarget = "BATTERY_TARGET"
 
     // Why an app was skipped
     public static let protected = "SKIP_PROTECTED"

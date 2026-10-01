@@ -15,6 +15,12 @@ public struct FrozenApp: Codable, Equatable, Sendable {
     public var dryRun: Bool
     /// CPU use when frozen; the basis of the CPU-savings estimate.
     public var cpuPercentAtFreeze = 0.0
+
+    /// Frozen because of memory pressure (as opposed to a user, Call Mode or battery
+    /// request); only these are thawed when pressure has been normal for a while.
+    public var isPressureFreeze: Bool {
+        reasons.contains { [Code.pressureWarning, Code.pressureCritical, Code.forecast, Code.topScore].contains($0.code) }
+    }
 }
 
 public enum ActionKind: String, Codable, Sendable {
@@ -328,7 +334,7 @@ public final class Engine {
             } else if now - f.frozenAt >= cfg.maxFrozenMinutes * 60 {
                 out += thaw(id, reason: Code.thawMaxDuration, at: now)
             } else if let ns = state.normalSince, now - ns >= cfg.thawAfterNormalMinutes * 60,
-                now - f.frozenAt >= cfg.minFrozenMinutes * 60
+                now - f.frozenAt >= cfg.minFrozenMinutes * 60, f.isPressureFreeze
             {
                 out += thaw(id, reason: Code.thawRelieved, at: now)
             } else if let w = cfg.wakeWindows[id], now - (state.lastWakeAt[id] ?? f.frozenAt) >= w.everyMinutes * 60 {
@@ -651,6 +657,15 @@ public final class Engine {
         state.lastRound = [app.id]
         state.lastAction = a.summary
         return (a, [])
+    }
+
+    /// Freeze requested by another feature (Call Mode, battery target). The caller has
+    /// already checked eligibility; the freeze is tracked like any other, so activation,
+    /// the maximum frozen time and recovery all apply. Observe mode only records it.
+    public func externalFreeze(_ app: AppSnapshot, reason: Reason, at now: Double) -> Action {
+        let a = freeze(app, reasons: [reason], relief: reliefEstimate(app), at: now)
+        state.lastAction = a.summary
+        return a
     }
 
     /// Freezes a workspace atomically: all members that are running must pass the

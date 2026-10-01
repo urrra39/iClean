@@ -86,8 +86,26 @@ public struct Config: Codable, Equatable, Sendable {
     public var trace = TraceSettings()
     public var notifications = NotificationSettings()
     public var stash = StashSettings()
+    public var callMode = ShieldSettings()
+    public var thermalShield = ShieldSettings()
+    public var antiBeachball = BeachballSettings()
+    public var battery = BatterySettings()
 
     public init() {}
+
+    public struct BeachballSettings: Codable, Equatable, Sendable {
+        /// Record stalls of the frontmost app and their likely causes (needs Accessibility).
+        public var forensics = true
+        /// Lower other processes' priority during stalls (ship rule C8: off until measured).
+        public var mitigation = ShieldSettings()
+        public init() {}
+    }
+
+    public struct BatterySettings: Codable, Equatable, Sendable {
+        /// `iclear battery target` (ship rule C9: experimental and off until validated).
+        public var targetEnabled = false
+        public init() {}
+    }
 
     public struct StashSettings: Codable, Equatable, Sendable {
         /// A stash is popped automatically after this long (a reminder comes at 90%).
@@ -298,6 +316,13 @@ extension Config {
         check((1...365).contains(trace.retentionDays), "trace.retentionDays", "must be 1...365")
         check(notifications.maxPerHour >= 0, "notifications.maxPerHour", "must be >= 0")
         check((0.1...168).contains(stash.maxAgeHours), "stash.maxAgeHours", "must be 0.1...168")
+        for (name, sh) in [
+            ("callMode", callMode), ("thermalShield", thermalShield), ("antiBeachball.mitigation", antiBeachball.mitigation),
+        ] {
+            check(
+                sh.interferenceMs > 0 && sh.judgeAfter >= 1 && (0...1).contains(sh.minImprovement), name,
+                "interferenceMs > 0, judgeAfter >= 1, minImprovement 0...1")
+        }
 
         for (id, w) in wakeWindows {
             check(

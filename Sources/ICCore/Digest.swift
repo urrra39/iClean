@@ -8,6 +8,8 @@ public struct AppUsage: Codable, Equatable, Sendable {
     public var idleSamples = 0
     public var residentSumMB = 0.0
     public var since: Double
+    /// Largest resident size seen (MB); nil in state written before 1.0.
+    public var maxMB: Double?
 
     public var idleShare: Double { samples > 0 ? Double(idleSamples) / Double(samples) : 0 }
     public var averageMB: Double { samples > 0 ? residentSumMB / Double(samples) : 0 }
@@ -27,6 +29,7 @@ public enum Usage {
             x.samples += 1
             if !app.isFrontmost && !app.hasVisibleWindow { x.idleSamples += 1 }
             x.residentSumMB += app.residentMB
+            x.maxMB = max(x.maxMB ?? 0, app.residentMB)
             x.name = app.name
             u[app.id] = x
         }

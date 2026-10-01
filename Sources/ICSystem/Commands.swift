@@ -236,6 +236,20 @@ extension Daemon {
         case "events":
             let since = Double(req.value ?? "0") ?? 0
             return Response(ok: true, text: "", data: encode(events.filter { $0.t > since }))
+        case "battery":
+            if let v = req.value { return setBatteryTarget(v) }
+            return batteryReport()
+        case "beachball":
+            return beachball(req.value)
+        case "before":
+            return before(req.app ?? "")
+        case "shield":
+            let l = ShieldTrigger.allCases.map { t in
+                let st = shieldStates[t] ?? ShieldState()
+                return
+                    "\(t.rawValue): level \(st.level.rawValue)\(st.active ? ", trigger active" : "")\(st.disarmed ? ", switched off: \(st.message ?? "")" : "")"
+            }
+            return Response(ok: true, text: "Calls detected: \(callDetections)\n" + l.joined(separator: "\n"))
         case "stash":
             let opts = (req.value?.data(using: .utf8)).flatMap { try? JSONDecoder().decode(StashOptions.self, from: $0) } ?? StashOptions()
             return stash(req.app ?? "", options: opts)

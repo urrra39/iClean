@@ -203,7 +203,7 @@ public enum SessionProbe {
 
     /// Names of all processes, including other users' (screensharingd runs as root),
     /// in one `sysctl(KERN_PROC_ALL)` call.
-    static func allProcessNames() -> Set<String> {
+    public static func allProcessNames() -> Set<String> {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var size = 0
         guard sysctl(&mib, 4, nil, &size, nil, 0) == 0 else { return [] }

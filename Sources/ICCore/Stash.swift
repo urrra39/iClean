@@ -91,7 +91,7 @@ public enum StashPlanner {
 
     /// Call apps: never stashed while a camera is in use (the camera flag cannot be
     /// attributed to a process).
-    static let callApps: Set<String> = [
+    public static let callApps: Set<String> = [
         "us.zoom.xos", "com.microsoft.teams2", "com.microsoft.teams", "com.apple.FaceTime",
         "com.cisco.webexmeetingsapp", "com.webex.meetingmanager", "com.tinyspeck.slackmacgap",
         "com.hnc.Discord", "com.skype.skype",
