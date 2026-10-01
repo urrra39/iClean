@@ -1,67 +1,86 @@
 # Quality self-assessment
 
-Date: 2026-10-01, version 0.1.0 (beta). Scores are 1-10, with evidence, not
-adjectives. Anything below 9 lists what is missing.
+Date: 2026-10-01, version 1.0.0. Scores are 1-10, with evidence, not adjectives.
+Anything below 9 lists what is missing. Criteria and thresholds:
+[RELEASE_CRITERIA.md](RELEASE_CRITERIA.md) (pre-registered; amended once by owner
+decision, DECISIONS.md #36). Results: [VALIDATION.md](VALIDATION.md).
+
+## Verdict
+
+**v1.0.0.** Every must-pass criterion of stage 1 (lab gate) and stage 3 (side-effect gate) is met on the reference machine. The 7-day soak (stage 2) started on 2026-10-01 at 20:29 UTC and is reported after release, as the owner decided before any soak data existed.
+
+| # | Criterion | Result | Verdict |
+|---|---|---|---|
+| C1 | Data safety | 0 document changes in 1,200 soak cycles and 50 stash/pop cycles; download checksum matched; 0 messages lost | met |
+| C2 | Crash recovery | 100/100 while frozen, 50/50 with a stash, within 2 s (p99 83 and 98 ms) | met |
+| C3 | Teardown | 0 lab processes left stopped in any phase | met |
+| C4 | Soak | 300 cycles per type (Chromium, Electron, 2 native), 100 each under induced pressure; 0 hangs, 0 crash reports | met |
+| C5 | Latency, no induced pressure | thaw-to-responsive p99 5.3-15.1 ms (limit 250 ms) | met |
+| C6 | Latency, induced pressure | p99 4.0-9.9 ms with 7.9 GB held at "warning" (limit 2,000 ms); compression not checked per cycle | met |
+| C7 | Stash/pop | 50 cycles of 4 apps: windows within 0.0 pt (350/350), previous front app 50/50 (final run, after three fixes; the first run had 47/50), 0 crashes, 0 left paused or hidden | met |
+| C8 | Automatic features | Call Mode: p99 −71% but side-effect probe +100% → off. Anti-Beachball mitigation: −3.4% → off. Thermal shield: not testable → off | rule applied |
+| C9 | Battery | no valid unplugged trials → estimates labelled, target mode experimental and off | rule applied |
+| C10 | CI and coverage | CI green on macOS 15 (arm64, Intel) and 26; ICCore line coverage 96.5% | met |
+| C11 | Test depth | continuous ≥ 2 min: freeze/thaw (soak), stash (lab), shield ladder and Call Mode (paired runs), forecast, stall forensics and `before` (combined run), selftest; combined: 60 min, 0 failures; TEST_MATRIX lists every command, key and invariant, NOT TESTED items in the README | met |
+| C12 | Daemon overhead | 0.479% of one core, 40 MB over 10 min (limits 0.5%, 60 MB) | met |
+| C13 | Selftest | full `iclear selftest`: 13/13 PASS, no SKIP | met |
+| C14 | Release artifacts | checked on the published v1.0.0 assets: see "Release 1.0.0" below | see below |
+| E1 | Data loss (side effects) | 0: download checksum matched, form values kept, every message delivered or still queued on the server | met |
+| E2 | Guards | 123/123 freeze attempts refused during audio, calls and downloads | met |
+| E3 | Connections | Chrome and the heartbeat chat client always recovered; a chat client without a heartbeat stayed offline, so the COMM class is protected by default | met (by the protected default) |
+| E4 | Disclosure | every observed side effect is mitigated by a default or listed in the README's "Known side effects"; the defects the lab found in iClear itself are fixed (CHANGELOG) | met |
+
+## Self-scores
 
 | Dimension | Score | Evidence |
 |---|---|---|
-| Correctness | 7 | 103 unit and golden-trace tests and 28 integration tests against real processes pass locally (macOS 27.0.1) and in CI on macOS 15.7 arm64, macOS 15.7 Intel and macOS 26.6 ([run 36811882428](https://github.com/urrra39/iClear/actions/runs/36811882428)). `ICCore` line coverage 96.3%; 100% for `Policy`, `Journal`, `Health`, `Guards`, `Protection`, `Profiles`, `Runaway`. Capped at 7 because Active mode has never run on real apps. |
-| Safety | 9 | All 8 invariants in [SAFETY.md](SAFETY.md) have passing tests, including a real `kill -9` of the daemon with watchdog recovery, PID reuse, partial-tree rollback, corrupt journal and unwritable journal. Observe mode is the default. |
-| UX | 7 | Menu with health, swap timeline, last action, mode/profile, Resume all, Undo, hotkey, in English and Uzbek (`docs/images/`). `iclear why` and `explain` give plain-language answers. |
-| Performance | 9 | Installed daemon idle: 0.35% CPU, 40 MB resident ([BENCHMARKS.md](BENCHMARKS.md)). Resume signal < 0.2 ms p99. Guard inspection 1.0 ms p50. |
-| Docs | 8 | README (English and Uzbek) with beta banner, feasibility study, recorded decisions, architecture, safety, benchmarks, signature-feature status, trace format, novelty audit, naming, FAQ, dogfooding plan. |
-| Tests | 8 | 131 tests on three CI runners plus local; golden traces; adversarial cases listed in SAFETY.md; swift-format lint is blocking in CI. |
-| Honesty | 9 | Every number traces to BENCHMARKS.md or FEASIBILITY.md; negative results kept (pre-thaw no benefit, staged thaw slower for the last app, first daemon build over its CPU target); version is 0.1.0 beta; "not validated" list below. |
+| Correctness | 8 | 188 tests pass locally and on three CI runners (macOS 15.7 Apple Silicon and Intel, macOS 26.6); ICCore line coverage 96.5%. The lab and the new tests found ten defects the earlier tests had not; all are fixed (CHANGELOG, VALIDATION.md). Capped at 8: one Mac, no week of real Active use. |
+| Safety | 9 | Every invariant in SAFETY.md has a passing test; lab: 100/100 kill -9 recoveries while frozen and 50/50 with a stash (p99 < 100 ms), 0 processes left stopped, 0 document changes, guards blocked every freeze attempt during audio, calls and downloads. |
+| Side effects | 8 | Measured with simulators and Chrome; chat, mail, calendar and media apps protected by default; "Known side effects" in the README. Not measured with real Slack or Spotify. |
+| UX | 7 | Menu with health, stash, battery line, stalls and calls views, English and Uzbek. No onboarding beyond the status line. |
+| Performance | 8 | Idle daemon 0.479% of one core and 40 MB over 10 minutes (limit 0.5%, 60 MB); real apps responsive again within 15.1 ms (p99) after a thaw; pop p99 1.36 s. Below 9: little CPU headroom under the limit. |
+| Docs | 8 | README (English and Uzbek) with validated scope and not-validated list, release criteria, validation results, test matrix, safety, manual tests. Architecture docs English only. |
+| Honesty | 9 | Pre-registered criteria, one documented amendment, negative results kept (Anti-Beachball mitigation, staged thaw, battery trials invalidated), every number traced to VALIDATION.md or BENCHMARKS.md. |
 
 ## Not validated
 
-These are designed and unit- or integration-tested with synthetic inputs, but have
-**not** been validated on real use:
-
-- Active mode freezing real apps (browsers, Electron, design tools) on a daily-use Mac.
-  See [DOGFOOD.md](DOGFOOD.md).
-- Memory actually reclaimed from real apps, and their resume latency (needs
-  Accessibility).
-- Focus Safe Mode detection of real calls (camera, microphone), screen sharing (by
-  process name only), mirroring and fullscreen.
-- Automatic profile switching on real battery, mirroring and schedule events.
-- Sleep/wake and unlock thaw on a real lid close (tested by injecting the event).
-- Hang-after-resume detection (decision logic tested; the probe needs Accessibility).
-- Forecast (S1) lead time and false-alarm rate, habit (S3) hit rate and the RAM advisor
-  (S8) on real traces.
-- macOS 13 and 14; Intel hardware outside CI; 8 GB Macs; rotational disks.
-- The emergency hotkey (Control-Option-Command-T) is not covered by an automated test.
+- Real Slack, Spotify or any personal account (manual steps: MANUAL_TESTS_APPS.md).
+- Intel Macs beyond the CI test suite; macOS 13 and 14; Macs with 8 GB or less;
+  rotational disks.
+- Battery estimates and target mode (no valid unplugged trials; experimental and off).
+- The 7-day soak (in progress; reported after release).
+- Thermal shield (the lab cannot heat the Mac safely).
+- Safari, Docker, Xcode and virtual machines as freeze targets.
+- Media keys sent to a paused player; notifications due during a pause.
+- The emergency hotkey and menu buttons (manual steps only).
 - Notarized distribution (releases are ad-hoc signed).
+
 
 ## Known gaps
 
 - The menu's profile picker shows the active profile, not "Automatic", when no manual
   profile is set.
-- The forecast summary in the menu ("stable", "yellow in ~N min") comes from the
-  daemon in English, even in the Uzbek menu.
+- The forecast summary in the menu comes from the daemon in English, even in the
+  Uzbek menu.
 - No first-launch onboarding beyond the status line; no in-app Accessibility prompt
   beyond a link to Settings.
-- Architecture docs are English only.
-- No man page (shell completions exist).
-- The `Commands` IPC handler and the menu app have no dedicated unit tests (covered by
-  `ipcRoundTrip` and manual rendering).
+- Architecture docs are English only. No man page (shell completions exist).
 - Not built from the original plan: P1 disk-headroom advisory, dev-load handling,
   thermal/battery advisor, Shortcuts/App Intents.
 
-## Release 0.1.0
+## Release 1.0.0
 
-[Pre-release](https://github.com/urrra39/iClear/releases/tag/v0.1.0) built by the
-release workflow from tag `v0.1.0`. Verified after download: SHA256 checksums match
-`SHA256SUMS.txt`; all six binaries are universal (`x86_64 arm64`); the app's ad-hoc
-signature verifies (`codesign --verify --deep --strict`, hardened runtime flag set);
-`iclean --version` prints 0.1.0 and `iclean doctor` runs from both the tarball and the
-app's `Helpers` folder.
+Before tagging, a local `scripts/build-release.sh` of the release commit: every binary in
+the app and the tarball universal (`x86_64 arm64`), `codesign --verify --deep --strict`
+passes on the app (ad-hoc signature), `iclear --version` prints 1.0.0, `iclear selftest
+--quick` 13/13 PASS, `iclear doctor` runs. The published assets are checked after the
+release workflow builds them (results added below).
 
 ## Secret scanning
 
 gitleaks was **not** run: Homebrew is not installed on the maintainer's Mac, and
-installing it needs an administrator password. Instead, every commit in the history
-and the working tree were scanned with a regular-expression pass covering GitHub,
-AWS, Slack, Google, GitLab and npm token formats, private-key blocks, and
-`api_key`/`secret`/`password` assignments. Result on 2026-10-01 (14 commits at the
-time): 0 hits. Running gitleaks (`gitleaks detect --log-opts=--all`) remains a to-do.
+installing it needs an administrator password. Every commit and the working tree are
+scanned before each push with a regular-expression pass (tokens for GitHub, AWS, Slack,
+Google, GitLab, npm; private-key blocks; `api_key`/`secret`/`password` assignments) and
+an authorship and privacy audit (one author identity, no personal paths or host names):
+0 hits in the full history at the 1.0.0 release.

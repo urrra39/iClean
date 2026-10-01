@@ -1,7 +1,10 @@
 # Validation results
 
 Results for the criteria in [RELEASE_CRITERIA.md](RELEASE_CRITERIA.md), measured on
-2026-10-01. Distributions are given as p50 / p95 / p99 / max with N. "0 failures in N
+2026-10-01 and 2026-10-02. **Verdict: every must-pass criterion of stage 1 (lab gate,
+C1-C14) and stage 3 (side-effect gate, E1-E4) is met on the reference machine; v1.0.0.**
+The criterion-by-criterion table is in [QUALITY.md](QUALITY.md). The 7-day soak (stage
+2) started 2026-10-01 20:29 UTC and is reported after release. Distributions are given as p50 / p95 / p99 / max with N. "0 failures in N
 trials" bounds the failure rate, it does not show it is zero (rule of three: below
 3/N with 95% confidence).
 
@@ -315,3 +318,20 @@ typically 727 MB, up to 1240 MB" and VS Code from 225 samples (typically 908 MB,
 
 A first attempt (2026-10-01 21:12) is void: the lid was closed at 21:22, the Mac slept,
 and the "not answering" results came from maintenance wakes.
+
+## Selftest (C13)
+
+Full `iclear selftest` from a release build of the final code, 2026-10-02 01:28, AC:
+**13/13 PASS, no SKIP** (Accessibility and Input Monitoring granted).
+
+| Check | Result |
+|---|---|
+| signal freeze/resume (600) | resume p50 0.10 ms, p99 0.14 ms, 0 failures |
+| journal + watchdog recovery (20) | 20/20 resumed within 2 s after kill -9 (slowest 0.02 s) |
+| hide/unhide + window bounds (30) | 30/30 within 4 pt (worst 0.0 pt) |
+| GUI thaw latency (60) | p50 0.1 ms, p99 0.3 ms |
+| stash/pop, isolated daemon (10) | 10/10 |
+| call detection (20) | detected and attributed; held 10 s; call timer p99 0.077 ms, 0 glitches |
+| shield ladder | CPU share 0.90 → 0.15 cores in the band; restored |
+| stall probe | 2,567 samples, p99 1.15 ms, 0 stalls |
+| pressure sensor, battery readings, battery logic, migration, permissions | PASS |

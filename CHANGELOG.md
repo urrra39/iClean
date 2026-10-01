@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (1.0 in progress)
+## 1.0.0 (2026-10-02)
 
 - **Renamed from iClean to iClear.** CLI `iclear`, daemon `icleard`, app iClear, bundle
   ID and LaunchAgent label `io.github.urrra39.iclear`, data in
@@ -55,7 +55,8 @@
   still waiting to be stashed, which popped it again (apps are now hidden back to front,
   and activations in the first 2 s of a stash are ignored); pop could leave a different
   app in front than before the stash (it now confirms the restored app stays in front
-  for 0.5 s, and keeps the current app in front when the stash did not include it).
+  for 0.5 s, and keeps the app the user is in when the stash did not include the old front app or
+  the user already brought it back).
 - Fixed, found by the overhead measurement: call signals were polled every second even
   with every shield off; now every 5 s unless a shield can act (0.48% of one core idle).
 - Release criteria amended once by owner decision (DECISIONS.md #36): the 7-day soak is
