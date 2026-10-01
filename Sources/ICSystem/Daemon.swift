@@ -210,14 +210,10 @@ public final class Daemon {
         do {
             try p.run()
             watchdog = p
-            engineLineageAdd(p.processIdentifier)
+            (probe as? LiveProbe)?.collector.lineage.insert(p.processIdentifier)
         } catch {
             record("Watchdog failed to start: \(error)")
         }
-    }
-
-    func engineLineageAdd(_ pid: Int32) {
-        (probe as? LiveProbe)?.collector.lineage.insert(pid)
     }
 
     // MARK: Tick
