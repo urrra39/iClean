@@ -43,10 +43,34 @@ jobs:
           xcrun stapler staple dist/iClean.app
           rm dist/iClean-*.zip
           (cd dist && ditto -c -k --keepParent iClean.app "iClean-${GITHUB_REF_NAME#v}.zip")
-      - name: Draft release
+      - name: Checksums
+        run: cd dist && shasum -a 256 iClean-*.zip iclean-*-macos.tar.gz > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --draft --title "iClean $GITHUB_REF_NAME" \
-            --notes "See CHANGELOG.md. Builds without Developer ID signing are ad-hoc signed: right-click the app and choose Open on first launch." \
-            dist/iClean-*.zip dist/iclean-*-macos.tar.gz
+          VERSION="${GITHUB_REF_NAME#v}"
+          {
+            echo "Beta. Tested with synthetic test processes and on one Mac (Apple M3 Pro, macOS 27.0.1); the test suite also passes in CI on macOS 15 (Apple Silicon and Intel) and macOS 26. Active mode on real apps is not yet validated. iClean starts in Observe mode."
+            echo
+            echo "## Downloads"
+            echo
+            echo "- \`iClean-$VERSION.zip\`: menu-bar app (command-line tools inside \`iClean.app/Contents/Helpers\`)."
+            echo "- \`iclean-$VERSION-macos.tar.gz\`: \`iclean\`, \`icleand\` and \`ic-hog\` (needed by \`iclean bench\`)."
+            echo
+            echo "Universal binaries (arm64 and x86_64), built for macOS 13 and later."
+            echo
+            echo "## First launch"
+            echo
+            echo "These builds are ad-hoc signed and not notarized. For the app: right-click iClean.app, choose Open, confirm. For the command-line tools: \`xattr -d com.apple.quarantine iclean icleand ic-hog\`, then \`./iclean install\`."
+            echo
+            echo "## SHA256"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+            echo
+            echo "Changes: see CHANGELOG.md."
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" --prerelease --title "iClean $VERSION (beta)" --notes-file notes.md \
+            dist/iClean-*.zip dist/iclean-*-macos.tar.gz dist/SHA256SUMS.txt
