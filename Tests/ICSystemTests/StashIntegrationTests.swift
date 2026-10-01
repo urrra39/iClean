@@ -91,6 +91,61 @@ import Testing
         #expect(d.pop("w").ok && !isStopped(fx[1].pid))
     }
 
+    /// Red team: an app belongs to at most one stash.
+    @Test func twoStashesNeverShareAnApp() throws {
+        let paths = tempHome()
+        let fx = try fixtures(2, in: paths, activateLast: false)
+        defer { for f in fx { f.kill() } }
+        let probe = FakeProbe()
+        probe.apps = fx.map { $0.snapshot() }
+        let d = try testDaemon(probe, paths: paths, mode: .observe)
+        defer { d.shutdown() }
+        #expect(d.stash("a", options: StashOptions()).ok)
+        let second = d.stash("b", options: StashOptions())
+        #expect(!second.ok && d.journal.read().stashes.map(\.name) == ["a"])
+        #expect(d.pop("a").ok)
+        #expect(eventually { fx.allSatisfy { !isStopped($0.pid) && shown($0) } })
+        #expect(d.journal.read().isEmpty)
+    }
+
+    /// Red team: stashing an app the policy already paused. The stash takes it over, so
+    /// pop resumes and shows it and the engine no longer counts it as frozen.
+    @Test func stashTakesOverAPolicyFreeze() throws {
+        let paths = tempHome()
+        let fx = try fixtures(1, in: paths, activateLast: false)
+        defer { for f in fx { f.kill() } }
+        let probe = FakeProbe()
+        probe.apps = fx.map { $0.snapshot() }
+        let d = try testDaemon(probe, paths: paths, mode: .active)
+        defer { d.shutdown() }
+        d.execute([d.engine.externalFreeze(probe.apps[0], reason: Reason(Code.callMode), at: probe.now)])
+        #expect(isStopped(fx[0].pid) && d.engine.state.frozen[fx[0].id] != nil)
+        let r = d.stash("w", options: StashOptions())
+        #expect(r.ok, "\(r.text)")
+        #expect(isStopped(fx[0].pid) && fx[0].isHidden && d.engine.state.frozen[fx[0].id] == nil)
+        #expect(d.pop("w").ok)
+        #expect(eventually { !isStopped(fx[0].pid) && shown(fx[0]) })
+        #expect(d.journal.read().isEmpty)
+    }
+
+    /// Red team: the daemon is killed part-way through a pop; recovery (the next start or
+    /// the watchdog) resumes and unhides the rest.
+    @Test func daemonKilledMidPopRecoversTheRest() throws {
+        let paths = tempHome()
+        let fx = try fixtures(2, in: paths, activateLast: false)
+        defer { for f in fx { f.kill() } }
+        let probe = FakeProbe()
+        probe.apps = fx.map { $0.snapshot() }
+        let d = try testDaemon(probe, paths: paths, mode: .observe)
+        defer { d.shutdown() }
+        #expect(d.stash("w", options: StashOptions()).ok)
+        #expect(d.pop("w", app: fx[0].id).ok)
+        #expect(isStopped(fx[1].pid) && fx[1].isHidden)
+        let r = Signals.recover(journal: JournalStore(url: paths.journal))
+        #expect(r.thawed == 1 && r.restored == 1)
+        #expect(eventually { fx.allSatisfy { !isStopped($0.pid) && shown($0) } })
+    }
+
     /// Safety invariant (1.0 #2): shutdown and logout resume everything.
     @Test func powerOffResumesStashesAndFreezes() throws {
         let paths = tempHome()

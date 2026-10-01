@@ -126,15 +126,17 @@ public enum BatteryPlanner {
 
     /// Target mode: pauses, cheapest first by user cost per watt saved, until the
     /// estimated power fits the target. `cost` is 0 (no regret, unused) and up.
+    /// `alreadyPaused` apps were paused once during this target; one the user woke again
+    /// is never paused a second time, so a busy app cannot be paused over and over.
     public static func plan(
         remainingWh: Double, hours: Double, systemW: Double, candidates: [(app: AppPower, cost: Double)],
-        calibration: PowerCalibration
+        calibration: PowerCalibration, alreadyPaused: Set<String> = []
     ) -> (pause: [String], reachable: Bool, bestCaseHours: Double) {
         let needW = remainingWh / max(hours, 0.01)
         let scale = calibration.fit.scale
         var w = systemW
         var pause: [String] = []
-        for c in candidates.filter({ $0.app.watts > 0.05 }).sorted(by: {
+        for c in candidates.filter({ $0.app.watts > 0.05 && !alreadyPaused.contains($0.app.appID) }).sorted(by: {
             ($0.cost + 0.1) / ($0.app.watts) < ($1.cost + 0.1) / ($1.app.watts)
         }) {
             if w <= needW { break }

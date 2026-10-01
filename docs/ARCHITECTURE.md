@@ -2,7 +2,7 @@
 
 ```
             ┌──────────── iClearMenu (SwiftUI menu bar) ──┐   ┌── iclear (CLI) ──┐
-            │ status, why, digest, thaw all, hotkey        │   │ all commands      │
+            │ status, why, digest, stash/pop, hotkeys      │   │ all commands      │
             └───────────────────┬──────────────────────────┘   └────────┬─────────┘
                                 │   Unix domain socket, 1 JSON line each way
                                 ▼
@@ -26,6 +26,34 @@
 | `iclear` | CLI | |
 | `iClearMenu` | Menu-bar app (macOS 13+ `MenuBarExtra`) | |
 | `ic-hog` | Test process: memory, CPU, sockets, files, locks, heartbeats, crash/hang after SIGCONT | |
+| `ic-ui-probe` | Test GUI app: a 5 ms main-thread timer that reports stalls, used by the selftest, GUI tests and the lab | |
+| `ic-call-sim` | Test "call": microphone input through AudioQueue plus a 10 ms timer whose jitter is reported | |
+| `ic-lab` | Lab harness for [VALIDATION.md](VALIDATION.md) and the soak; never shipped | |
+
+## 1.0 components
+
+- **Stash** (`ICCore.StashPlanner`, `ICSystem` `StashOps`): the planner decides per app
+  (stash, keep, blocked) from guards, the session and the unsaved signal; the daemon
+  journals the stash record, hides each app (journaled hidden-state restoration), then
+  freezes its tree with the stash name in the journal entries. Pop thaws, unhides,
+  then activates the apps back to front (unhide does not restore stacking order) and
+  the previous frontmost app last.
+- **Restoration records**: `Journal.restorations` keep the previous priority band and
+  hidden state for each process identity. `Recovery.restorations` lists the ones to
+  undo; recovery applies them after thawing.
+- **Shield** (`ICCore.Shield`, `CallDetector`): a ladder per trigger (call, heat, stall)
+  that climbs one level after two measured-interference samples above the threshold,
+  drops to off when the trigger ends, and switches itself off if escalating does not
+  help. The daemon polls the call signals and its own 10 ms timer jitter every second.
+- **Battery** (`ICCore.BatteryPlanner`): per-process energy counters (`ri_energy_nj`)
+  and the battery's own power reading feed a linear calibration; estimates are ranges
+  and carry receipts that are checked against later readings.
+- **Forensics** (`ICCore.Forensics`, `LaunchAdvisor`): with Accessibility, a 2 s
+  question to the frontmost app; slow answers are recorded with paging, disk, CPU and
+  heat, and explained in ranked plain language.
+- **Lab mode**: `ICLEAR_LAB=1` loads a registry of process identities and every signal,
+  priority change and hide checks it (`ScopeLock`). `ICLEAR_OBSERVE_ONLY=1` forces
+  Observe mode; `ICLEAR_INSTANCE` names a separate instance.
 
 Floor: macOS 13 for everything (see [DECISIONS.md](DECISIONS.md) #19). Older MacBooks
 are limited to the macOS versions they can run; a MacBook that cannot run macOS 13
@@ -105,14 +133,19 @@ Thaws: `THAW_ACTIVATED`, `THAW_MAX_DURATION`, `THAW_PRESSURE_RELIEVED`, `THAW_US
 `THAW_WAKE`, `THAW_UNLOCK`, `THAW_LOW_BATTERY`, `THAW_SHUTDOWN`, `THAW_PROCESS_GONE`,
 `THAW_PREDICTED_RETURN`, `THAW_RECOVERY`.
 Other: `RUNAWAY_CPU`, `RUNAWAY_MEMORY_GROWTH`, `UNHEALTHY_AFTER_THAW`.
+1.0: `STASH`, `THAW_STASH_EXPIRED`, `CALL_MODE`, `THERMAL_SHIELD`, `ANTI_BEACHBALL`,
+`BATTERY_TARGET`.
 
 ## Files
 
 Everything lives in `~/Library/Application Support/iClear/` (mode 0700), or in
 `$ICLEAR_HOME` if set: `config.json`, `state.json` (engine state, learned thresholds,
 habits, regret records, daily totals), `journal.json` (only while something is
-frozen), `actions.jsonl` (+ `.1`, 5 MB rotation), `traces/` (daily JSON Lines, 7 days,
-20 MB), `hardware.json`, `icleard.sock`, `icleard.lock`, `icleard.log`. The
+frozen or stashed), `actions.jsonl` (+ `.1`, 5 MB rotation), `traces/` (daily JSON
+Lines, 7 days, 20 MB), `hardware.json`, `battery.json` (calibration and receipts),
+`icleard.sock`, `icleard.lock`, `icleard.log`. `ICLEAR_HOME` is a home directory
+(`Library/Application Support/iClear` under it); `ICLEAR_INSTANCE=name` uses
+`iClear-name`. The
 LaunchAgent is `~/Library/LaunchAgents/io.github.urrra39.iclear.plist`.
 
 ## Configuration

@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Foundation
 import ICCore
 
@@ -14,7 +15,9 @@ extension Daemon {
     func stashCandidates() -> [StashCandidate] {
         let now = clock()
         let frames = Windows.frames()
-        var apps = probe.collect(now: now).apps.filter(\.isRegularApp)
+        // An app belongs to at most one stash.
+        let stashed = stashedAppIDs
+        var apps = probe.collect(now: now).apps.filter { $0.isRegularApp && !stashed.contains($0.id) }
         if labMode {
             ScopeLock.load(paths.labRegistry)
             let allowed = ScopeLock.allowed ?? []
@@ -67,6 +70,11 @@ extension Daemon {
         var failed: [String] = []
         for c in chosen {
             guard let root = c.app.processes.first else { continue }
+            // Paused by the policy: the stash takes it over (a stopped app cannot hide itself).
+            if engine.state.frozen[c.app.id] != nil {
+                execute(engine.thaw(c.app.id, reason: Code.stash, at: now), immediate: true)
+                usleep(200_000)
+            }
             if !c.app.isHidden, !Signals.hide(root, appID: c.app.id, journal: journal, at: now) {
                 Signals.unhide(root, journal: journal)
                 failed.append(c.app.id)
@@ -119,7 +127,11 @@ extension Daemon {
     public func pop(_ name: String?, app: String? = nil, restoreFocus: Bool = true, reason: String = Code.thawUser) -> Response {
         let j = journal.read()
         let targets = j.stashes.filter { name == nil || $0.name == name || (name == "all") }
-        guard !targets.isEmpty else { return Response(ok: false, text: name.map { "No stash named \($0)." } ?? "Nothing is stashed.") }
+        guard !targets.isEmpty else {
+            // "pop --all" with nothing stashed is not an error.
+            if name == nil || name == "all" { return Response(ok: true, text: "Nothing is stashed.") }
+            return Response(ok: false, text: "No stash named \(name!).")
+        }
         var lines: [String] = []
         let now = clock()
         for s in targets {
@@ -158,15 +170,25 @@ extension Daemon {
     /// Brings an app to the front through LaunchServices (activate() is refused for
     /// background processes) and waits briefly for it.
     func activate(_ a: StashedApp) {
-        guard let root = a.processes.first, let app = NSRunningApplication(processIdentifier: root.pid), let url = app.bundleURL else {
+        guard let root = a.processes.first, let app = NSRunningApplication(processIdentifier: root.pid) else { return }
+        if AXIsProcessTrusted() {
+            // Targets this exact process.
+            let el = AXUIElementCreateApplication(root.pid)
+            AXUIElementSetMessagingTimeout(el, 1)
+            AXUIElementSetAttributeValue(el, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        } else if let url = app.bundleURL,
+            app.bundleIdentifier.map({ NSRunningApplication.runningApplications(withBundleIdentifier: $0).count == 1 }) ?? false
+        {
+            // LaunchServices picks by bundle; with a second instance running it could raise the wrong one.
+            let cfg = NSWorkspace.OpenConfiguration()
+            cfg.activates = true
+            cfg.createsNewApplicationInstance = false
+            let done = DispatchSemaphore(value: 0)
+            NSWorkspace.shared.openApplication(at: url, configuration: cfg) { _, _ in done.signal() }
+            _ = done.wait(timeout: .now() + 2)
+        } else {
             return
         }
-        let cfg = NSWorkspace.OpenConfiguration()
-        cfg.activates = true
-        cfg.createsNewApplicationInstance = false
-        let done = DispatchSemaphore(value: 0)
-        NSWorkspace.shared.openApplication(at: url, configuration: cfg) { _, _ in done.signal() }
-        _ = done.wait(timeout: .now() + 2)
         usleep(150_000)
     }
 

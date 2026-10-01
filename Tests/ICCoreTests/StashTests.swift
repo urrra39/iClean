@@ -104,6 +104,13 @@ import Testing
         #expect(StashPlanner.lifecycle(s, now: 0.95 * 86400, maxAgeHours: 24) == (false, false))
         #expect(StashPlanner.lifecycle(s, now: 86400, maxAgeHours: 24) == (false, true))
     }
+
+    /// Red team: the Mac slept through the reminder and the limit. On wake the stash
+    /// expires (pops) once, without a late reminder first.
+    @Test func expiryAfterSleepPopsWithoutLateReminder() {
+        let s = StashRecord(name: "w", createdAt: 0, apps: [], previousFrontmost: nil)
+        #expect(StashPlanner.lifecycle(s, now: 3 * 86400, maxAgeHours: 24) == (false, true))
+    }
 }
 
 @Suite struct JournalFormatTests {
@@ -129,6 +136,25 @@ import Testing
         #expect(j.restorations.count == 2 && !j.isEmpty)
         let round = try? JSONDecoder().decode(Journal.self, from: JSONEncoder().encode(j))
         #expect(round == j)
+    }
+
+    /// Red team: the daemon dies part-way through a pop. Recovery resumes and unhides
+    /// exactly what is still journaled.
+    @Test func partlyPoppedStashRecoversTheRest() {
+        var j = Journal()
+        j.add([JournalEntry(pid: 2, startTime: 20, appID: "b", frozenAt: 0, stash: "w")])
+        j.record(Restoration(kind: .hidden, pid: 2, startTime: 20, appID: "b", previous: false, at: 0))
+        var popped = StashedApp(
+            appID: "a", name: "A", processes: [ProcessIdentity(pid: 1, startTime: 10)], wasHidden: false, windows: [], order: 0,
+            residentMB: 1)
+        popped.popped = true
+        let rest = StashedApp(
+            appID: "b", name: "B", processes: [ProcessIdentity(pid: 2, startTime: 20)], wasHidden: false, windows: [], order: 1,
+            residentMB: 1)
+        j.stashes = [StashRecord(name: "w", createdAt: 0, apps: [popped, rest], previousFrontmost: nil)]
+        let live: [Int32: UInt64] = [1: 10, 2: 20]
+        #expect(Recovery.plan(j, startTime: { live[$0] }) == [.thaw(j.entries[0])])
+        #expect(Recovery.restorations(j, startTime: { live[$0] }).map(\.pid) == [2])
     }
 
     @Test func rectDistance() {

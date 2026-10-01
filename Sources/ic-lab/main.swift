@@ -13,9 +13,15 @@ _ = NSApplication.shared
 let products = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).deletingLastPathComponent()
 func tool(_ name: String) -> String { products.appendingPathComponent(name).path }
 func pump(_ s: Double) { RunLoop.main.run(until: Date().addingTimeInterval(s)) }
-atexit { SpawnedHog.killAll() }
+/// The running validation, cleaned up (resumed, unhidden, killed) on every exit path.
+nonisolated(unsafe) var activeLab: Lab?
+atexit {
+    activeLab?.cleanup()
+    SpawnedHog.killAll()
+}
 for s in [SIGINT, SIGTERM, SIGHUP] {
     signal(s) { _ in
+        activeLab?.cleanup()
         SpawnedHog.killAll()
         exit(1)
     }
@@ -239,6 +245,101 @@ case "session":
         "sharing processes present: \(SessionProbe.allProcessNames().intersection(["screensharingd", "CptHost", "ScreenSharingSubscriber"]))"
     )
 
+case "validate":
+    // docs/RELEASE_CRITERIA.md lab gate. Results go to ICLEAR_LAB_OUT (default: ../results).
+    let args = Array(CommandLine.arguments.dropFirst(2))
+    let phase = args.first ?? ""
+    func opt(_ k: String, _ d: Int) -> Int { args.firstIndex(of: k).flatMap { Int(args[$0 + 1]) } ?? d }
+    let out = URL(
+        fileURLWithPath: ProcessInfo.processInfo.environment["ICLEAR_LAB_OUT"]
+            ?? products.deletingLastPathComponent().appendingPathComponent("results").path)
+    let lab = Lab(out: out)
+    activeLab = lab
+    let battery = SmartBattery().read(now: 0)
+    lab.log(
+        "validate \(phase): Accessibility \(AXIsProcessTrusted()), "
+            + (battery.map { String(format: "battery %.0f%% %@", $0.percent, $0.onAC ? "on AC" : "unplugged") } ?? "no battery"))
+    if ["unsaved", "soak", "reclaim", "crash", "stash", "combined"].contains(phase) {
+        let running = Set(NSWorkspace.shared.runningApplications.map(\.processIdentifier))
+        lab.fixtures = LabApps.startAll(base: out.appendingPathComponent("apps-\(phase)"), hide: false, log: lab.log).filter { f in
+            // An app that was already running is the user's, never a fixture.
+            if running.contains(f.pid) { lab.log("refused: \(f.name) (\(f.pid)) was already running") }
+            return !running.contains(f.pid)
+        }
+        lab.log("fixtures: " + lab.fixtures.map { "\($0.name) \($0.pid) (\($0.tree().count) processes)" }.joined(separator: ", "))
+    }
+    let hog = tool("ic-hog")
+    switch phase {
+    case "ax": lab.axPrompt(tools: products, waitSeconds: Double(opt("--wait", 900)))
+    case "unsaved": lab.unsaved()
+    case "soak": lab.soak(normal: opt("--normal", 200), underPressure: opt("--pressure", 100), hogPath: hog)
+    case "reclaim": lab.reclaim(runs: opt("--runs", 10), hogPath: hog)
+    case "crash": lab.crash(freezeTrials: opt("--freeze", 100), stashTrials: opt("--stash", 50), tools: products)
+    case "stash": lab.stash(cycles: opt("--cycles", 50), tools: products)
+    case "battery": lab.battery(trials: opt("--trials", 3), tools: products)
+    case "overhead": lab.overhead(minutes: Double(opt("--minutes", 10)), tools: products)
+    case "combined": lab.combined(minutes: Double(opt("--minutes", 60)), tools: products)
+    case "callmode":
+        let sim = spawn(tool("ic-call-sim"), [])
+        print(lab.pairedShield(name: "Call Mode", pairs: opt("--pairs", 20), probe: sim, seconds: 20, tools: products))
+        sim.kill()
+    case "beachball":
+        let probe = spawn(tool("ic-ui-probe"), ["--frame", "80,80,300,200", "--title", "ic-lab beachball", "--heartbeat"])
+        print(lab.pairedShield(name: "Anti-Beachball", pairs: opt("--pairs", 30), probe: probe, seconds: 20, tools: products))
+        probe.kill()
+    default:
+        print("phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball")
+    }
+    lab.cleanup()
+    activeLab = nil
+    lab.log("validate \(phase) done")
+
+case "soak":
+    // 7-day soak supervisor (run by the soak LaunchAgent through iClear Lab.app).
+    let soak = Soak(
+        dir: URL(
+            fileURLWithPath: ProcessInfo.processInfo.environment["ICLEAR_SOAK_DIR"]
+                ?? products.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("soak").path),
+        tools: products)
+    for s in [SIGINT, SIGTERM, SIGHUP] {
+        signal(s, SIG_IGN)
+        let src = DispatchSource.makeSignalSource(signal: s, queue: .global())
+        src.setEventHandler {
+            soak.stop()
+            exit(0)
+        }
+        src.resume()
+        _ = Unmanaged.passRetained(src)
+    }
+    soak.run()
+
+case "soak-status":
+    let dir = URL(fileURLWithPath: ProcessInfo.processInfo.environment["ICLEAR_SOAK_DIR"] ?? ".work/soak")
+    guard let st = try? Files.readJSON(Soak.State.self, from: dir.appendingPathComponent("state.json")) else {
+        print("no soak state yet in \(dir.path)")
+        exit(1)
+    }
+    let d = st.days
+    func sum(_ k: (Soak.Day) -> Int) -> Int { d.map(k).reduce(0, +) }
+    let elapsed = (Date().timeIntervalSince1970 - st.startedAt) / 86400
+    let awake = d.map(\.awakeSeconds).reduce(0, +) / 3600
+    print(String(format: "Started %@ (%.2f days ago). Awake time %.1f h.", "\(Date(timeIntervalSince1970: st.startedAt))", elapsed, awake))
+    print("W1 elapsed >= 7 d: \(elapsed >= 7 ? "met" : String(format: "%.1f of 7 days", elapsed))")
+    print("W2 awake >= 40 h: \(awake >= 40 ? "met" : String(format: "%.1f of 40 h", awake))")
+    print(
+        "W3 freeze/thaw >= 5000: \(sum(\.freezeCycles)) (failed \(sum(\.freezeFailures))); stash/pop >= 300: \(sum(\.stashCycles)) (failed \(sum(\.stashFailures)))"
+    )
+    print("W4 left stopped: \(sum(\.leftStopped)); hangs: \(sum(\.hangs)); crash reports: \(d.flatMap(\.crashReports).count)")
+    func p95(_ x: [Double]) -> String { x.isEmpty ? "n/a" : String(format: "%.2f", percentileOf(x, 0.95)) }
+    let means = { (k: (Soak.Day) -> [Double]) in d.map(k).filter { !$0.isEmpty }.map { $0.reduce(0, +) / Double($0.count) } }
+    print(
+        "W5 daily CPU mean p95 (lab / observe, %): \(p95(means(\.labCPU))) / \(p95(means(\.observeCPU))); RSS p95 MB: \(p95(d.flatMap(\.labRSS))) / \(p95(d.flatMap(\.observeRSS)))"
+    )
+    print("W6 daily reports: \(d.map(\.date).joined(separator: ", "))")
+    print(
+        "Pressure episodes: \(sum(\.pressureEpisodes)), daemon freezes in them: \(sum(\.policyFreezes)); daemon restarts: \(sum(\.daemonRestarts)); fixture respawns: \(sum(\.fixtureRespawns))"
+    )
+
 default:
-    print("usage: ic-lab signals | energy | prio | stall | session")
+    print("usage: ic-lab signals | energy | prio | stall | session | validate <phase> | soak | soak-status")
 }

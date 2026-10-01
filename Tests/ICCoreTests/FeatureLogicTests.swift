@@ -50,6 +50,16 @@ import Testing
         #expect(!far.reachable && far.bestCaseHours < 10 && far.bestCaseHours > 2)
     }
 
+    /// Red team: an app the user woke during a target is never paused a second time.
+    @Test func targetNeverPausesAnAppTwice() {
+        let cands: [(app: AppPower, cost: Double)] = [(AppPower(appID: "busy", name: "Busy", watts: 6), 0)]
+        let first = BatteryPlanner.plan(remainingWh: 30, hours: 3, systemW: 14, candidates: cands, calibration: calibrated())
+        #expect(first.pause == ["busy"])
+        let again = BatteryPlanner.plan(
+            remainingWh: 30, hours: 3, systemW: 14, candidates: cands, calibration: calibrated(), alreadyPaused: ["busy"])
+        #expect(again.pause.isEmpty && !again.reachable)
+    }
+
     /// Safety invariant (1.0 #5): estimates self-disarm on poor measured accuracy.
     @Test func receiptsDisarmUnreliableEstimates() {
         var s = BatteryState()
@@ -112,6 +122,20 @@ import Testing
     }
 
     /// Red team: microphone released and taken again within seconds does not flap.
+    /// Red team: the call app crashes mid-call. The call ends after the debounce and the
+    /// shield drops to off at once.
+    @Test func callAppCrashEndsTheCallAndDropsTheShield() {
+        var d = CallDetector()
+        var st = ShieldState()
+        _ = d.update(signal: true, now: 0)
+        for _ in 0..<4 { _ = Shield.step(&st, triggerActive: true, interference: 9, settings: on) }
+        #expect(st.level > .off)
+        #expect(d.update(signal: false, now: 1) == (true, false))
+        let end = d.update(signal: false, now: 2.6)
+        #expect(end == (false, true))
+        #expect(Shield.step(&st, triggerActive: end.inCall, interference: nil, settings: on) == .off)
+    }
+
     @Test func callEndIsDebounced() {
         var d = CallDetector()
         #expect(d.update(signal: true, now: 0) == (true, true))

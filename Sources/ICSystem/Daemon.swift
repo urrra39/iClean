@@ -55,6 +55,9 @@ public final class Daemon {
     /// `ICLEAR_OBSERVE_ONLY=1`: this instance records what it would do and never acts,
     /// whatever its config says (the real-use trace during the soak).
     public var observeOnly = ProcessInfo.processInfo.environment["ICLEAR_OBSERVE_ONLY"] == "1"
+    /// A lab registry whose processes this instance ignores (keeps lab fixtures out of a
+    /// real-use observation running on the same Mac).
+    public var ignoreRegistry = ProcessInfo.processInfo.environment["ICLEAR_IGNORE_REGISTRY"].map { URL(fileURLWithPath: $0) }
     /// `ICLEAR_LAB=1`: act only on processes registered in the lab registry (scope lock).
     public var labMode = ProcessInfo.processInfo.environment["ICLEAR_LAB"] == "1"
     // Battery (F3), Call Mode and thermal shield (F4), stall forensics (F5).
@@ -291,6 +294,11 @@ public final class Daemon {
             ScopeLock.load(paths.labRegistry)
             let allowed = ScopeLock.allowed ?? []
             r.apps = r.apps.filter { a in !a.processes.isEmpty && a.processes.allSatisfy { allowed.contains($0) } }
+        }
+        if let url = ignoreRegistry,
+            let ids = (try? Data(contentsOf: url)).flatMap({ try? JSONDecoder().decode(Set<ProcessIdentity>.self, from: $0) })
+        {
+            r.apps = r.apps.filter { a in !a.processes.contains { ids.contains($0) } }
         }
         // Stashed apps belong to their stash, not to the policy engine.
         let stashed = stashedAppIDs

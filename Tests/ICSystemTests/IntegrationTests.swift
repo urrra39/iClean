@@ -461,6 +461,50 @@ import Testing
         #expect(why.status == 0 && why.out.contains("Mac Health"))
     }
 
+    /// Every daemon-backed command, through the real CLI and a real daemon, in an
+    /// isolated, scope-locked home with nothing registered (nothing can be touched).
+    @Test func everyCommandRunsThroughTheCLI() throws {
+        let paths = Paths(environment: ["ICLEAR_HOME": tempHome().home.path, "ICLEAR_INSTANCE": "clitest"])
+        try paths.ensure()
+        try Data("[]".utf8).write(to: paths.labRegistry)
+        let env = ["ICLEAR_HOME": paths.home.path, "ICLEAR_INSTANCE": "clitest", "ICLEAR_LAB": "1"]
+        let daemon = Process()
+        daemon.executableURL = products.appendingPathComponent("icleard")
+        daemon.environment = ProcessInfo.processInfo.environment.merging(env) { _, n in n }
+        daemon.standardError = FileHandle.nullDevice
+        try daemon.run()
+        defer {
+            daemon.terminate()
+            daemon.waitUntilExit()
+        }
+        #expect(eventually(10) { IPC.send(Request("ping"), path: paths.socket.path)?.ok == true })
+        let ok: [[String]] = [
+            ["status"], ["status", "--json"], ["why"], ["stats"], ["stats", "--week"], ["advise"],
+            ["quarantine"], ["habits"], ["habits", "export"], ["workspace"], ["mode"], ["mode", "observe"], ["profile"],
+            ["thaw", "--all"], ["stash"], ["stash", "list"], ["pop", "--all"], ["battery"], ["battery", "target", "off"],
+            ["beachball"], ["beachball", "stats"], ["shield"], ["config", "path"], ["config", "show"],
+            ["trace", "export"], ["migrate", "--dry-run"],
+        ]
+        for args in ok {
+            let r = run("iclear", args, env: env)
+            #expect(r.status == 0, "iclear \(args.joined(separator: " ")): \(r.out)")
+        }
+        // Refusals answer with a reason and a non-zero status.
+        let refused: [[String]] = [
+            ["freeze", "com.example.none"], ["explain", "com.example.none"], ["before", "NoSuchApp"], ["stash", "show", "nope"],
+            ["stash", "drop", "nope"], ["explain"], ["before"],
+            ["battery", "target"], ["config", "allow"], ["trace"], ["habits", "bogus"],
+        ]
+        for args in refused {
+            let r = run("iclear", args, env: env)
+            #expect(r.status != 0 && !r.out.isEmpty, "iclear \(args.joined(separator: " ")): \(r.out)")
+        }
+        // Nothing registered: a stash finds nothing to pause.
+        let s = run("iclear", ["stash", "work"], env: env)
+        #expect(s.status != 0 && !s.out.isEmpty, "\(s.out)")
+        #expect(JournalStore(url: paths.journal).read().isEmpty)
+    }
+
     @Test func ruleImportIsValidated() throws {
         let paths = tempHome()
         let env = ["ICLEAR_HOME": paths.home.path]

@@ -109,7 +109,7 @@ extension Daemon {
         let hours = (t.until - now) / 3600
         let ctx = engine.eligibilityContext(at: now)
         var candidates: [(app: AppPower, cost: Double)] = []
-        for var a in lastApps where a.isRegularApp && !t.paused.contains(a.id) {
+        for var a in lastApps where a.isRegularApp {
             AppCollector.inspectGuards(&a, engine: engine, now: now)
             // Guards and protection always apply; idle time and CPU use do not (CPU users are the point).
             let r = Policy.skipReasons(a, ctx).filter { ![Code.notIdle, Code.cpuActive, Code.cooldown].contains($0.code) }
@@ -120,7 +120,7 @@ extension Daemon {
         }
         let plan = BatteryPlanner.plan(
             remainingWh: r.remainingWh, hours: hours, systemW: systemW, candidates: candidates,
-            calibration: battery.calibration)
+            calibration: battery.calibration, alreadyPaused: Set(t.paused))
         for id in plan.pause {
             guard let a = lastApps.first(where: { $0.id == id }) else { continue }
             let saved = (appPowers.first { $0.appID == id }?.watts ?? 0) * battery.calibration.fit.scale

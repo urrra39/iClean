@@ -14,6 +14,34 @@ and each has a test that must pass before a release.
 | 7 | Everything is explainable | Every action carries reason codes and is logged to `actions.jsonl`; `iclear explain <app>` prints the current checks and recent actions | engine tests assert reason codes; `ipcRoundTrip` |
 | 8 | Tests only signal their own processes | Tests and benchmarks signal only `ic-hog` children they spawned; `ic-hog` exits when its parent dies; `SpawnedHog.kill` refuses PID 0 | the whole suite runs on a live machine with the maintainer's apps open |
 
+### Added in 1.0
+
+| # | Invariant | How | Test |
+|---|---|---|---|
+| 1.0 #1 | Every change is put back exactly | Priority-band and hidden-state changes are journaled with the previous value before they happen; recovery, the watchdog and shutdown restore only what iClear changed, for the same process identity | `restorationsKeepTheOriginalValueAndOnlyUndoChanges`, `backgroundBandIsJournaledAndRestored` |
+| 1.0 #2 | A stash never outlives the daemon | Stashes live in the freeze journal; shutdown, logout, daemon start, the watchdog and `thaw --all` resume and unhide them; a pop interrupted by a crash is finished by recovery | `powerOffResumesStashesAndFreezes`, `staleStashIsDroppedOnStart`, `daemonKilledMidPopRecoversTheRest`; lab C2 (stash trials) |
+| 1.0 #3 | No stash without swap headroom | A stash is refused unless free disk exceeds the stashed apps' memory plus 2 GB | `refusesWithoutDiskHeadroom` |
+| 1.0 #4 | The call is never touched | Call Mode never lowers or pauses microphone users, the frontmost app while a camera is on, or known call apps; a stash never pauses an app using the microphone or playing audio, an app holding a power assertion, or a call app while a camera is on | `hardBlocksCannotBeOverridden`, `callModeLowersOthersAndRestoresWithinTwoSeconds` |
+| 1.0 #5 | Estimates switch themselves off | Battery estimates are labelled unreliable above 20% median error; a shield trigger switches off if escalating does not cut the measured interference by 20% | `receiptsDisarmUnreliableEstimates`, `disarmsWhenItDoesNotHelp` |
+| 1.0 #6 | Lab work stays in its lab | With `ICLEAR_LAB=1` every signal, priority change and hide checks a registry of processes the lab started; anything else is refused | `scopeLockRefusesUnregisteredProcesses`, `everyCommandRunsThroughTheCLI` |
+
+### Call Mode and Focus Safe Mode
+
+Focus Safe Mode suspends the pressure-driven policy during calls, screen sharing,
+mirroring and fullscreen use. Call Mode (off by default) is the one exception: when you
+turn it on, it may act during a call, in steps, and only on measured interference
+(the daemon's own timer jitter):
+
+1. Level 1 puts other non-frontmost apps that use CPU into the background priority band.
+2. Level 2, only if level 1 did not help, pauses Tier A apps that pass every pause check
+   and have no network connection.
+
+The call's own processes (rule 1.0 #4) are never touched. When the call ends (1.5 s
+without microphone, camera or screen sharing), Call Mode steps down to off at once and
+puts back every journaled change. If escalating does not help on this Mac, it switches
+itself off (rule 1.0 #5). With Call Mode off, Focus Safe Mode alone applies and nothing
+is done automatically during a call.
+
 ## What "protected" covers
 
 Never frozen, deprioritised or asked to quit: anything under `/System` or `/usr`,
@@ -60,10 +88,22 @@ welcome by pull request.
 | Disk full / journal unwritable | nothing is signalled | `journalWriteFailureMeansNoFreeze` |
 | Invalid config while running | previous config kept, error shown | `invalidConfigKeepsPreviousOne` |
 | Frozen app holds a lock another app waits for | prevented by Write Guard for lock files and recent writes; advisory `flock` locks are **not** detectable (documented limit) | `recentWriteAndLockFile` |
-| Permissions revoked mid-run | Accessibility loss only disables the responsiveness probe (returns "unknown") | not automated |
+| Permissions revoked mid-run | Accessibility loss only disables the responsiveness probe and the stall probe, and makes the unsaved state "unknown" | `keepListUnsavedAndSharedWindows` (unknown path); the revocation itself is manual (MANUAL_TESTS 8) |
 | Forecast false-alarm storm | forecast actions switch themselves off | `falseAlarmStormDisarms` |
 | Regret budget flapping | conservative for a fixed 24 h, no on/off flapping | `dailyBudgetTurnsConservativeFor24h` |
 | Oversized or corrupt trace files | bad lines skipped, record count bounded | `corruptInputIsSkipped` |
 | Habit table poisoning by one unusual day | capped at 20 transitions per pair per day | `dailyCapLimitsPoisoning` |
 | Guard bypass through helper processes | guards inspect every process of the tree | `daemonInspectsBeforeFreezing` |
 | Quarantine release race | quarantine is set once per app; release is idempotent | `unhealthyThawQuarantines` |
+| Stash with an app the policy already paused (1.0) | the stash takes it over; pop resumes and shows it | `stashTakesOverAPolicyFreeze` |
+| Stashed app launched from the Dock (1.0) | pops just that app | `activationPopsOnlyThatApp` |
+| Stash expiry due while the Mac sleeps (1.0) | pops once on wake, no late reminder | `expiryAfterSleepPopsWithoutLateReminder` |
+| Daemon killed during a pop (1.0) | recovery resumes and unhides the rest | `daemonKilledMidPopRecoversTheRest`, `partlyPoppedStashRecoversTheRest` |
+| Two stashes sharing an app (1.0) | an app belongs to at most one stash | `twoStashesNeverShareAnApp` |
+| Disk full during a stash (1.0) | refused before anything changes | `refusesWithoutDiskHeadroom`, `journalWriteFailureMeansNoFreeze` |
+| Microphone released and re-acquired quickly (1.0) | one call, no flapping | `callEndIsDebounced` |
+| Call app crashes mid-call (1.0) | the call ends after 1.5 s and the shield drops to off at once | `callAppCrashEndsTheCallAndDropsTheShield` |
+| Battery target with an app that keeps waking (1.0) | never paused twice in one target | `targetNeverPausesAnAppTwice` |
+| Priority band after a daemon crash (1.0) | restored by recovery | `backgroundBandIsJournaledAndRestored` |
+| Migration with a half-written old journal (1.0) | stops, nothing moved | `halfWrittenOldJournal` |
+| Pop raising the wrong copy of an app (1.0) | pop brings back the exact process through Accessibility; without it, it only uses LaunchServices when one copy of the app runs | lab `stash` (frontmost restore with the user's own Chrome running) |
