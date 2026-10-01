@@ -187,16 +187,23 @@ extension Daemon {
 
     /// Brings an app to the front through LaunchServices (activate() is refused for
     /// background processes) and waits briefly for it.
-    /// Activates and checks: some apps (Electron) take a moment, and a later activation of
-    /// another popped app can still be landing. Up to three tries.
+    /// Activates and checks: some apps (Electron) take a moment, and an earlier popped
+    /// app's activation (a just-resumed Chrome answers late) can still land afterwards.
+    /// Done when the app has stayed frontmost for 0.5 s; gives up after 3 s.
     func bringToFront(_ root: ProcessIdentity?) {
         guard let root else { return }
-        for _ in 0..<3 {
-            activate(root)
-            for _ in 0..<6 {
-                if NSRunningApplication(processIdentifier: root.pid)?.isActive == true { return }
-                usleep(50_000)
+        activate(root)
+        let end = Date().addingTimeInterval(3)
+        var frontSince: Date?
+        while Date() < end {
+            if NSRunningApplication(processIdentifier: root.pid)?.isActive == true {
+                if frontSince == nil { frontSince = Date() }
+                if Date().timeIntervalSince(frontSince!) >= 0.5 { return }
+            } else {
+                frontSince = nil
+                activate(root)
             }
+            usleep(50_000)
         }
     }
 

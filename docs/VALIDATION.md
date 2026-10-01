@@ -251,3 +251,17 @@ with 8,192 MB (45% of RAM) of incompressible memory held, pressure "warning".
 - "Under induced pressure" means the cycles ran while the lab held 8 GB at "warning"
   pressure; whether each app's memory had been compressed before its thaw was not
   checked per cycle (the reclaim episodes above show it is at "warning").
+
+## Daemon overhead (C12)
+
+An Observe-only instance watching this Mac's real apps (it cannot act), stall probe on
+(Accessibility), sampled every 10 s for 10 minutes after a 30 s start-up.
+
+| Run | CPU, average | 10 s windows: p50 / p95 / max | Resident memory |
+|---|---|---|---|
+| First (22:21, lid closed for the last 1.6 min) | 0.636% of one core | 0.373 / 1.821 / 2.554% | 37.5-38.1 MB |
+| After 5-second call polling while no shield can act (b69852a), Mac awake throughout | **0.479%** | 0.115 / 1.091 / 1.998% | 40.3-40.4 MB |
+
+The limit is 0.5% and 60 MB: met, with little CPU headroom. The first run found the
+once-a-second call poll reading the window list and process table even with every
+shield off; a 3-minute side-by-side of the two builds measured about 0.55% and 0.45%.
