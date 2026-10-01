@@ -250,6 +250,11 @@ extension Daemon {
             return beachball(req.value)
         case "before":
             return before(req.app ?? "")
+        case "context":
+            return handleContext(req)
+        case "leaks":
+            let args = (req.value?.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+            return leaksReport(quit: args["quit"] as? String, confirm: args["yes"] as? Bool ?? false)
         case "shield":
             let l = ShieldTrigger.allCases.map { t in
                 let st = shieldStates[t] ?? ShieldState()
