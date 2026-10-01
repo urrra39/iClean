@@ -245,8 +245,10 @@ struct CycleStats: Codable {
 extension Lab {
     /// One freeze/thaw cycle on a fixture through the journaled path.
     func cycle(_ f: AppFixture, hold: Double, stats: inout CycleStats, pressure: Bool) {
-        lockScope()
+        // The scope must include exactly the tree about to be frozen (Chrome starts helpers
+        // all the time; one started between two tree reads would be refused).
         let ids = f.tree()
+        ScopeLock.set(registered().union(ids))
         guard f.alive, Signals.freezeTree(ids, appID: f.name, at: Date().timeIntervalSince1970, journal: journal).ok else {
             stats.freezeFailures += 1
             return
