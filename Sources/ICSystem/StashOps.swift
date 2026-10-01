@@ -68,7 +68,13 @@ extension Daemon {
         }
         var lines: [String] = []
         var failed: [String] = []
-        for c in chosen {
+        // Back to front, the frontmost app last: hiding the frontmost app makes macOS
+        // activate the next one, which must not be an app still waiting to be stashed.
+        let hideOrder = chosen.sorted {
+            (front == $0.app.id ? 1 : 0, -(frontToBack.firstIndex(of: $0.app.id) ?? 99))
+                < (front == $1.app.id ? 1 : 0, -(frontToBack.firstIndex(of: $1.app.id) ?? 99))
+        }
+        for c in hideOrder {
             guard let root = c.app.processes.first else { continue }
             // Paused by the policy: the stash takes it over (a stopped app cannot hide itself).
             if engine.state.frozen[c.app.id] != nil {
@@ -108,6 +114,8 @@ extension Daemon {
     }
 
     /// App IDs ordered front to back by their topmost on-screen window.
+    static let stashSettleSeconds = 2.0
+
     static func frontToBack(_ apps: [AppSnapshot]) -> [String] {
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         var out: [String] = []
@@ -196,6 +204,9 @@ extension Daemon {
     /// its stash partial. Returns true if the app was stashed.
     func popOnActivation(pid: Int32, bundleID: String?) -> Bool {
         for s in journal.read().stashes {
+            // Activations macOS makes while a stash hides its apps arrive just after it;
+            // they are not the user coming back.
+            if clock() - s.createdAt < Self.stashSettleSeconds { continue }
             guard let a = s.apps.first(where: { !$0.popped && ($0.appID == bundleID || $0.processes.contains { $0.pid == pid }) }) else {
                 continue
             }

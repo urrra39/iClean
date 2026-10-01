@@ -261,7 +261,8 @@ case "validate":
             + (battery.map { String(format: "battery %.0f%% %@", $0.percent, $0.onAC ? "on AC" : "unplugged") } ?? "no battery"))
     if ["unsaved", "soak", "reclaim", "crash", "stash", "combined"].contains(phase) {
         let running = Set(NSWorkspace.shared.runningApplications.map(\.processIdentifier))
-        lab.fixtures = LabApps.startAll(base: out.appendingPathComponent("apps-\(phase)"), hide: false, log: lab.log).filter { f in
+        lab.fixtures = LabApps.startAll(base: out.appendingPathComponent("apps-\(phase)-\(getpid())"), hide: false, log: lab.log).filter {
+            f in
             // An app that was already running is the user's, never a fixture.
             if running.contains(f.pid) { lab.log("refused: \(f.name) (\(f.pid)) was already running") }
             return !running.contains(f.pid)

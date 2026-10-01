@@ -1,0 +1,17 @@
+#!/bin/sh
+# Renders docs/images/menu-en.png and menu-uz.png from the menu app, connected to an
+# isolated, observe-only daemon (it never pauses anything and does not touch the real
+# install). Run after `swift build -c release`.
+set -eu
+cd "$(dirname "$0")/.."
+BIN=.build/release
+home=$(mktemp -d /tmp/iclear-shot.XXXXXX)
+export ICLEAR_HOME="$home" ICLEAR_INSTANCE=shot ICLEAR_OBSERVE_ONLY=1
+"$BIN/icleard" 2>/dev/null &
+daemon=$!
+trap 'kill $daemon 2>/dev/null; rm -rf "$home"' EXIT
+for _ in $(seq 1 50); do "$BIN/iclear" status >/dev/null 2>&1 && break; sleep 0.2; done
+sleep 3
+"$BIN/iClearMenu" --snapshot docs/images/menu-en.png --light -AppleLanguages "(en)"
+"$BIN/iClearMenu" --snapshot docs/images/menu-uz.png --light -AppleLanguages "(uz)"
+echo "wrote docs/images/menu-en.png and menu-uz.png"

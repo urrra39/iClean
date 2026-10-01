@@ -28,7 +28,9 @@ final class AppFixture {
     var alive: Bool { Proc.bsdInfo(pid) != nil && Proc.bsdInfo(pid)?.pbi_status != UInt32(SZOMB) }
     var isHidden: Bool { NSRunningApplication(processIdentifier: pid)?.isHidden ?? false }
 
-    /// Root and every descendant (browsers and Electron apps run many helpers).
+    /// Root and every descendant (browsers and Electron apps run many helpers), plus, as
+    /// iClear's collector counts them, helpers inside the bundle that launchd parents
+    /// (crash handlers) when this is the only copy of the app and they started after it.
     func tree() -> [ProcessIdentity] {
         let table = Proc.table()
         var out: [ProcessIdentity] = []
@@ -39,6 +41,13 @@ final class AppFixture {
             seen.insert(p)
             out.append(info.identity)
             queue += table.values.filter { $0.ppid == p }.map(\.pid)
+        }
+        if let bundle = app.bundleURL?.path, let id = app.bundleIdentifier, let start = table[pid]?.identity.startTime,
+            NSRunningApplication.runningApplications(withBundleIdentifier: id).count == 1
+        {
+            for p in table.values where p.ppid == 1 && p.pid != pid && p.path.hasPrefix(bundle + "/") && p.identity.startTime >= start {
+                out.append(p.identity)
+            }
         }
         fixturePIDs.formUnion(out.map(\.pid))
         return out
@@ -143,6 +152,8 @@ enum LabApps {
         func wait(_ a: NSRunningApplication) {
             for _ in 0..<100 where Windows.frames()[a.processIdentifier] == nil { usleep(100_000) }
             usleep(1_500_000)  // let helpers start
+            // A copy that handed its work to another instance (same profile) has exited.
+            if Proc.startTime(a.processIdentifier) == nil { log("refused: \(a.localizedName ?? "app") exited right after launch") }
         }
         let chrome = URL(fileURLWithPath: "/Applications/Google Chrome.app")
         if fm.fileExists(atPath: chrome.path) {
@@ -155,7 +166,9 @@ enum LabApps {
                 ], hide: hide)
             {
                 wait(a)
-                out.append(AppFixture(kind: "chromium", name: "Google Chrome", app: a, dataDir: data, docs: [s.html]))
+                if Proc.startTime(a.processIdentifier) != nil {
+                    out.append(AppFixture(kind: "chromium", name: "Google Chrome", app: a, dataDir: data, docs: [s.html]))
+                }
             }
         } else {
             log("not installed: Google Chrome (Chromium-family fixture)")

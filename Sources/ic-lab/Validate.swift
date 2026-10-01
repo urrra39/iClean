@@ -19,6 +19,8 @@ final class Lab {
     /// Guards `fixtures`, `probes` and `extra` against the registry timers.
     let regLock = NSLock()
     var registryTimers: [String: DispatchSourceTimer] = [:]
+    /// Lab daemons started by this run; stopped on every exit path (they resume what they paused).
+    var daemons: [Process] = []
     let condLock = NSLock()
     var conditions: [String: Int] = [:]
     var forecast = ForecastState()
@@ -93,6 +95,13 @@ final class Lab {
     }
 
     func cleanup() {
+        regLock.lock()
+        let ds = daemons
+        regLock.unlock()
+        for d in ds where d.isRunning {
+            d.terminate()
+            d.waitUntilExit()
+        }
         // Scope first: recovery must not reach anything the lab did not start.
         lockScope()
         _ = Signals.recover(journal: journal)
@@ -410,6 +419,9 @@ extension Lab {
         ) { _, n in n }
         d.standardError = FileHandle.nullDevice
         guard (try? d.run()) != nil else { return nil }
+        regLock.lock()
+        daemons.append(d)
+        regLock.unlock()
         for _ in 0..<200 {
             if IPC.send(Request("ping"), path: paths.socket.path, timeout: 1)?.ok == true,
                 Proc.table().values.contains(where: { $0.ppid == d.processIdentifier })
@@ -431,6 +443,20 @@ extension Lab {
         }
         var r = Row()
         let since = Date()
+        let saved = fixtures
+        // System apps (TextEdit, Preview) are in iClear's protected set and are never stashed;
+        // two lab GUI apps take their place so that four apps are stashed together.
+        let probeApps = stashProbes()
+        regLock.lock()
+        fixtures = saved.filter { !Lab.isSystemApp($0) } + probeApps
+        regLock.unlock()
+        defer {
+            for p in probeApps { p.kill() }
+            regLock.lock()
+            fixtures = saved
+            regLock.unlock()
+        }
+        log("stash apps: " + fixtures.map(\.name).joined(separator: ", "))
         for f in fixtures { f.app.unhide() }
         sleep(2)
         let paths = Paths(environment: ["ICLEAR_HOME": labHome("stash").path, "ICLEAR_INSTANCE": "lab"])
@@ -535,6 +561,21 @@ extension Lab {
         save("stash", r, md)
     }
 
+    static func isSystemApp(_ f: AppFixture) -> Bool { f.app.bundleURL?.path.hasPrefix("/System/") ?? false }
+
+    /// Two ic-ui-probe apps wrapped as fixtures (their own bundle IDs, never the user's).
+    func stashProbes() -> [AppFixture] {
+        let dir = out.appendingPathComponent("stash-probes-\(getpid())")
+        let probe = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).deletingLastPathComponent()
+            .appendingPathComponent("ic-ui-probe").path
+        return ["LabProbeA", "LabProbeB"].enumerated().compactMap { i, name in
+            guard let g = try? GUIFixture(probe: probe, dir: dir, name: name, frame: i == 0 ? "160,180,360,240" : "560,220,360,240") else {
+                return nil
+            }
+            return AppFixture(kind: "probe", name: name, app: g.app, dataDir: dir.appendingPathComponent(name), docs: [])
+        }
+    }
+
     /// Crash recovery (C2): kill -9 the lab daemon while fixtures are frozen or stashed.
     func crash(freezeTrials: Int, stashTrials: Int, tools: URL) {
         struct Row: Codable {
@@ -543,10 +584,24 @@ extension Lab {
             var stashSeconds: [Double] = []
         }
         var r = Row()
+        let all = fixtures
+        let probeApps = stashTrials > 0 ? stashProbes() : []
+        defer {
+            for p in probeApps { p.kill() }
+            regLock.lock()
+            fixtures = all
+            regLock.unlock()
+        }
         let paths = Paths(environment: ["ICLEAR_HOME": labHome("crash").path, "ICLEAR_INSTANCE": "lab"])
         for i in 0..<(freezeTrials + stashTrials) {
             powerGate()
             let stash = i >= freezeTrials
+            if i == freezeTrials {
+                // Stash trials: the stashable apps (system apps are protected) and two lab GUI apps.
+                regLock.lock()
+                fixtures = all.filter { !Lab.isSystemApp($0) } + probeApps
+                regLock.unlock()
+            }
             for f in fixtures where f.isHidden != !stash {
                 if stash { f.app.unhide() } else { f.app.hide() }
             }

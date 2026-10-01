@@ -80,6 +80,11 @@ import Testing
         let d = try testDaemon(probe, paths: paths, mode: .observe)
         defer { d.shutdown() }
         #expect(d.stash("w", options: StashOptions()).ok)
+        // An activation while the stash settles is macOS moving focus away from apps it
+        // just hid, not the user coming back: nothing is popped.
+        d.handleActivation(pid: fx[0].pid, bundleID: fx[0].id, name: "x")
+        #expect(isStopped(fx[0].pid) && isStopped(fx[1].pid))
+        probe.now += Daemon.stashSettleSeconds + 1
         usleep(300_000)  // long enough for the probe to log the gap
         let t = uptimeNanos()
         d.handleActivation(pid: fx[0].pid, bundleID: fx[0].id, name: "x")
