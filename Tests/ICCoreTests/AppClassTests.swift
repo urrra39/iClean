@@ -28,7 +28,25 @@ import Testing
         _ = e.tick(TickInput(sample: sample(0, .critical), apps: [playing]))
         let r = e.tick(TickInput(sample: sample(120, .critical), apps: [player]))
         #expect(r.actions.of(.freeze).isEmpty)
-        #expect(e.tick(TickInput(sample: sample(700, .critical), apps: [player])).actions.of(.freeze).ids == [player.id])
+        // The cooldown starts at the first sample without audio (120 s), not the last one with it.
+        #expect(e.tick(TickInput(sample: sample(700, .critical), apps: [player])).actions.of(.freeze).isEmpty)
+        #expect(e.tick(TickInput(sample: sample(730, .critical), apps: [player])).actions.of(.freeze).ids == [player.id])
+    }
+
+    /// A microphone counts like audio, and a reading that flickers off and on restarts the cooldown.
+    @Test func microphoneAndFlickerKeepTheCooldown() {
+        let e = engine(apps: [])
+        var call = app("com.example.call")
+        call.signals.audioInput = true
+        let quiet = app("com.example.call")
+        e.noteAudio([call], at: 0)
+        e.noteAudio([quiet], at: 30)
+        e.noteAudio([call], at: 60)
+        e.noteAudio([quiet], at: 90)
+        #expect(e.lastAudioAt[call.id] == 90)
+        let ctx = PolicyContext(now: 600, config: Config(), lastAudioAt: e.lastAudioAt)
+        #expect(Policy.skipReasons(quiet, ctx).map(\.code).contains(Code.audioRecent))
+        #expect(Policy.skipReasons(call, ctx).map(\.code).contains(Code.microphone))
     }
 
     /// BROWSER: a longer idle threshold, and wake windows long enough to reconnect.

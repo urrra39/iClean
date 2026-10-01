@@ -16,8 +16,9 @@ final class Lab {
     var markdown: [String] = []
     /// Lab processes that are not app fixtures (simulator apps).
     var extra: [ProcessIdentity] = []
-    /// Guards `fixtures`, `probes` and `extra` against the registry timer.
+    /// Guards `fixtures`, `probes` and `extra` against the registry timers.
     let regLock = NSLock()
+    var registryTimers: [String: DispatchSourceTimer] = [:]
     let condLock = NSLock()
     var conditions: [String: Int] = [:]
     var forecast = ForecastState()
@@ -392,6 +393,16 @@ extension Lab {
     func startDaemon(_ paths: Paths, tools: URL, env extra: [String: String] = [:]) -> Process? {
         try? paths.ensure()
         writeRegistry(paths.labRegistry)
+        // Apps such as Chrome start helper processes all the time; each is registered within a second.
+        regLock.lock()
+        if registryTimers[paths.labRegistry.path] == nil {
+            let t = DispatchSource.makeTimerSource(queue: .global())
+            t.schedule(deadline: .now() + 1, repeating: 1)
+            t.setEventHandler { [weak self] in self?.writeRegistry(paths.labRegistry) }
+            t.resume()
+            registryTimers[paths.labRegistry.path] = t
+        }
+        regLock.unlock()
         let d = Process()
         d.executableURL = tools.appendingPathComponent("icleard")
         d.environment = ProcessInfo.processInfo.environment.merging(
@@ -547,9 +558,11 @@ extension Lab {
             let dj = JournalStore(url: paths.journal)
             var armed = false
             if stash {
-                armed =
-                    IPC.send(Request("stash", app: "crash\(i)", value: includeAll), path: paths.socket.path, timeout: 60)?.ok == true
-                    && fixtures.allSatisfy { $0.stopped() && $0.isHidden }
+                let r = IPC.send(Request("stash", app: "crash\(i)", value: includeAll), path: paths.socket.path, timeout: 60)
+                armed = r?.ok == true && fixtures.allSatisfy { $0.stopped() && $0.isHidden }
+                if !armed {
+                    log("crash stash trial \(i): \(r?.text.replacingOccurrences(of: "\n", with: " | ").prefix(300) ?? "no answer")")
+                }
             } else {
                 lockScope()
                 armed = fixtures.allSatisfy { f in Signals.freezeTree(f.tree(), appID: f.name, at: 0, journal: dj).ok }

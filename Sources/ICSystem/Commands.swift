@@ -160,6 +160,7 @@ extension Daemon {
                 return Response(ok: false, text: "No running app matches '\(req.app ?? "")'.")
             }
             AppCollector.inspectGuards(&app, engine: engine, now: now)
+            engine.noteAudio([app], at: now)
             let (a, refused) = engine.userFreeze(app, at: now)
             guard let a else { return Response(ok: false, text: "Not frozen: " + refused.map(\.description).joined(separator: ", ")) }
             execute([a])

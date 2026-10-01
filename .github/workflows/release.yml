@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test
-        run: swift test
+        run: swift test --no-parallel
       - name: Import signing certificate
         if: env.MACOS_CERTIFICATE != ''
         env:
@@ -45,32 +45,21 @@ jobs:
           (cd dist && ditto -c -k --keepParent iClear.app "iClear-${GITHUB_REF_NAME#v}.zip")
       - name: Checksums
         run: cd dist && shasum -a 256 iClear-*.zip iclear-*-macos.tar.gz > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - name: Pre-release
+      - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           {
-            echo "Beta. Tested with synthetic test processes and on one Mac (Apple M3 Pro, macOS 27.0.1); the test suite also passes in CI on macOS 15 (Apple Silicon and Intel) and macOS 26. Active mode on real apps is not yet validated. iClear starts in Observe mode."
-            echo
-            echo "## Downloads"
-            echo
-            echo "- \`iClear-$VERSION.zip\`: menu-bar app (command-line tools inside \`iClear.app/Contents/Helpers\`)."
-            echo "- \`iclear-$VERSION-macos.tar.gz\`: \`iclear\`, \`icleard\` and \`ic-hog\` (needed by \`iclear bench\`)."
-            echo
-            echo "Universal binaries (arm64 and x86_64), built for macOS 13 and later."
-            echo
-            echo "## First launch"
-            echo
-            echo "These builds are ad-hoc signed and not notarized. For the app: right-click iClear.app, choose Open, confirm. For the command-line tools: \`xattr -d com.apple.quarantine iclear icleard ic-hog\`, then \`./iclear install\`."
+            sed "s/@VERSION@/$VERSION/g" packaging/release-notes.md
             echo
             echo "## SHA256"
             echo
             echo '```'
             cat dist/SHA256SUMS.txt
             echo '```'
-            echo
-            echo "Changes: see CHANGELOG.md."
           } > notes.md
-          gh release create "$GITHUB_REF_NAME" --prerelease --title "iClear $VERSION (beta)" --notes-file notes.md \
+          # A tag with a suffix (v1.0.0-rc.1) is a pre-release; a plain version tag is a release.
+          case "$VERSION" in *-*) KIND="--prerelease" ;; *) KIND="--latest" ;; esac
+          gh release create "$GITHUB_REF_NAME" $KIND --title "iClear $VERSION" --notes-file notes.md \
             dist/iClear-*.zip dist/iclear-*-macos.tar.gz dist/SHA256SUMS.txt

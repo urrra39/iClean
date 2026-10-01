@@ -188,8 +188,22 @@ public final class Engine {
     public private(set) var lastForecast = Forecast(armed: true, stable: true)
     public private(set) var lastProfile: ProfileName = .work
     public private(set) var lastFocusSafe: [String] = []
-    /// When each app last played audio, for the audio cooldown.
+    /// When each app last played audio or used the microphone, for the audio cooldown.
     public private(set) var lastAudioAt: [String: Double] = [:]
+    var audioActive: Set<String> = []
+
+    /// Records audio and microphone use. The cooldown starts at the first sample without
+    /// it, so it is never shorter than configured, whatever the sampling interval.
+    public func noteAudio(_ apps: [AppSnapshot], at now: Double) {
+        for a in apps {
+            if a.signals.audioOutput || a.signals.audioInput {
+                lastAudioAt[a.id] = now
+                audioActive.insert(a.id)
+            } else if audioActive.remove(a.id) != nil {
+                lastAudioAt[a.id] = now
+            }
+        }
+    }
     public private(set) var lastRunaway: [RunawayFinding] = []
 
     /// Minimum spacing between freeze rounds, so the kernel has time to compress.
@@ -246,8 +260,8 @@ public final class Engine {
             if app.isFrontmost || app.hasVisibleWindow || state.lastActiveAt[app.id] == nil {
                 state.lastActiveAt[app.id] = now
             }
-            if app.signals.audioOutput { lastAudioAt[app.id] = now }
         }
+        noteAudio(input.apps, at: now)
         Usage.update(&state.usage, apps: input.apps, now: now)
         if let front = input.apps.first(where: \.isFrontmost), front.id != state.lastFrontmost {
             actions += activated(appID: front.id, name: front.name, at: now, weekday: input.weekday, hour: input.hour)

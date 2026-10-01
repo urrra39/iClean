@@ -59,7 +59,7 @@ public enum AppClass: String, Codable, Sendable, CaseIterable {
         case .media:
             return [
                 "while paused, playback stops and media keys (play/pause) do nothing for it",
-                "default: never paused (Tier S); every app also stays running while it plays audio and for audioCooldownMinutes after",
+                "default: never paused (Tier S); every app also stays running while it plays audio or uses the microphone, and for audioCooldownMinutes after",
             ]
         case .browser:
             return [

@@ -49,7 +49,7 @@ public final class AppCollector {
         let roots = Set(running.map(\.processIdentifier))
         let frontPID = ws.frontmostApplication?.processIdentifier
         let windows = Windows.facts()
-        let audio = AudioActivity.pids()
+        let audio = AudioActivity.pids(samples: 3)
         let asserting = PowerAssertions.pids()
         var claimed = Set<Int32>()
         var apps: [AppSnapshot] = []

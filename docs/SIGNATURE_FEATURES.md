@@ -16,6 +16,23 @@ the result written down here. "Synthetic" means the golden traces in
 | S7 | Workspaces and staged thaw | workspaces **on**; staged thaw **off** (opt-in `stagedThaw`) | One run, mixed result: first app usable 16.7 ms vs 37.7 ms, but all four 71.9 ms vs 40.1 ms |
 | S8 | RAM right-sizing advisor | command available; refuses under 7 days of data | Not evaluated: less than 7 days of history exist |
 
+## 1.0 features
+
+Ship rules are pre-registered in [RELEASE_CRITERIA.md](RELEASE_CRITERIA.md) (C8, C9);
+results are in [VALIDATION.md](VALIDATION.md).
+
+| # | Feature | Default | Why |
+|---|---|---|---|
+| F1 | Workspace Stash (`iclear stash`, `iclear pop`) | **on** (only when you ask) | A user command; hard blocks for audio, microphone, power assertions and call apps on camera; lab stash/pop cycles in VALIDATION.md |
+| F2 | `iclear selftest` | **on** | Uses only its own test processes |
+| F3 | Battery estimates (`iclear battery`) | estimates shown, labelled "estimate" with a range; **target mode experimental and off** | No valid unplugged trial set exists (C9 needs 3 × 30 min); the one valid short trial is not evidence |
+| F4 | Call Mode | **off** | Ships on only if C8 is met; see VALIDATION.md |
+| F5 | Anti-Beachball | forensics **on** (needs Accessibility); mitigation **off** | Mitigation ships on only if C8 is met; CPU contention did not stall the UI thread in spike f |
+| F6 | `iclear before <app>` | **on** | Refuses with fewer than 30 samples of the app on this Mac |
+| F7 | Unsaved-changes guard in stash | used when the app reports it through Accessibility; otherwise "unknown" and the stash notes it | Spike g needs Accessibility; see VALIDATION.md |
+| - | Thermal shield | **off** | Not tested: the lab cannot make the Mac hot safely |
+| - | App classes (COMM, MEDIA, BROWSER) | **on**: chat, mail, calendar and media apps Tier S; 10-minute audio cooldown; browsers wait twice as long | Side-effect lab in VALIDATION.md; `iclear compat <app>` explains each app |
+
 ## S1 Pressure Forecast
 
 **Method.** EWMA (alpha 0.3) of the per-sample slope of `kern.memorystatus_level`, an

@@ -48,7 +48,8 @@ public struct Config: Codable, Equatable, Sendable {
 
     // Thresholds
     public var idleMinutes = 15.0
-    /// An app stays running this long after it last played audio (players between tracks).
+    /// An app stays running this long after it last played audio or used the microphone
+    /// (players between tracks, calls between sentences).
     public var audioCooldownMinutes = 10.0
     /// Browsers wait this many times longer than `idleMinutes` (and any learned threshold).
     public var browserIdleFactor = 2.0

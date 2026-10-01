@@ -99,6 +99,9 @@ extension Lab {
             resultLock.unlock()
         }
         let since = Date()
+        // ICLEAR_SE_ONLY=media,call,chat,chrome reruns some parts.
+        let only = Set((ProcessInfo.processInfo.environment["ICLEAR_SE_ONLY"] ?? "").split(separator: ",").map(String.init))
+        func part(_ name: String) -> Bool { only.isEmpty || only.contains(name) }
         let www = out.appendingPathComponent("www")
         let chatLogURL = out.appendingPathComponent("chat.jsonl")
         try? FileManager.default.createDirectory(at: www, withIntermediateDirectories: true)
@@ -115,6 +118,8 @@ extension Lab {
         defer { server.kill() }
 
         // The lab daemon: Active, scope-locked, a 1-minute audio cooldown so the cooldown can be measured.
+        // A fresh home: state such as a quarantine must not carry over from an earlier run.
+        try? FileManager.default.removeItem(at: labHome("se"))
         let paths = Paths(environment: ["ICLEAR_HOME": labHome("se").path, "ICLEAR_INSTANCE": "lab"])
         try? paths.ensure()
         var cfg = Config()
@@ -122,13 +127,7 @@ extension Lab {
         cfg.audioCooldownMinutes = 1
         try? Files.writeJSON(cfg, to: paths.config, pretty: true)
         guard let d = startDaemon(paths, tools: tools) else { return log("side effects: daemon did not start") }
-        // New helper processes (Chrome starts them all the time) are registered within a second.
-        let registryTimer = DispatchSource.makeTimerSource(queue: .global())
-        registryTimer.schedule(deadline: .now(), repeating: 1)
-        registryTimer.setEventHandler { self.writeRegistry(paths.labRegistry) }
-        registryTimer.resume()
         defer {
-            registryTimer.cancel()
             _ = IPC.send(Request("thaw", app: "all"), path: paths.socket.path, timeout: 30)
             d.terminate()
             d.waitUntilExit()
@@ -173,7 +172,7 @@ extension Lab {
         }
 
         // 1. Audio: a playing player, then the cooldown after it stops.
-        if let (media, id) = simApp(tools.appendingPathComponent("ic-media-sim"), name: "MediaSim", args: []) {
+        if part("media"), let (media, id) = simApp(tools.appendingPathComponent("ic-media-sim"), name: "MediaSim", args: []) {
             _ = waitVisible(id)
             if !AudioActivity.pids().output.contains(media.pid) { note("ic-media-sim's audio output was not visible to CoreAudio") }
             guards.append(attempts("player playing audio", id, n: 20, every: 2) { AudioActivity.pids().output.contains(media.pid) })
@@ -207,7 +206,7 @@ extension Lab {
         }
 
         // 2. A call: microphone input in a regular app.
-        if let (call, id) = simApp(tools.appendingPathComponent("ic-call-sim"), name: "CallSim", args: ["--audio", "--app"]) {
+        if part("call"), let (call, id) = simApp(tools.appendingPathComponent("ic-call-sim"), name: "CallSim", args: ["--audio", "--app"]) {
             _ = waitVisible(id)
             if AudioActivity.pids().input.contains(call.pid) {
                 guards.append(
@@ -221,7 +220,7 @@ extension Lab {
         // 3. Native chat clients, in parallel with the Chrome tests: one that relies on the
         // socket to report a dropped connection, one with its own 15 s heartbeat.
         let chatDone = DispatchGroup()
-        for (name, hb) in [("naive", "0"), ("heartbeat", "15")] {
+        for (name, hb) in part("chat") ? [("naive", "0"), ("heartbeat", "15")] : [] {
             guard
                 let (client, _) = simApp(
                     tools.appendingPathComponent("ic-chat-sim"), name: "Chat-\(name)",
@@ -293,6 +292,10 @@ extension Lab {
         }
 
         // 4. Chrome with local pages.
+        guard part("chrome") else {
+            chatDone.wait()
+            return finish()
+        }
         let chromeData = out.appendingPathComponent("se-chrome")
         let downloads = out.appendingPathComponent("se-downloads")
         try? FileManager.default.removeItem(at: chromeData)
@@ -486,47 +489,53 @@ extension Lab {
         }
 
         chatDone.wait()
-        // Delivery: every message sent to a client was acknowledged by the end.
-        let all = chatLog(chatLogURL)
-        for name in ["naive", "heartbeat", "chrome"] {
-            let sent = Set(
-                all.filter { ($0["event"] as? String) == "sent" && ($0["client"] as? String) == name }.compactMap { $0["seq"] as? Int })
-            let acked = Set(
-                all.filter { ($0["event"] as? String) == "ack" && ($0["client"] as? String) == name }.compactMap { $0["seq"] as? Int })
-            note(
-                "\(name): \(sent.count) messages sent, \(acked.count) acknowledged, \(sent.subtracting(acked).count) not delivered by the end"
-            )
-        }
-        let crashes = newCrashReports(
-            names: ["Google Chrome", "ic-chat-sim", "ic-media-sim", "ic-call-sim", "Chat-", "MediaSim", "CallSim"], since: since)
-        note("new crash reports: \(crashes.count) \(crashes.joined(separator: ", "))")
+        finish()
 
-        var md = [
-            "## Side effects (simulators and Chrome with local pages)", "", "### Guards (E2)", "",
-            "| Situation | Freeze attempts | Blocked by a guard | Frozen (miss) | Inconclusive | Reasons given | Note |",
-            "|---|---|---|---|---|---|---|",
-        ]
-        for g in guards {
-            md.append(
-                "| \(g.trigger) | \(g.attempts) | \(g.blocked) | \(g.missed) | \(g.inconclusive) | \(g.reasons.map { "\($0.key) \($0.value)" }.sorted().joined(separator: ", ")) | \(g.note) |"
-            )
+        func finish() {
+            // Delivery: every message sent to a client was acknowledged by the end.
+            let all = chatLog(chatLogURL)
+            for name in ["naive", "heartbeat", "chrome"] {
+                let sent = Set(
+                    all.filter { ($0["event"] as? String) == "sent" && ($0["client"] as? String) == name }.compactMap { $0["seq"] as? Int })
+                let acked = Set(
+                    all.filter { ($0["event"] as? String) == "ack" && ($0["client"] as? String) == name }.compactMap { $0["seq"] as? Int })
+                note(
+                    "\(name): \(sent.count) messages sent, \(acked.count) acknowledged, \(sent.subtracting(acked).count) not delivered by the end"
+                )
+            }
+            let crashes = newCrashReports(
+                names: ["Google Chrome", "ic-chat-sim", "ic-media-sim", "ic-call-sim", "Chat-", "MediaSim", "CallSim"], since: since)
+            note("new crash reports: \(crashes.count) \(crashes.joined(separator: ", "))")
+
+            var md = [
+                "## Side effects (simulators and Chrome with local pages)", "", "### Guards (E2)", "",
+                "| Situation | Freeze attempts | Blocked by a guard | Frozen (miss) | Inconclusive | Reasons given | Note |",
+                "|---|---|---|---|---|---|---|",
+            ]
+            for g in guards {
+                md.append(
+                    "| \(g.trigger) | \(g.attempts) | \(g.blocked) | \(g.missed) | \(g.inconclusive) | \(g.reasons.map { "\($0.key) \($0.value)" }.sorted().joined(separator: ", ")) | \(g.note) |"
+                )
+            }
+            md += [
+                "", "### What a pause does (E1, E3)", "",
+                "| Subject | Pause | How | Server dropped it | Reconnected after thaw | Late messages / max delay | Pages back after thaw | Broken 45-60 s after thaw |",
+                "|---|---|---|---|---|---|---|---|",
+            ]
+            for f in freezes.sorted(by: { ($0.subject, $0.seconds) < ($1.subject, $1.seconds) }) {
+                md.append(
+                    "| \(f.subject) | \(Int(f.seconds)) s | \(f.mode) | \(f.serverDropped ? "yes" : "no") | \(f.reconnectSeconds.map { String(format: "%.1f s", $0) } ?? "-") | \(f.lateMessages) / \(Int(f.maxDelay)) s | \(f.pagesBack.isEmpty ? "-" : String(format: "within %.1f s", f.pagesBack.values.max()!)) | \(f.broken.isEmpty ? "none" : f.broken.joined(separator: "; ")) |"
+                )
+            }
+            md += ["", "Notes:"] + notes.map { "- " + $0 }
+            struct Out: Codable {
+                var guards: [Guard]
+                var freezes: [Freeze]
+                var notes: [String]
+            }
+            save(
+                only.isEmpty ? "sideeffects" : "sideeffects-" + only.sorted().joined(separator: "-"),
+                Out(guards: guards, freezes: freezes, notes: notes), md.joined(separator: "\n"))
         }
-        md += [
-            "", "### What a pause does (E1, E3)", "",
-            "| Subject | Pause | How | Server dropped it | Reconnected after thaw | Late messages / max delay | Pages back after thaw | Broken 45-60 s after thaw |",
-            "|---|---|---|---|---|---|---|---|",
-        ]
-        for f in freezes.sorted(by: { ($0.subject, $0.seconds) < ($1.subject, $1.seconds) }) {
-            md.append(
-                "| \(f.subject) | \(Int(f.seconds)) s | \(f.mode) | \(f.serverDropped ? "yes" : "no") | \(f.reconnectSeconds.map { String(format: "%.1f s", $0) } ?? "-") | \(f.lateMessages) / \(Int(f.maxDelay)) s | \(f.pagesBack.isEmpty ? "-" : String(format: "within %.1f s", f.pagesBack.values.max()!)) | \(f.broken.isEmpty ? "none" : f.broken.joined(separator: "; ")) |"
-            )
-        }
-        md += ["", "Notes:"] + notes.map { "- " + $0 }
-        struct Out: Codable {
-            var guards: [Guard]
-            var freezes: [Freeze]
-            var notes: [String]
-        }
-        save("sideeffects", Out(guards: guards, freezes: freezes, notes: notes), md.joined(separator: "\n"))
     }
 }

@@ -15,6 +15,20 @@ public enum AudioActivity {
         return false
     }
 
+    /// Union of `samples` readings `gapMicros` apart: some apps' running state (Chrome's)
+    /// flickers between readings, and one missed reading must not look like silence.
+    public static func pids(samples: Int, gapMicros: UInt32 = 50_000) -> (output: Set<Int32>, input: Set<Int32>) {
+        var out = Set<Int32>()
+        var inp = Set<Int32>()
+        for i in 0..<max(1, samples) {
+            if i > 0 { usleep(gapMicros) }
+            let r = pids()
+            out.formUnion(r.output)
+            inp.formUnion(r.input)
+        }
+        return (out, inp)
+    }
+
     public static func pids() -> (output: Set<Int32>, input: Set<Int32>) {
         guard #available(macOS 14.2, *) else { return ([], []) }
         var addr = AudioObjectPropertyAddress(

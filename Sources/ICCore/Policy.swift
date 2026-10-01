@@ -100,10 +100,9 @@ public enum Policy {
         }
         let s = app.signals
         if s.powerAssertion { r.append(Reason(Code.powerAssertion)) }
-        if s.audioOutput {
-            r.append(Reason(Code.audio))
-        } else if let t = ctx.lastAudioAt[app.id], ctx.now - t < c.audioCooldownMinutes * 60 {
-            r.append(Reason(Code.audioRecent, String(format: "played audio %.0f min ago", (ctx.now - t) / 60)))
+        if s.audioOutput { r.append(Reason(Code.audio)) }
+        if !s.audioOutput && !s.audioInput, let t = ctx.lastAudioAt[app.id], ctx.now - t < c.audioCooldownMinutes * 60 {
+            r.append(Reason(Code.audioRecent, String(format: "audio or microphone %.0f min ago", (ctx.now - t) / 60)))
         }
         if s.audioInput { r.append(Reason(Code.microphone)) }
         if s.busyChildren { r.append(Reason(Code.childBusy)) }
