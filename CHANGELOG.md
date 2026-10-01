@@ -51,6 +51,13 @@
   by both; `iclear pop --all` with nothing stashed reported an error.
 - Fixed: test processes started by the selftest and lab kept a CPU core busy after they
   exited (a pipe handler spun at end of file).
+- Fixed, found by the stash lab: hiding the frontmost app first let macOS activate an app
+  still waiting to be stashed, which popped it again (apps are now hidden back to front,
+  and activations in the first 2 s of a stash are ignored); pop could leave a different
+  app in front than before the stash (it now confirms the restored app stays in front
+  for 0.5 s, and keeps the current app in front when the stash did not include it).
+- Fixed, found by the overhead measurement: call signals were polled every second even
+  with every shield off; now every 5 s unless a shield can act (0.48% of one core idle).
 - Release criteria amended once by owner decision (DECISIONS.md #36): the 7-day soak is
   reported after release, and a side-effect gate is required for 1.0.0.
 

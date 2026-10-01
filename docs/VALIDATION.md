@@ -203,20 +203,29 @@ every later tick, reporting 10-100 ms "jitter"); it was discarded and the probe 
 50 cycles, 4 apps (Chrome, VS Code, two lab GUI apps), each cycle making a different app
 frontmost first, Accessibility on, battery 50%, thermal nominal.
 
-| Measure | First run | After the fixes |
+| Measure | First run | Final run (2026-10-02 01:27, AC) |
 |---|---|---|
-| Window bounds within 4 points | 350/350 windows, worst 0.0 pt | |
-| Previous frontmost app frontmost again | **47/50** | |
-| Apps left paused / hidden after pop | 0 / 0 | |
-| Post-pop hangs (no answer in 5 s) | 0 | |
-| New crash reports | 0 | |
-| Pop until every app is shown | p50 823 ms, p95 855 ms, p99 992 ms (N=50) | |
+| Window bounds within 4 points | 350/350 windows, worst 0.0 pt | 350/350, worst 0.0 pt |
+| Previous frontmost app frontmost again | **47/50** | **50/50** |
+| Apps left paused / hidden after pop | 0 / 0 | 0 / 0 |
+| Post-pop hangs (no answer in 5 s) | 0 | 0 |
+| Document changes (SHA-256) | not checked | 0 |
+| New crash reports | 0 | 0 |
+| Activating a stashed app pops just that app | 6/10 (lab timing, see below) | 10/10 |
+| Pop until every app is shown | p50 823, p95 855, p99 992 ms (N=50) | p50 1340, p95 1353, p99 1359 ms (N=50) |
 
-The three misses: VS Code twice (it was frontmost before the stash and not again after
-pop; Electron takes a moment to come forward) and Chrome once (the planner had kept it
-out of that stash, and pop then put the popped apps in front of it). Fixed in 0b8844d:
-pop confirms the restored frontmost app and retries, and keeps the current app in front
-when the stash did not include the front app. Two other defects found here and fixed
+In both runs one stash (cycle 0) held 3 of the 4 apps: the planner kept Chrome out
+because Chrome holds a power assertion for a few seconds after it starts.
+
+How the frontmost misses were fixed, one run at a time: VS Code coming forward slowly
+and Chrome left out of a stash (0b8844d: pop confirms the restored app and keeps the
+current app in front when the stash did not include the front app); a just-resumed
+Chrome answering its activation late and taking the front (4af2651: the restored app
+must stay frontmost for 0.5 s, which is why pop now takes about 0.5 s longer); and the
+case where the user had already brought the front app back by activating it before the
+pop (the app in front then stays in front). The "6/10" activation pops in the first
+run were the lab activating apps inside the daemon's new 2-second settle window; the lab
+now waits 2.5-5 s. Two other defects found here and fixed
 before the run above, each with a test: hiding the frontmost app first let macOS activate
 an app still waiting to be stashed, which popped it again (03f2986), and the lab's
 registry missed VS Code's launchd-started crash handler.
@@ -243,9 +252,22 @@ with 8,192 MB (45% of RAM) of incompressible memory held, pressure "warning".
 | TextEdit | native | 300 | 100 | 0 | 0 | 0 | 0 | p50 3.7, p95 4.4, p99 11.9, max 35.1 ms (N=200) | p50 3.7, p95 4.7, p99 34.9, max 35.0 ms (N=100) |
 | Preview | native | 300 | 100 | 0 | 0 | 0 | 0 | p50 3.5, p95 4.5, p99 12.3, max 34.1 ms (N=200) | p50 3.7, p95 4.6, p99 5.4, max 5.5 ms (N=100) |
 
-- Chrome completed 297 cycles: 3 freezes were refused by the lab's scope lock, because
-  Chrome started a helper between the lab's two readings of its process tree (a harness
-  race, fixed in 11453e6). A clean re-run follows below.
+- Chrome completed 297 cycles in this first run: 3 freezes were refused by the lab's
+  scope lock, because Chrome started a helper between the lab's two readings of its
+  process tree (a harness race, fixed in 11453e6). The re-run below is the C4 result.
+
+**Re-run (2026-10-01 23:42 to 2026-10-02 00:18, Accessibility on, battery then AC,
+thermal nominal; 7,936 MB held at "warning" for the second hundred cycles):**
+
+| App | Type | Cycles | Under pressure | Freeze failures | Hangs | Left stopped | Document changes | New crash reports | Thaw to responsive, no induced pressure | Under induced pressure |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Google Chrome | Chromium | 300 | 100 | 0 | 0 | 0 | 0 | 0 | p50 3.5, p95 6.8, p99 13.9, max 17.2 ms (N=200) | p50 2.7, p95 4.1, p99 9.9, max 10.0 ms (N=100) |
+| Visual Studio Code | Electron | 300 | 100 | 0 | 0 | 0 | 0 | 0 | p50 3.6, p95 4.8, p99 8.4, max 19.0 ms (N=200) | p50 2.8, p95 3.9, p99 4.9, max 7.0 ms (N=100) |
+| TextEdit | native | 300 | 100 | 0 | 0 | 0 | 0 | 0 | p50 3.2, p95 4.1, p99 5.3, max 47.3 ms (N=200) | p50 2.6, p95 3.9, p99 4.0, max 4.1 ms (N=100) |
+| Preview | native | 300 | 100 | 0 | 0 | 0 | 0 | 0 | p50 3.1, p95 4.9, p99 15.1, max 25.6 ms (N=200) | p50 2.5, p95 3.5, p99 4.5, max 6.9 ms (N=100) |
+
+0 failures in 300 cycles per type bounds each type's failure rate below about 1% with
+95% confidence; it does not show the rate is 0.
 - TextEdit and Preview are system apps, which iClear itself never pauses; the lab
   paused them directly to test the mechanism on native apps.
 - "Under induced pressure" means the cycles ran while the lab held 8 GB at "warning"
@@ -265,3 +287,31 @@ An Observe-only instance watching this Mac's real apps (it cannot act), stall pr
 The limit is 0.5% and 60 MB: met, with little CPU headroom. The first run found the
 once-a-second call poll reading the window list and process table even with every
 shield off; a 3-minute side-by-side of the two builds measured about 0.55% and 0.45%.
+
+## Combined run (C11)
+
+60 minutes, an Active, scope-locked lab daemon with every feature on (Call Mode and
+stall forensics on, 1-minute idle threshold), the four real-app fixtures, Accessibility
+on, AC power, thermal nominal (2026-10-02 00:10-01:12). Every minute: invariants checked
+(documents unchanged, running apps answer within 5 s, nothing stopped without a journal
+entry); every 5 minutes a stash and pop; every 10 minutes a pressure episode to
+"warning" (up to 45% of RAM) and a simulated call (`ic-call-sim` with microphone input),
+and `iclear before` for each app.
+
+| Measure | Result |
+|---|---|
+| Stash/pop cycles OK | 12/12 |
+| Pressure episodes / freezes the daemon made on its own | 6 / 28 |
+| Simulated calls detected by the daemon | 6/6 |
+| Running apps not answering within 5 s | 0 |
+| Document changes | 0 |
+| Left paused / hidden after teardown | 0 / 0 |
+| New crash reports | 0 |
+| **Failures** | **0** |
+
+`iclear before` after an hour: "ESTIMATE for Google Chrome from 228 samples on this Mac:
+typically 727 MB, up to 1240 MB" and VS Code from 225 samples (typically 908 MB, up to
+1789 MB); TextEdit and Preview, being system apps iClear never pauses, have no history.
+
+A first attempt (2026-10-01 21:12) is void: the lid was closed at 21:22, the Mac slept,
+and the "not answering" results came from maintenance wakes.

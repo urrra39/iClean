@@ -155,8 +155,11 @@ extension Daemon {
                 ActionLog.append(ActionLogEntry(t: now, action: act, outcome: "ok"), paths: paths)
             }
             if restoreFocus {
-                // The app in front now, if the stash did not take the front app with it.
-                let current = s.previousFrontmost == nil ? NSWorkspace.shared.runningApplications.first { $0.isActive } : nil
+                // The app in front now stays in front unless this pop brings back the app that
+                // was in front at stash time (it may never have been stashed, or the user may
+                // already have brought it back by activating it).
+                let restoresFront = apps.contains { $0.appID == s.previousFrontmost && !$0.wasHidden }
+                let current = restoresFront ? nil : NSWorkspace.shared.runningApplications.first { $0.isActive }
                 // unhide() does not restore stacking order (FEASIBILITY 1.0 a): activate back to front.
                 let visible = apps.filter { !$0.wasHidden }.sorted { $0.order > $1.order }
                 for a in visible where a.appID != s.previousFrontmost { activate(a.processes.first) }
