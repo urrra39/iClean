@@ -5,7 +5,7 @@ import Testing
 
 /// Golden traces: deterministic synthetic traces replayed through the engine. A policy
 /// change that alters the outcome fails here until the golden files are regenerated
-/// on purpose with `ICLEAN_UPDATE_GOLDEN=1 swift test --filter GoldenTraceTests`.
+/// on purpose with `ICLEAR_UPDATE_GOLDEN=1 swift test --filter GoldenTraceTests`.
 @Suite struct GoldenTraceTests {
     static let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
 
@@ -62,7 +62,7 @@ import Testing
     }
 
     static let scenarios: [String: () -> [TraceRecord]] = [
-        // Healthy all morning: iClean must do nothing.
+        // Healthy all morning: iClear must do nothing.
         "steady": {
             scenario(
                 minutes: 120, seed: 1, pressure: { _ in (.normal, 55) },
@@ -93,7 +93,7 @@ import Testing
 
     static func materialize(_ name: String) throws -> [TraceRecord] {
         let file = dir.appendingPathComponent("\(name).jsonl")
-        if ProcessInfo.processInfo.environment["ICLEAN_UPDATE_GOLDEN"] == "1" {
+        if ProcessInfo.processInfo.environment["ICLEAR_UPDATE_GOLDEN"] == "1" {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try scenarios[name]!().map(Trace.encode).reduce(Data(), +).write(to: file)
         }
@@ -108,7 +108,7 @@ import Testing
         let expectedFile = Self.dir.appendingPathComponent("\(name).expected.json")
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if ProcessInfo.processInfo.environment["ICLEAN_UPDATE_GOLDEN"] == "1" {
+        if ProcessInfo.processInfo.environment["ICLEAR_UPDATE_GOLDEN"] == "1" {
             try enc.encode(result).write(to: expectedFile)
         }
         let expected = try JSONDecoder().decode(SimulationResult.self, from: Data(contentsOf: expectedFile))

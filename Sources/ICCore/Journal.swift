@@ -1,4 +1,4 @@
-/// The freeze journal: every process iClean stops is written here *before* the
+/// The freeze journal: every process iClear stops is written here *before* the
 /// signal is sent, so a crash can never leave anything frozen. This file holds the
 /// pure parts: the record format and the recovery plan.
 public struct JournalEntry: Codable, Hashable, Sendable {
@@ -35,7 +35,7 @@ public struct Journal: Codable, Equatable, Sendable {
 }
 
 public enum RecoveryStep: Equatable, Sendable {
-    /// Same PID, same start time: this is the process iClean froze. Send SIGCONT.
+    /// Same PID, same start time: this is the process iClear froze. Send SIGCONT.
     case thaw(JournalEntry)
     /// The PID is gone or now belongs to a different process: do not signal it.
     case stale(JournalEntry)

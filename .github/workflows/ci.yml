@@ -31,4 +31,4 @@ jobs:
         if: matrix.runner == 'macos-15'
         run: |
           swift build -c release --arch arm64 --arch x86_64
-          lipo -info .build/apple/Products/Release/icleand
+          lipo -info .build/apple/Products/Release/icleard

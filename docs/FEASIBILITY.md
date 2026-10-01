@@ -53,7 +53,7 @@ app it launched itself.
 Caveats that drive the design:
 
 - A frozen app with a *visible* window looks alive but cannot redraw or take
-  input, so iClean only freezes apps with no on-screen windows.
+  input, so iClear only freezes apps with no on-screen windows.
 - A frozen process misses timers, notifications and network callbacks.
   Remote peers may time out its connections. This is why messaging, mail and
   calendar apps are never frozen by default, and why Connection Guard exists.
@@ -94,7 +94,7 @@ setpriority(PRIO_DARWIN_PROCESS, child, PRIO_DARWIN_BG): rc=0 errno=0
   that is unavailable.
 - `memorystatus_control` needs root for every command tried.
 
-So iClean cannot force another app's pages out. It can only stop the app
+So iClear cannot force another app's pages out. It can only stop the app
 from touching its pages and let the kernel do the rest (§4).
 
 `PRIO_DARWIN_BG` does work cross-process on a same-user process: the spawned
@@ -127,11 +127,11 @@ Findings:
 - Without pressure (baseline row) freezing changes nothing. macOS only
   reclaims when it needs memory.
 - `phys_footprint` did **not** change for either process. It counts
-  compressed pages too. So iClean reports relief from resident size and
+  compressed pages too. So iClear reports relief from resident size and
   system compressor/swap, never from footprint alone.
 - The benefit comes from apps that keep touching memory while in the
   background. An app that is idle and never wakes up gets compressed anyway,
-  frozen or not. iClean's value is limited to the first kind.
+  frozen or not. iClear's value is limited to the first kind.
 - The swap-limit abort fired late (swap reached 1.5 GB against a 1 GB limit),
   because swap kept growing after the last check. The benchmark harness
   checks more often and uses a lower cap.
@@ -162,7 +162,7 @@ windows: `kCGWindowAlpha, kCGWindowBounds, kCGWindowIsOnscreen (on-screen
 windows only), kCGWindowLayer, kCGWindowMemoryUsage, kCGWindowNumber,
 kCGWindowOwnerName, kCGWindowOwnerPID, kCGWindowSharingState,
 kCGWindowStoreType`. No `kCGWindowName`. That is enough for "does this app
-have an on-screen window"; iClean never needs titles.
+have an on-screen window"; iClear never needs titles.
 
 Activation timing (5 trials each):
 
@@ -231,7 +231,7 @@ A probe binary signed with only `com.apple.security.app-sandbox` calling
 sandboxed kill(SIGSTOP) rc=-1 errno=1 Operation not permitted
 ```
 
-The sandbox blocks signalling other processes, so iClean cannot be a Mac App
+The sandbox blocks signalling other processes, so iClear cannot be a Mac App
 Store app. It is distributed as a signed (or ad-hoc signed) download and a
 Homebrew formula.
 

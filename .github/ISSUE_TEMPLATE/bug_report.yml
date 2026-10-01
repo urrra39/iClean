@@ -1,12 +1,12 @@
 name: Bug report
-description: Something iClean did, or did not do, that it should not have.
+description: Something iClear did, or did not do, that it should not have.
 labels: [bug]
 body:
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: Include the output of `iclean explain <app>` for the app involved, if any.
+      description: Include the output of `iclear explain <app>` for the app involved, if any.
     validations:
       required: true
   - type: textarea
@@ -18,7 +18,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: iclean doctor --report
+      label: iclear doctor --report
       description: Paste the output. It contains no hostname, user name, serial or IP address. Read it before pasting.
       render: markdown
     validations:
@@ -27,4 +27,4 @@ body:
     id: trace
     attributes:
       label: Anonymized trace (optional)
-      description: "`iclean trace export --anonymize --since 1d --out trace.jsonl`, then attach the file."
+      description: "`iclear trace export --anonymize --since 1d --out trace.jsonl`, then attach the file."

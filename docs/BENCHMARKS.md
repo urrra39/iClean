@@ -1,13 +1,13 @@
 # Benchmarks
 
-Every number in iClean's documentation comes from this file. Anything not here is
+Every number in iClear's documentation comes from this file. Anything not here is
 "not yet measured".
 
 - **Machine:** Apple M3 Pro (Mac15,6), 18 GB RAM, internal SSD
 - **OS:** macOS 27.0.1
 - **Date:** 2026-09-30
 - **Build:** release, universal binary
-- **How:** `iclean bench` (source: [`Sources/ICSystem/Bench.swift`](../Sources/ICSystem/Bench.swift)).
+- **How:** `iclear bench` (source: [`Sources/ICSystem/Bench.swift`](../Sources/ICSystem/Bench.swift)).
   It only signals `ic-hog` processes that it starts itself. Pressure is induced by
   incompressible allocations, stops as soon as the frozen victim is compressed, and is
   capped at 40% of RAM with aborts on critical pressure or +768 MB swap.
@@ -60,7 +60,7 @@ benchmark estimate (tick CPU ÷ 15 s = 0.47%) is also listed above for the old i
 - **Freezing is what lets macOS reclaim a busy background app.** Under pressure the
   frozen victim went from 519 MB to 6 MB resident, while an identical process that
   kept touching its memory kept all of it. An app that is idle and never wakes up is
-  compressed by macOS anyway, frozen or not. iClean's benefit is limited to apps that
+  compressed by macOS anyway, frozen or not. iClear's benefit is limited to apps that
   keep waking up in the background.
 - **The thaw signal itself is free** (well under 1 ms). What a user can feel is macOS
   faulting reclaimed memory back in: 80 ms for 512 MB here under pressure.
@@ -81,9 +81,9 @@ benchmark estimate (tick CPU ÷ 15 s = 0.47%) is also listed above for the old i
 
 ```sh
 scripts/build-release.sh
-dist/iclean-0.1.0/iclean bench            # markdown table
-dist/iclean-0.1.0/iclean bench --json     # machine-readable
-dist/iclean-0.1.0/iclean bench --quick    # smaller, lower pressure cap (25%)
+dist/iclear-*/iclear bench            # markdown table
+dist/iclear-*/iclear bench --json     # machine-readable
+dist/iclear-*/iclear bench --quick    # smaller, lower pressure cap (25%)
 ```
 
 The pressure scenario uses real memory. Close unsaved work first.

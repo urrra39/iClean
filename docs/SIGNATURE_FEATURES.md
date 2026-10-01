@@ -12,7 +12,7 @@ the result written down here. "Synthetic" means the golden traces in
 | S3 | Habit statistics | **on** for P(return soon); **pre-thaw off** | Pre-thaw measured no benefit (35.0 vs 35.9 ms) |
 | S4 | Connection and Write Guard | **on** | Safety feature; measured cost 1.0 ms p50 for every regular app |
 | S5 | Post-thaw health check and quarantine | **on** | Safety feature; crash-after-thaw quarantine covered by an integration test |
-| S6 | Traces and `iclean simulate` | **on** (local, 7 days, 20 MB cap) | Needed for S1-S3 evaluation; nothing leaves the Mac |
+| S6 | Traces and `iclear simulate` | **on** (local, 7 days, 20 MB cap) | Needed for S1-S3 evaluation; nothing leaves the Mac |
 | S7 | Workspaces and staged thaw | workspaces **on**; staged thaw **off** (opt-in `stagedThaw`) | One run, mixed result: first app usable 16.7 ms vs 37.7 ms, but all four 71.9 ms vs 40.1 ms |
 | S8 | RAM right-sizing advisor | command available; refuses under 7 days of data | Not evaluated: less than 7 days of history exist |
 
@@ -49,10 +49,10 @@ net = (relief / target) × pressureWeight × (1 − P(return soon)) − P(return
 
 is at least `regret.minNetValue` (0). Per-app regret (EWMA 0.3) above 0.5 doubles the
 app's idle threshold (up to 8 h); above 0.8 demotes it to Tier S. More than 5
-regretted freezes in 24 h makes iClean act only on critical pressure for the next 24 h.
+regretted freezes in 24 h makes iClear act only on critical pressure for the next 24 h.
 
 **Results.** Synthetic: 0 regretted of 3 closed freezes (pressure-episode); the
-flapping trace ends with its 3 freezes still open. Real regret rate: **not yet measured**. It shows up in `iclean stats`
+flapping trace ends with its 3 freezes still open. Real regret rate: **not yet measured**. It shows up in `iclear stats`
 after Observe mode has run.
 
 ## S3 Habit statistics
@@ -60,7 +60,7 @@ after Observe mode has run.
 First-order counts of "which app comes to the front next", per weekday/weekend and
 6-hour block. Laplace smoothing (0.5), 2% decay per day, at most 20 transitions per
 pair per day (so one unusual day cannot dominate), and at least 5 observations before
-any prediction. `iclean habits show | reset | export`. Bundle IDs and counts only.
+any prediction. `iclear habits show | reset | export`. Bundle IDs and counts only.
 
 **Pre-thaw gate (measured).** Cold thaw: 35.94 ms from user arrival to working set
 back; pre-thawed 2 s early: 34.96 ms. Resuming early does not fault pages back in, so
@@ -72,7 +72,7 @@ Offline top-1/top-3 hit rate on real use: **not yet measured** (the evaluator,
 
 libproc (`PROC_PIDLISTFDS`, `PROC_PIDFDSOCKETINFO`, `PROC_PIDFDVNODEPATHINFO`) works
 without root for same-user processes. An app is never frozen until both guards were
-inspected (`SKIP_GUARDS_NOT_INSPECTED`). Inspection runs only when iClean may act,
+inspected (`SKIP_GUARDS_NOT_INSPECTED`). Inspection runs only when iClear may act,
 for at most 12 apps per tick and 4096 descriptors per process.
 
 - `SKIP_CONN_ACTIVE`: an established TCP connection to a non-loopback peer that has
@@ -92,15 +92,15 @@ locks (`flock`) are not visible through libproc; only lock files by name are.
 **Results.** Integration tests with `ic-hog` holding a listener with a client, a
 file being written, and an `index.lock` (`GuardInspectionTests`). Cost: 1.02 ms p50,
 3.23 ms max to inspect every regular app. How often guards block otherwise-eligible
-freezes in real use: counted in `iclean stats` ("Guard saves"), **not yet measured**.
+freezes in real use: counted in `iclear stats` ("Guard saves"), **not yet measured**.
 
 ## S5 Post-thaw health check and quarantine
 
 Two seconds after every thaw the root process must still exist with the same start
-time. With Accessibility, iClean also asks the app for its `AXRole` with a 2 s
+time. With Accessibility, iClear also asks the app for its `AXRole` with a 2 s
 timeout. Unresponsive means hung. If the app disappears within 5 minutes and a new
 crash report for it exists, that also counts. Unhealthy apps are quarantined (Tier S
-with the reason), notified once, and listed by `iclean quarantine`.
+with the reason), notified once, and listed by `iclear quarantine`.
 
 **Results.** `crashAfterThawIsQuarantined` (an `ic-hog` that aborts on SIGCONT) passes.
 Hang detection needs Accessibility and is covered only by unit tests of the decision
@@ -108,16 +108,16 @@ logic.
 
 ## S6 Traces and simulation
 
-Format: [TRACE_FORMAT.md](TRACE_FORMAT.md). `iclean simulate --config other.json
+Format: [TRACE_FORMAT.md](TRACE_FORMAT.md). `iclear simulate --config other.json
 --since 7d` replays recorded inputs through the same engine. Output is labelled
-SIMULATION: it cannot model how iClean's actions would have changed later memory
-readings. `iclean trace export --anonymize` replaces bundle IDs with salted hashes and
+SIMULATION: it cannot model how iClear's actions would have changed later memory
+readings. `iclear trace export --anonymize` replaces bundle IDs with salted hashes and
 drops PIDs. Golden traces run in CI (`GoldenTraceTests`). Corrupt, oversized and
 future-version lines are skipped (`corruptInputIsSkipped`).
 
 ## S7 Workspaces and staged thaw
 
-`workspaces` in the config names groups of apps. `iclean workspace <name> freeze`
+`workspaces` in the config names groups of apps. `iclear workspace <name> freeze`
 freezes all running members or none (any member failing a safety check refuses the
 whole group). When several apps thaw at once (wake, unlock, "thaw all", workspace),
 they go in order of most recent use. With `"stagedThaw": true` each one is also
@@ -140,7 +140,7 @@ profile triggers only.
 
 ## S8 RAM right-sizing advisor
 
-`iclean advise` needs at least 7 days with 60 or more per-minute samples each. It
+`iclear advise` needs at least 7 days with 60 or more per-minute samples each. It
 reports the 90th-99th percentile of used memory plus 25% headroom, rounded up to RAM
 sizes Macs ship with, and always labels the result an estimate. It refuses to guess
 with less data, and it has no purchase links. **Not evaluated:** the holdout check

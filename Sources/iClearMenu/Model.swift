@@ -21,11 +21,11 @@ final class Model: ObservableObject {
     private var lastEvent = Date().timeIntervalSince1970
     private var hotKey: HotKey?
 
-    /// Inside iClean.app the daemon lives in Contents/Helpers; in a build folder, next to us.
+    /// Inside iClear.app the daemon lives in Contents/Helpers; in a build folder, next to us.
     var daemonPath: String {
         let dir = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).deletingLastPathComponent()
-        let helper = dir.deletingLastPathComponent().appendingPathComponent("Helpers/icleand").path
-        return FileManager.default.fileExists(atPath: helper) ? helper : dir.appendingPathComponent("icleand").path
+        let helper = dir.deletingLastPathComponent().appendingPathComponent("Helpers/icleard").path
+        return FileManager.default.fileExists(atPath: helper) ? helper : dir.appendingPathComponent("icleard").path
     }
 
     init() {

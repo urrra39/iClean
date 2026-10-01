@@ -4,20 +4,20 @@
 # Usage: scripts/dogfood-report.sh [days]   (default 7)
 set -eu
 DAYS="${1:-7}"
-ICLEAN="${ICLEAN:-iclean}"
+ICLEAR="${ICLEAR:-iclear}"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-"$ICLEAN" stats --days "$DAYS" --json > "$TMP/stats.json"
-"$ICLEAN" status --json > "$TMP/status.json"
+"$ICLEAR" stats --days "$DAYS" --json > "$TMP/stats.json"
+"$ICLEAR" status --json > "$TMP/status.json"
 
 get() { plutil -extract "$2" raw -o - "$TMP/$1" 2>/dev/null || echo "n/a"; }
 minutes() { plutil -extract "$1" raw -o - "$TMP/stats.json" 2>/dev/null || echo 0; }
 
 {
-    echo "### iClean dogfooding summary ($DAYS days)"
+    echo "### iClear dogfooding summary ($DAYS days)"
     echo
-    "$ICLEAN" doctor --report | sed '1d'
+    "$ICLEAR" doctor --report | sed '1d'
     echo "| Mode now | $(get status.json mode) |"
     echo "| Minutes in warning (Observe / Active) | $(minutes observeMinutes.warning) / $(minutes activeMinutes.warning) |"
     echo "| Minutes in critical (Observe / Active) | $(minutes observeMinutes.critical) / $(minutes activeMinutes.critical) |"

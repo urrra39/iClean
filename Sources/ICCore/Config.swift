@@ -115,7 +115,7 @@ public struct Config: Codable, Equatable, Sendable {
         public var returnWindowMinutes = 5.0
         /// ...or the thaw took longer than this.
         public var thawLatencyBudgetMs = 500.0
-        /// Regretted freezes allowed per 24 h before iClean turns conservative for 24 h.
+        /// Regretted freezes allowed per 24 h before iClear turns conservative for 24 h.
         public var dailyBudget = 5
         /// Minimum expected net value (see docs/SIGNATURE_FEATURES.md, S2) to freeze.
         public var minNetValue = 0.0

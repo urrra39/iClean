@@ -54,7 +54,7 @@ extension Daemon {
 
     public func statusText() -> String {
         let s = status()
-        var l = ["iClean \(s.mode.rawValue) mode, profile \(s.profile). Mac Health \(s.health.score)/100 (\(s.health.band.rawValue))."]
+        var l = ["iClear \(s.mode.rawValue) mode, profile \(s.profile). Mac Health \(s.health.score)/100 (\(s.health.band.rawValue))."]
         l.append(
             "Memory pressure \(s.pressure), \(s.availablePercent)% available, \(Int(s.compressedMB)) MB compressed, \(Int(s.swapUsedMB)) MB swap. Forecast: \(s.forecast)."
         )
@@ -72,8 +72,8 @@ extension Daemon {
             let hours = (clock() - s.observeSince) / 3600
             l.append(
                 hours >= 24
-                    ? "Observe mode has run \(Int(hours)) h. Review `iclean stats`, then `iclean mode active` to let iClean act."
-                    : "Observe mode: iClean only records what it would do.")
+                    ? "Observe mode has run \(Int(hours)) h. Review `iclear stats`, then `iclear mode active` to let iClear act."
+                    : "Observe mode: iClear only records what it would do.")
         }
         return l.joined(separator: "\n")
     }

@@ -2,8 +2,8 @@ import Darwin
 import Foundation
 
 /// Local IPC between the daemon and the CLI/menu app: one JSON request line and one
-/// JSON response per connection over a Unix domain socket in iClean's private
-/// directory. No network listener exists anywhere in iClean.
+/// JSON response per connection over a Unix domain socket in iClear's private
+/// directory. No network listener exists anywhere in iClear.
 public struct Request: Codable, Sendable {
     public var cmd: String
     public var app: String?

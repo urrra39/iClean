@@ -57,7 +57,7 @@ public enum Protection {
         "com.busymac.busycal3", "com.apple.reminders",
         // Media players (audio checks also apply, this avoids surprises between tracks)
         "com.apple.Music", "com.spotify.client", "com.apple.podcasts", "com.apple.TV",
-        // Safari's web content runs in launchd-owned XPC services iClean cannot see as its tree
+        // Safari's web content runs in launchd-owned XPC services iClear cannot see as its tree
         "com.apple.Safari",
     ]
 

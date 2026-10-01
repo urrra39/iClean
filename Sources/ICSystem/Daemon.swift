@@ -94,7 +94,7 @@ public final class Daemon {
 
     public enum StartError: Error, CustomStringConvertible {
         case alreadyRunning
-        public var description: String { "another icleand is already running" }
+        public var description: String { "another icleard is already running" }
     }
 
     /// Takes the single-instance lock, recovers anything a previous run left frozen,
@@ -241,7 +241,7 @@ public final class Daemon {
         }
         lastBatteryPercent = sample.batteryPercent
 
-        // S4 guards cost syscalls per descriptor, so only inspect when iClean may act.
+        // S4 guards cost syscalls per descriptor, so only inspect when iClear may act.
         let horizon = engine.config.forecast.horizonMinutes
         let mayAct =
             sample.pressure >= .warning || (engine.lastForecast.etaWarning.map { $0 <= horizon } ?? false)
@@ -381,7 +381,7 @@ public final class Daemon {
                 let root = a.processes.first?.pid ?? 0
                 outcome = NSRunningApplication(processIdentifier: root)?.terminate() == true ? "requested" : "refused"
             case .notify, .quarantine:
-                notify(title: a.kind == .quarantine ? "iClean quarantined \(a.name)" : a.name, body: a.message ?? a.summary, appID: a.appID)
+                notify(title: a.kind == .quarantine ? "iClear quarantined \(a.name)" : a.name, body: a.message ?? a.summary, appID: a.appID)
             }
         }
         ActionLog.append(ActionLogEntry(t: now, action: a, outcome: outcome), paths: paths)
@@ -452,7 +452,7 @@ public final class Daemon {
     }
 
     func record(_ message: String) {
-        let a = Action(kind: .notify, appID: "iclean", name: "iClean", reasons: [], dryRun: true, message: message)
+        let a = Action(kind: .notify, appID: "iclear", name: "iClear", reasons: [], dryRun: true, message: message)
         ActionLog.append(ActionLogEntry(t: clock(), action: a, outcome: "info"), paths: paths)
     }
 }

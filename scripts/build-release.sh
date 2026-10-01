@@ -1,16 +1,16 @@
 #!/bin/sh
-# Builds universal (arm64 + x86_64) release binaries and assembles dist/iClean.app
-# plus dist/iclean-<version>-macos.tar.gz.
+# Builds universal (arm64 + x86_64) release binaries and assembles dist/iClear.app
+# plus dist/iclear-<version>-macos.tar.gz.
 #
 # Signing: set SIGN_IDENTITY to a "Developer ID Application" identity to sign for
 # distribution; otherwise the build is ad-hoc signed (see README, "First launch").
 set -eu
 cd "$(dirname "$0")/.."
 
-VERSION=$(sed -n 's/^public let icleanVersion = "\(.*\)"/\1/p' Sources/ICSystem/Doctor.swift)
+VERSION=$(sed -n 's/^public let iclearVersion = "\(.*\)"/\1/p' Sources/ICSystem/Doctor.swift)
 IDENTITY="${SIGN_IDENTITY:--}"
 DIST=dist
-APP="$DIST/iClean.app"
+APP="$DIST/iClear.app"
 
 swift build -c release --arch arm64 --arch x86_64
 BIN=".build/apple/Products/Release"
@@ -18,25 +18,25 @@ BIN=".build/apple/Products/Release"
 
 rm -rf "$DIST"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
-cp "$BIN/iCleanMenu" "$APP/Contents/MacOS/iClean"
-# Helpers/ keeps iclean apart from iClean on case-insensitive volumes.
-cp "$BIN/icleand" "$BIN/iclean" "$APP/Contents/Helpers/"
-cp -R "$BIN/iClean_iCleanMenu.bundle" "$APP/Contents/Resources/"
+cp "$BIN/iClearMenu" "$APP/Contents/MacOS/iClear"
+# Helpers/ keeps iclear apart from iClear on case-insensitive volumes.
+cp "$BIN/icleard" "$BIN/iclear" "$APP/Contents/Helpers/"
+cp -R "$BIN/iClear_iClearMenu.bundle" "$APP/Contents/Resources/"
 sed "s/@VERSION@/$VERSION/g" packaging/Info.plist > "$APP/Contents/Info.plist"
 
 sign() {
-    codesign --force --timestamp=none --options runtime --entitlements packaging/iClean.entitlements -s "$IDENTITY" "$@"
+    codesign --force --timestamp=none --options runtime --entitlements packaging/iClear.entitlements -s "$IDENTITY" "$@"
 }
-sign "$APP/Contents/Helpers/icleand"
-sign "$APP/Contents/Helpers/iclean"
+sign "$APP/Contents/Helpers/icleard"
+sign "$APP/Contents/Helpers/iclear"
 sign "$APP"
 
-# Command-line tarball: iclean, icleand and ic-hog (needed by `iclean bench`).
-mkdir -p "$DIST/iclean-$VERSION"
-cp "$BIN/iclean" "$BIN/icleand" "$BIN/ic-hog" "$DIST/iclean-$VERSION/"
-for f in "$DIST/iclean-$VERSION"/*; do sign "$f"; done
-tar -C "$DIST" -czf "$DIST/iclean-$VERSION-macos.tar.gz" "iclean-$VERSION"
-(cd "$DIST" && ditto -c -k --keepParent iClean.app "iClean-$VERSION.zip")
+# Command-line tarball: iclear, icleard and ic-hog (needed by `iclear bench`).
+mkdir -p "$DIST/iclear-$VERSION"
+cp "$BIN/iclear" "$BIN/icleard" "$BIN/ic-hog" "$DIST/iclear-$VERSION/"
+for f in "$DIST/iclear-$VERSION"/*; do sign "$f"; done
+tar -C "$DIST" -czf "$DIST/iclear-$VERSION-macos.tar.gz" "iclear-$VERSION"
+(cd "$DIST" && ditto -c -k --keepParent iClear.app "iClear-$VERSION.zip")
 
-lipo -info "$APP/Contents/Helpers/icleand"
-echo "Built $APP and $DIST/iclean-$VERSION-macos.tar.gz (signed with: $IDENTITY)"
+lipo -info "$APP/Contents/Helpers/icleard"
+echo "Built $APP and $DIST/iclear-$VERSION-macos.tar.gz (signed with: $IDENTITY)"

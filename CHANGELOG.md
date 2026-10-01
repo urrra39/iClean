@@ -1,8 +1,20 @@
 # Changelog
 
+## Unreleased (1.0 in progress)
+
+- **Renamed from iClean to iClear.** CLI `iclear`, daemon `icleard`, app iClear, bundle
+  ID and LaunchAgent label `io.github.urrra39.iclear`, data in
+  `~/Library/Application Support/iClear/`. `iclear install` and `iclear migrate`
+  resume anything iClean had frozen (old daemon first, then the old journal), unload
+  and disable the old LaunchAgent only after that succeeds, and copy settings, state
+  and traces. Old files are deleted only with `iclear migrate --remove-old`.
+- `ICLEAR_HOME` now names a home directory (iClear uses `Library/...` under it), and
+  `ICLEAR_INSTANCE` runs a separate, named instance.
+- Staged thaw is off by default (`stagedThaw`), see docs/SIGNATURE_FEATURES.md.
+
 ## 0.1.0 (beta)
 
-First version.
+First version, released under the name iClean.
 
 - Daemon (`icleand`), command-line tool (`iclean`) and menu-bar app.
 - Pauses idle background apps (whole process trees) under memory pressure and resumes

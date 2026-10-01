@@ -24,7 +24,7 @@ public final class AppCollector {
         self.lineage = lineage
     }
 
-    /// Bundle IDs whose trees include launchd-owned XPC services iClean cannot see.
+    /// Bundle IDs whose trees include launchd-owned XPC services iClear cannot see.
     static let partialTreeIDs: Set<String> = ["com.apple.Safari", "com.apple.mail", "com.apple.Notes"]
 
     public func collect(now: Double = Date().timeIntervalSince1970) -> Result {

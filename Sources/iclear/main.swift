@@ -1,4 +1,4 @@
-// iclean: command-line interface to the iClean daemon.
+// iclear: command-line interface to the iClear daemon.
 import Foundation
 import ICCore
 import ICSystem
@@ -19,7 +19,7 @@ func daemon(_ req: Request) -> Response? { IPC.send(req, path: paths.socket.path
 /// Sends a request and prints the answer; exits non-zero when the daemon refuses.
 func ask(_ cmd: String, app: String? = nil, value: String? = nil) {
     guard let r = daemon(Request(cmd, app: app, value: value, json: json)) else {
-        fail("icleand is not running. Start it with `iclean install`, or run `iclean doctor`.")
+        fail("icleard is not running. Start it with `iclear install`, or run `iclear doctor`.")
     }
     out(json ? (r.data ?? r.text) : r.text)
     if !r.ok { exit(1) }
@@ -44,15 +44,15 @@ func duration(_ s: String) -> Double? {
 let installer = Installer(
     paths: paths,
     daemonPath: (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
-        .resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("icleand").path)
+        .resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("icleard").path)
 
 let usage = """
-    iClean pauses idle background apps under memory pressure and resumes them the moment you
+    iClear pauses idle background apps under memory pressure and resumes them the moment you
     switch back. It never deletes files.
 
-    Usage: iclean <command> [options]
+    Usage: iclear <command> [options]
 
-      status [--json]                  what iClean is doing now
+      status [--json]                  what iClear is doing now
       why [--json]                     why is my Mac slow right now?
       explain <app>                    why an app was or was not frozen
       thaw [<app> | --all]             resume frozen apps (works even if the daemon is dead)
@@ -60,7 +60,7 @@ let usage = """
       undo                             thaw the last round of freezes
       mode [observe | active]          show or change the mode
       profile [work | batterySaver | presentation | dev | auto]
-      stats [--days N] [--json]        digest of what iClean measured
+      stats [--days N] [--json]        digest of what iClear measured
       advise                           RAM right-sizing estimate (needs 7 days of history)
       quarantine [release <app>]       apps that misbehaved after a thaw
       habits [show | reset | export]   local app-switch statistics
@@ -70,6 +70,7 @@ let usage = """
       config [path | show | validate [FILE] | allow <app> | deny <app> | import FILE | export]
       doctor [--report]                what works on this Mac
       install | uninstall [--purge]    manage the per-user LaunchAgent
+      migrate [--dry-run] [--remove-old]   move an iClean install to iClear
       bench [--quick]                  run the benchmark scenarios (spawns test processes only)
       completions [zsh | bash | fish]
       version
@@ -86,7 +87,7 @@ case "help", "-h", "--help":
     out(usage)
 
 case "version", "--version":
-    out("iclean \(icleanVersion)")
+    out("iclear \(iclearVersion)")
 
 case "status":
     if let r = daemon(Request("status", json: json)) {
@@ -94,8 +95,8 @@ case "status":
     } else {
         let j = JournalStore(url: paths.journal).read()
         out(
-            "icleand is not running."
-                + (j.entries.isEmpty ? "" : " The journal lists \(j.entries.count) frozen process(es): run `iclean thaw --all`."))
+            "icleard is not running."
+                + (j.entries.isEmpty ? "" : " The journal lists \(j.entries.count) frozen process(es): run `iclear thaw --all`."))
         exit(3)
     }
 
@@ -112,11 +113,11 @@ case "why":
         let d = Why.diagnose(
             samples: [SystemSampler.sample(now: now)], apps: r.apps, runaway: [],
             forecast: Forecast(armed: false, stable: true), idleMinutes: { _ in 0 })
-        out("(icleand is not running: one snapshot, no history)\n" + d.text)
+        out("(icleard is not running: one snapshot, no history)\n" + d.text)
     }
 
 case "explain":
-    guard let app = rest.first else { fail("usage: iclean explain <app>") }
+    guard let app = rest.first else { fail("usage: iclear explain <app>") }
     ask("explain", app: app)
 
 case "thaw":
@@ -126,14 +127,14 @@ case "thaw":
     } else if all {
         let r = Signals.recover(journal: JournalStore(url: paths.journal))
         out(
-            "icleand is not running; thawed \(r.thawed) process(es) from the journal" + (r.stale > 0 ? ", \(r.stale) already gone" : "")
+            "icleard is not running; thawed \(r.thawed) process(es) from the journal" + (r.stale > 0 ? ", \(r.stale) already gone" : "")
                 + (r.corrupt ? " (journal was corrupt: resumed every stopped app process)" : "") + ".")
     } else {
-        fail("icleand is not running. `iclean thaw --all` works without it.")
+        fail("icleard is not running. `iclear thaw --all` works without it.")
     }
 
 case "freeze":
-    guard let app = rest.first else { fail("usage: iclean freeze <app>") }
+    guard let app = rest.first else { fail("usage: iclear freeze <app>") }
     ask("freeze", app: app)
 
 case "undo":
@@ -159,7 +160,7 @@ case "habits":
     switch rest.first ?? "show" {
     case "reset": ask("habits", value: "reset")
     case "show", "export": ask("habits")
-    default: fail("usage: iclean habits [show | reset | export]")
+    default: fail("usage: iclear habits [show | reset | export]")
     }
 
 case "workspace":
@@ -186,7 +187,7 @@ case "simulate":
     }
 
 case "trace":
-    guard rest.first == "export" else { fail("usage: iclean trace export [--anonymize] [--since 7d] [--out FILE]") }
+    guard rest.first == "export" else { fail("usage: iclear trace export [--anonymize] [--since 7d] [--out FILE]") }
     let since = Date().timeIntervalSince1970 - (option("--since").flatMap(duration) ?? 7 * 86400)
     var (recs, _) = TraceWriter.read(dir: paths.traces, since: since)
     if rest.contains("--anonymize") {
@@ -217,13 +218,13 @@ case "config":
             fail("\(error)")
         }
     case "allow", "deny":
-        guard rest.count > 1 else { fail("usage: iclean config \(rest[0]) <bundle id or app name>") }
+        guard rest.count > 1 else { fail("usage: iclear config \(rest[0]) <bundle id or app name>") }
         ask(rest[0], app: rest[1])
     case "import":
         // Rule packs: only rule keys are taken, and the result is validated before saving.
         guard rest.count > 1, let data = try? Data(contentsOf: URL(fileURLWithPath: rest[1])),
             let pack = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        else { fail("usage: iclean config import FILE.json") }
+        else { fail("usage: iclear config import FILE.json") }
         let ruleKeys: Set<String> = ["allow", "deny", "tiers", "wakeWindows", "workspaces"]
         let unknown = Set(pack.keys).subtracting(ruleKeys)
         guard unknown.isEmpty else { fail("A rule pack may only contain \(ruleKeys.sorted()); found \(unknown.sorted()).") }
@@ -248,7 +249,7 @@ case "config":
             fail("Rule pack rejected: \(error)")
         }
     default:
-        fail("usage: iclean config [path | show | validate [FILE] | allow <app> | deny <app> | import FILE | export]")
+        fail("usage: iclear config [path | show | validate [FILE] | allow <app> | deny <app> | import FILE | export]")
     }
 
 case "doctor":
@@ -256,14 +257,24 @@ case "doctor":
     out(rest.contains("--report") ? Doctor.issueReport(r) : Doctor.text(r))
 
 case "install":
+    if Migration.detect(paths) {
+        let m = Migration.run(paths, removeOld: false)
+        out(m.lines.joined(separator: "\n"))
+        guard m.ok else { fail("install stopped: the iClean install could not be migrated safely.") }
+    }
     do { out(try installer.install()) } catch { fail("install failed: \(error)") }
+
+case "migrate":
+    let m = Migration.run(paths, removeOld: rest.contains("--remove-old"), dryRun: rest.contains("--dry-run"))
+    out(m.lines.joined(separator: "\n"))
+    if !m.ok { exit(1) }
 
 case "uninstall":
     out(installer.uninstall(purge: rest.contains("--purge")))
 
 case "bench":
-    let hog = installer.daemonPath.replacingOccurrences(of: "/icleand", with: "/ic-hog")
-    guard FileManager.default.isExecutableFile(atPath: hog) else { fail("ic-hog not found next to iclean; benchmarks need it.") }
+    let hog = installer.daemonPath.replacingOccurrences(of: "/icleard", with: "/ic-hog")
+    guard FileManager.default.isExecutableFile(atPath: hog) else { fail("ic-hog not found next to iclear; benchmarks need it.") }
     let result = Bench.run(hogPath: hog, quick: rest.contains("--quick"), log: { out($0) })
     out(json ? result.json : result.markdown)
 
@@ -271,5 +282,5 @@ case "completions":
     out(Completions.script(for: rest.first ?? "zsh"))
 
 default:
-    fail("Unknown command '\(cmd)'. Run `iclean help`.")
+    fail("Unknown command '\(cmd)'. Run `iclear help`.")
 }

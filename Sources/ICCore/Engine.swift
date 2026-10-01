@@ -99,7 +99,7 @@ public struct TickResult: Sendable {
     public var forecast: Forecast
     public var health: HealthScore
     public var runaway: [RunawayFinding]
-    /// Why iClean acted this tick, if it did.
+    /// Why iClear acted this tick, if it did.
     public var trigger: String?
 }
 
@@ -160,7 +160,7 @@ public struct EngineState: Codable, Equatable, Sendable {
     public var runaway = RunawayState()
     /// Keyed by day number (days since 1970).
     public var days: [String: DayStats] = [:]
-    /// Last skip reasons per app, for `iclean explain`.
+    /// Last skip reasons per app, for `iclear explain`.
     public var lastSkips: [String: [Reason]] = [:]
     public var lastScores: [String: Double] = [:]
     public var usage: [String: AppUsage] = [:]
@@ -171,7 +171,7 @@ public struct EngineState: Codable, Equatable, Sendable {
 // MARK: - Engine
 
 /// The policy engine. Pure and deterministic: all inputs arrive as values, all
-/// outputs leave as actions. The daemon executes actions; `iclean simulate` replays
+/// outputs leave as actions. The daemon executes actions; `iclear simulate` replays
 /// recorded inputs through the same code.
 public final class Engine {
     public var config: Config
@@ -394,7 +394,7 @@ public final class Engine {
         let ctx = context(now, cfg, profile: profile, wake: dueWake)
 
         // Evaluate every app so `explain` always has fresh reasons.
-        // Guards are only inspected when iClean might act, so they are not required here.
+        // Guards are only inspected when iClear might act, so they are not required here.
         var eligible: [AppSnapshot] = []
         for app in input.apps {
             let r = Policy.skipReasons(app, ctx, requireInspection: false)

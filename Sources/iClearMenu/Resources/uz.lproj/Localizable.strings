@@ -1,7 +1,7 @@
-"daemon.notRunning" = "iClean ishlamayapti.";
-"daemon.start" = "iClean'ni ishga tushirish";
-"daemon.installFailed" = "iClean xizmatini ishga tushirib bo'lmadi.";
-"thawAll.offline" = "iClean ishlamayotgan edi; jurnaldan %d ta jarayon davom ettirildi.";
+"daemon.notRunning" = "iClear ishlamayapti.";
+"daemon.start" = "iClear'ni ishga tushirish";
+"daemon.installFailed" = "iClear xizmatini ishga tushirib bo'lmadi.";
+"thawAll.offline" = "iClear ishlamayotgan edi; jurnaldan %d ta jarayon davom ettirildi.";
 "close" = "Yopish";
 "health" = "Mac salomatligi %d/100";
 "pressure.normal" = "Xotira: me'yorida";
@@ -11,7 +11,7 @@
 "focusSafe" = "To'xtatilgan (Fokus xavfsiz rejimi): %@";
 "lastAction" = "Oxirgi amal: %@";
 "lastAction.none" = "Hali hech qanday amal bajarilmadi.";
-"healthyIdle" = "Mac'ingiz sog'lom; iClean hech narsa qilmayapti.";
+"healthyIdle" = "Mac'ingiz sog'lom; iClear hech narsa qilmayapti.";
 "mode" = "Rejim";
 "mode.observe" = "Kuzatish";
 "mode.active" = "Faol";
@@ -32,11 +32,11 @@
 "perm.ax.on" = "Maxsus imkoniyatlar ruxsati berilgan: davom ettirish tekshiruvlari o'lchanadi.";
 "perm.ax.off" = "Ixtiyoriy: Maxsus imkoniyatlar ruxsati ilovalar davom ettirilgandan keyin javob berishini tekshirishga imkon beradi.";
 "perm.open" = "Sozlamalarni ochish";
-"about.noDelete" = "iClean hech qachon fayllaringizni o'chirmaydi. U ilovalarni pauza qiladi va davom ettiradi.";
-"about.version" = "iClean %@";
+"about.noDelete" = "iClear hech qachon fayllaringizni o'chirmaydi. U ilovalarni pauza qiladi va davom ettiradi.";
+"about.version" = "iClear %@";
 "about.trademark" = "Apple Inc. bilan bog'liq emas.";
 "quit" = "Menyudan chiqish";
-"a11y.icon" = "iClean, Mac salomatligi %d";
+"a11y.icon" = "iClear, Mac salomatligi %d";
 "a11y.swap" = "Ishlatilayotgan svop: %d megabayt";
 "a11y.thaw" = "%@ ni davom ettirish";
 "a11y.never" = "%@ ni hech qachon pauza qilmaslik";

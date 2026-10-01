@@ -133,7 +133,7 @@ public struct AppSnapshot: Codable, Equatable, Sendable {
     public var isRegularApp: Bool
     public var isElectron: Bool
     public var origin: AppOrigin
-    /// True when the tree may include processes iClean cannot see (for example XPC
+    /// True when the tree may include processes iClear cannot see (for example XPC
     /// services launched by launchd on the app's behalf).
     public var partialTree: Bool
     /// True for the daemon, its ancestors and descendants.

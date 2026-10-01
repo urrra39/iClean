@@ -15,20 +15,25 @@ One line each: what was decided and why. Newest at the bottom.
 11. **Only regular (Dock) apps are frozen.** Menu-bar and background agents are often infrastructure (VPN, sync, input); leaving them alone is the safe default.
 12. **Unknown regular apps are Tier A.** Every safety check still applies; a long hand-made list of "known safe" apps would go stale.
 13. **Safari is Tier S by default.** Its web content runs in launchd-owned XPC services that are not in its process tree, so a freeze would be partial.
-14. **Observe mode stays on until the user promotes it.** No silent switch to Active after 24 h; iClean suggests promotion with the numbers it collected.
+14. **Observe mode stays on until the user promotes it.** No silent switch to Active after 24 h; iClear suggests promotion with the numbers it collected.
 15. **Observe mode tracks "virtual" freezes.** Would-be freezes are recorded and closed exactly like real ones, so regret and relief estimates exist before anything is ever signalled.
 16. **Relief estimate is 60% of resident memory until measured.** The frozen hog in FEASIBILITY §4 lost 98% of its resident memory, but that data compressed well; realized relief replaces the estimate once known.
 17. **Config is JSON merged onto defaults; unknown keys are errors.** Stdlib only, and a typo never silently does nothing.
 18. **Golden traces are synthetic and deterministic.** Real traces would contain the maintainer's app list; the generator lives in the tests.
 19. **The macOS 13 floor applies to every target.** `MenuBarExtra` needs 13, a single floor keeps one package, and macOS 12 could not be tested here.
-20. **IPC is a Unix domain socket with one JSON line each way.** Works from a plain SwiftPM executable without a Mach service registration; the socket lives in iClean's 0700 directory and the peer's uid is checked.
+20. **IPC is a Unix domain socket with one JSON line each way.** Works from a plain SwiftPM executable without a Mach service registration; the socket lives in iClear's 0700 directory and the peer's uid is checked.
 21. **One `Probe` protocol instead of many small adapter protocols.** The engine is pure and takes values, so the only seam tests need is "what does the daemon see"; signals are exercised for real against spawned `ic-hog` processes.
-22. **An app is never frozen until its S4 guards were inspected.** Missing guard data counts as unsafe (`SKIP_GUARDS_NOT_INSPECTED`); inspection runs only when iClean may act, which caps its cost.
+22. **An app is never frozen until its S4 guards were inspected.** Missing guard data counts as unsafe (`SKIP_GUARDS_NOT_INSPECTED`); inspection runs only when iClear may act, which caps its cost.
 23. **Watchdog is a child process in its own session.** It waits on the daemon with `kqueue(EVFILT_PROC, NOTE_EXIT)` and replays the journal when the daemon dies, including by SIGKILL.
 24. **A corrupt journal falls back to resuming stopped processes inside app bundles.** Terminal job-control stops (plain CLI processes) are left alone.
-25. **Thaw latency is only measured with Accessibility permission.** It is the time from SIGCONT until the app's main thread answers an Accessibility request; without the permission iClean reports "not measured" rather than guessing.
-26. **LaunchAgent install uses `launchctl bootstrap`; tests install into an isolated `ICLEAN_HOME`.** The maintainer's real `~/Library/LaunchAgents` is never touched by tests.
+25. **Thaw latency is only measured with Accessibility permission.** It is the time from SIGCONT until the app's main thread answers an Accessibility request; without the permission iClear reports "not measured" rather than guessing.
+26. **LaunchAgent install uses `launchctl bootstrap`; tests install into an isolated `ICLEAR_HOME`.** The maintainer's real `~/Library/LaunchAgents` is never touched by tests.
 27. **Test builds use `-j 2` with retries.** The Command Line Tools' Swift Testing macro plugin fails at random under full parallelism; CI (Xcode) is not affected.
 28. **Localization uses `.lproj/Localizable.strings`, not a String Catalog.** The Command Line Tools cannot compile `.xcstrings` (`xcstringstool` ships only with Xcode); Xcode can migrate the files into a catalog later.
-29. **Command-line tools sit in `iClean.app/Contents/Helpers`.** `iclean` and `iClean` are the same name on case-insensitive volumes.
+29. **Command-line tools sit in `iClear.app/Contents/Helpers`.** `iclear` and `iClear` are the same name on case-insensitive volumes.
 30. **Emergency hotkey uses Carbon `RegisterEventHotKey`.** It needs no Accessibility or Input Monitoring permission.
+31. **Renamed iClean to iClear.** "iClean" collides with many storage cleaners and suggested file deletion, which the project never does.
+32. **`ICLEAR_HOME` names a home directory, not a data directory.** Migration tests need the old and new layouts side by side under one fake home.
+33. **Migration copies, never moves, and deletes only on request.** A failed or interrupted migration must leave the old install intact.
+34. **Migration stops if any process from the old journal is still paused.** Unloading the old daemon before everything is resumed could strand a frozen app.
+35. **Isolated homes never call `launchctl` for the old label.** Tests must not leave launchd overrides on the developer's real user domain.

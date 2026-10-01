@@ -3,7 +3,7 @@
 Date: 2026-09-30. Method: GitHub repository search (`gh search repos`), web search,
 and reading the README of every close match. **"Not found" is not proof of
 absence.** It only means these searches, on this date, did not turn anything up.
-iClean does not claim to be first at anything.
+iClear does not claim to be first at anything.
 
 ## Closest projects (verified by reading their READMEs)
 

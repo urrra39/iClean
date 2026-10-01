@@ -68,7 +68,7 @@ public struct Digest: Codable, Equatable, Sendable {
         func mins(_ d: [String: Double], _ level: String) -> String { String(format: "%.0f", d[level] ?? 0) }
         var l: [String] = []
         l.append("Last \(days) day\(days == 1 ? "" : "s"):")
-        if healthyIdle { l.append("  Your Mac is healthy; iClean is idle.") }
+        if healthyIdle { l.append("  Your Mac is healthy; iClear is idle.") }
         l.append(
             "  Minutes in yellow/red pressure: Observe \(mins(observeMinutes, "warning"))/\(mins(observeMinutes, "critical")), Active \(mins(activeMinutes, "warning"))/\(mins(activeMinutes, "critical"))"
         )
@@ -158,7 +158,7 @@ public enum DigestBuilder {
                 Suggestion(
                     kind: .allow, appID: id,
                     text: String(
-                        format: "%@ was idle %.0f%% of the time and uses %@: add to auto-freeze? (iclean config allow %@)",
+                        format: "%@ was idle %.0f%% of the time and uses %@: add to auto-freeze? (iclear config allow %@)",
                         u.name, u.idleShare * 100, mb(u.averageMB), id)))
         }
         let week = now - 7 * 86400
@@ -171,7 +171,7 @@ public enum DigestBuilder {
             out.append(
                 Suggestion(
                     kind: .deny, appID: id,
-                    text: "\(name) was frozen and you reopened it \(n) times within a minute: exclude it? (iclean config deny \(id))"))
+                    text: "\(name) was frozen and you reopened it \(n) times within a minute: exclude it? (iclear config deny \(id))"))
         }
         return out
     }
@@ -206,7 +206,7 @@ public enum Advisor {
             return Advice(
                 enoughData: false, daysOfData: usable.count, minutesYellowRed: yr, swapChurnMinutes: churn,
                 text:
-                    "Not enough data: \(usable.count) of \(minDays) days with at least \(minSamplesPerDay) minutes of samples. iClean will not guess."
+                    "Not enough data: \(usable.count) of \(minDays) days with at least \(minSamplesPerDay) minutes of samples. iClear will not guess."
             )
         }
         let ws = usable.flatMap(\.workingSetMB).map { $0 / 1024 }

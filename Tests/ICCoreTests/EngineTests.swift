@@ -306,7 +306,7 @@ import Testing
         let e = engine(c, apps: [a])
         _ = e.tick(TickInput(sample: sample(0, available: 60), apps: [a]))
         // Falling 5 points a minute: ETA to yellow (25%) is 6 min, inside the 10 min horizon
-        // but not inside half of it, so iClean only lowers priority.
+        // but not inside half of it, so iClear only lowers priority.
         let r = e.tick(TickInput(sample: sample(60, available: 55), apps: [a]))
         #expect(r.trigger == Code.forecast)
         #expect(r.actions.of(.deprioritize).ids == [a.id])

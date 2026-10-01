@@ -73,7 +73,7 @@ import Testing
             samples: [sample(0), sample(60)], apps: [app("com.a")], runaway: [],
             forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
         #expect(d.healthy && d.causes.isEmpty)
-        #expect(d.text.contains("Your Mac is healthy; iClean is idle."))
+        #expect(d.text.contains("Your Mac is healthy; iClear is idle."))
         #expect(
             Why.diagnose(samples: [], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 }).healthy
         )
@@ -133,7 +133,7 @@ import Testing
         #expect(d.text.contains("Regret rate (S2): 1 of 1"))
         let quiet = DigestBuilder.build(state: EngineState(startedAt: 0), config: Config(), now: 0, days: 7)
         #expect(quiet.healthyIdle)
-        #expect(quiet.text.contains("Your Mac is healthy; iClean is idle."))
+        #expect(quiet.text.contains("Your Mac is healthy; iClear is idle."))
         #expect(quiet.text.contains("Thaw latency: not enough data"))
     }
 

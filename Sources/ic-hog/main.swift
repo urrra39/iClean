@@ -1,7 +1,7 @@
 // ic-hog: a synthetic process used by tests, spikes and benchmarks.
 // It allocates and touches memory, optionally spins CPU, holds sockets,
 // files or locks, prints heartbeats, and can misbehave after SIGCONT.
-// It is the only kind of process iClean's own tests ever signal.
+// It is the only kind of process iClear's own tests ever signal.
 import AppKit
 import Foundation
 

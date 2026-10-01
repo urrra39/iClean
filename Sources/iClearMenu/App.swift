@@ -4,11 +4,11 @@ import ICSystem
 import SwiftUI
 
 @main
-struct ICleanMenuApp: App {
+struct IClearMenuApp: App {
     @StateObject private var model = Model()
 
     init() {
-        // `iCleanMenu --snapshot out.png` renders the menu once (docs and UI checks) and exits.
+        // `iClearMenu --snapshot out.png` renders the menu once (docs and UI checks) and exits.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             MainActor.assumeIsolated {
@@ -167,7 +167,7 @@ struct MenuView: View {
     var about: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(localized("about.noDelete")).font(.caption).bold().fixedSize(horizontal: false, vertical: true)
-            Text(String(format: localized("about.version"), icleanVersion) + " · " + localized("about.trademark")).font(.caption2)
+            Text(String(format: localized("about.version"), iclearVersion) + " · " + localized("about.trademark")).font(.caption2)
                 .foregroundStyle(
                     .secondary)
             Button(localized("quit")) { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")

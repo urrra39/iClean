@@ -93,7 +93,7 @@ public enum Trace {
     }
 }
 
-/// `iclean simulate`: replays recorded inputs through the pure engine with another
+/// `iclear simulate`: replays recorded inputs through the pure engine with another
 /// config. It cannot model how actions would have changed later memory readings, so
 /// every figure is labelled as simulation.
 public struct SimulationResult: Codable, Equatable, Sendable {

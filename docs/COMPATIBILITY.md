@@ -1,6 +1,6 @@
 # Compatibility
 
-iClean adapts to any MacBook that runs macOS 13 or later: it reads the RAM size, disk
+iClear adapts to any MacBook that runs macOS 13 or later: it reads the RAM size, disk
 type, battery and macOS version at start and picks thresholds from them (see
 [ARCHITECTURE.md](ARCHITECTURE.md), "Profiles"). That is not the same as "tested on
 every MacBook". This table lists only what was actually tested.
@@ -23,7 +23,7 @@ with 8 GB or less, spinning or Fusion disks, macOS 13 and 14, and Rosetta.
 Run:
 
 ```sh
-iclean doctor --report
+iclear doctor --report
 ```
 
 and paste the output into a new issue using the "Compatibility report" template.

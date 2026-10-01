@@ -20,7 +20,7 @@ public struct Diagnosis: Codable, Equatable, Sendable {
     public var text: String {
         var lines: [String] = ["Mac Health: \(health.score)/100 (\(health.band.rawValue)). Forecast: \(forecast)."]
         if healthy {
-            lines.append("Your Mac is healthy; iClean is idle.")
+            lines.append("Your Mac is healthy; iClear is idle.")
         }
         for (i, c) in causes.enumerated() {
             lines.append("\(i + 1). \(c.title)")
@@ -118,7 +118,7 @@ public enum Why {
                 Cause(
                     code: "LOW_DISK", severity: now.freeDiskGB < 5 ? 80 : 50, title: "Free disk space is low",
                     detail: String(format: "%.1f GB free. Swap needs free disk space.", now.freeDiskGB),
-                    suggestion: "Free some space (see `iclean disk`). iClean never deletes files for you."))
+                    suggestion: "Free some space (see `iclear disk`). iClear never deletes files for you."))
         }
         if now.lowPowerMode {
             causes.append(

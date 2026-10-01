@@ -19,7 +19,7 @@ try? FileManager.default.removeItem(at: bundle)
 try! FileManager.default.createDirectory(at: bundle.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
 try! FileManager.default.copyItem(atPath: CommandLine.arguments[1], toPath: bundle.appendingPathComponent("Contents/MacOS/ic-hog").path)
 let plist: [String: Any] = [
-    "CFBundleIdentifier": "io.github.iclean.hog", "CFBundleExecutable": "ic-hog",
+    "CFBundleIdentifier": "io.github.iclear.hog", "CFBundleExecutable": "ic-hog",
     "CFBundleName": "ic-hog", "CFBundlePackageType": "APPL",
 ]
 (plist as NSDictionary).write(to: bundle.appendingPathComponent("Contents/Info.plist"), atomically: true)

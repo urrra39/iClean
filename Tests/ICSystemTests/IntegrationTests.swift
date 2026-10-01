@@ -391,18 +391,18 @@ import Testing
     /// Safety invariant 1: SIGKILL the daemon while something is frozen; the watchdog thaws it.
     @Test func watchdogThawsAfterDaemonIsKilled() throws {
         let paths = tempHome()
-        let env = ["ICLEAN_HOME": paths.base.path]
+        let env = ["ICLEAR_HOME": paths.home.path]
         let daemon = Process()
-        daemon.executableURL = products.appendingPathComponent("icleand")
+        daemon.executableURL = products.appendingPathComponent("icleard")
         daemon.environment = ProcessInfo.processInfo.environment.merging(env) { _, n in n }
         daemon.standardError = FileHandle.nullDevice
         try daemon.run()
         defer { daemon.terminate() }
         #expect(eventually(10) { IPC.send(Request("ping"), path: paths.socket.path)?.ok == true })
-        #expect(eventually { Proc.table().values.contains { $0.ppid == daemon.processIdentifier && $0.name == "icleand" } })
+        #expect(eventually { Proc.table().values.contains { $0.ppid == daemon.processIdentifier && $0.name == "icleard" } })
 
         // A second daemon on the same home refuses to start.
-        #expect(run("icleand", [], env: env).status != 0)
+        #expect(run("icleard", [], env: env).status != 0)
 
         // Simulate a freeze exactly as the daemon does it: journal first, then SIGSTOP.
         let h = try hog()
@@ -421,8 +421,8 @@ import Testing
         defer { h.kill() }
         #expect(Signals.freezeTree([h.identity!], appID: "test.left", at: 1, journal: JournalStore(url: paths.journal)).ok)
         let daemon = Process()
-        daemon.executableURL = products.appendingPathComponent("icleand")
-        daemon.environment = ProcessInfo.processInfo.environment.merging(["ICLEAN_HOME": paths.base.path]) { _, n in n }
+        daemon.executableURL = products.appendingPathComponent("icleard")
+        daemon.environment = ProcessInfo.processInfo.environment.merging(["ICLEAR_HOME": paths.home.path]) { _, n in n }
         try daemon.run()
         defer {
             daemon.terminate()
@@ -436,44 +436,44 @@ import Testing
         let h = try hog()
         defer { h.kill() }
         #expect(Signals.freezeTree([h.identity!], appID: "test.cli", at: 1, journal: JournalStore(url: paths.journal)).ok)
-        let r = run("iclean", ["thaw", "--all"], env: ["ICLEAN_HOME": paths.base.path])
+        let r = run("iclear", ["thaw", "--all"], env: ["ICLEAR_HOME": paths.home.path])
         #expect(r.status == 0 && r.out.contains("thawed 1"))
         #expect(!isStopped(h.pid))
-        #expect(run("iclean", ["status"], env: ["ICLEAN_HOME": paths.base.path]).status == 3)
+        #expect(run("iclear", ["status"], env: ["ICLEAR_HOME": paths.home.path]).status == 3)
     }
 
     @Test func cliOfflineCommands() throws {
-        let env = ["ICLEAN_HOME": tempHome().base.path]
-        #expect(run("iclean", ["version"]).out.contains(icleanVersion))
-        #expect(run("iclean", ["help"]).out.contains("never deletes files"))
-        let doctor = run("iclean", ["doctor"], env: env)
+        let env = ["ICLEAR_HOME": tempHome().home.path]
+        #expect(run("iclear", ["version"]).out.contains(iclearVersion))
+        #expect(run("iclear", ["help"]).out.contains("never deletes files"))
+        let doctor = run("iclear", ["doctor"], env: env)
         #expect(doctor.status == 0 && doctor.out.contains("SIGSTOP/SIGCONT freeze:        yes"))
-        let report = run("iclean", ["doctor", "--report"], env: env).out
+        let report = run("iclear", ["doctor", "--report"], env: env).out
         #expect(report.contains("Model identifier"))
         let user = NSUserName()
         let host = ProcessInfo.processInfo.hostName
         #expect(!report.contains(user) && !report.contains(host))
-        #expect(run("iclean", ["completions", "zsh"]).out.contains("#compdef iclean"))
-        #expect(run("iclean", ["completions", "bash"]).out.contains("complete -F"))
-        #expect(run("iclean", ["completions", "fish"]).out.contains("complete -c iclean"))
-        #expect(run("iclean", ["nonsense"]).status == 1)
-        let why = run("iclean", ["why"], env: env)
+        #expect(run("iclear", ["completions", "zsh"]).out.contains("#compdef iclear"))
+        #expect(run("iclear", ["completions", "bash"]).out.contains("complete -F"))
+        #expect(run("iclear", ["completions", "fish"]).out.contains("complete -c iclear"))
+        #expect(run("iclear", ["nonsense"]).status == 1)
+        let why = run("iclear", ["why"], env: env)
         #expect(why.status == 0 && why.out.contains("Mac Health"))
     }
 
     @Test func ruleImportIsValidated() throws {
         let paths = tempHome()
-        let env = ["ICLEAN_HOME": paths.base.path]
+        let env = ["ICLEAR_HOME": paths.home.path]
         let good = paths.base.appendingPathComponent("pack.json")
         try Data(#"{"deny": ["com.example.chat"], "tiers": {"com.example.ide": "B"}}"#.utf8).write(to: good)
-        #expect(run("iclean", ["config", "import", good.path], env: env).status == 0)
+        #expect(run("iclear", ["config", "import", good.path], env: env).status == 0)
         let c = try Config.load(json: Data(contentsOf: paths.config)).0
         #expect(c.deny == ["com.example.chat"] && c.tiers["com.example.ide"] == .optIn)
         let bad = paths.base.appendingPathComponent("bad.json")
         try Data(#"{"mode": "active"}"#.utf8).write(to: bad)
-        #expect(run("iclean", ["config", "import", bad.path], env: env).status != 0)
+        #expect(run("iclear", ["config", "import", bad.path], env: env).status != 0)
         try Data(#"{"deny": ["has space"]}"#.utf8).write(to: bad)
-        #expect(run("iclean", ["config", "import", bad.path], env: env).status != 0)
+        #expect(run("iclear", ["config", "import", bad.path], env: env).status != 0)
     }
 }
 
@@ -488,7 +488,7 @@ import Testing
             "memorystatus_control", "pid_suspend",
         ]
         var hits: [String] = []
-        for dir in ["ICCore", "ICSystem", "icleand", "iclean", "iCleanMenu"] {
+        for dir in ["ICCore", "ICSystem", "icleard", "iclear", "iClearMenu"] {
             let url = Self.root.appendingPathComponent("Sources/\(dir)")
             guard let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil) else { continue }
             for case let f as URL in files where f.pathExtension == "swift" {
@@ -504,7 +504,7 @@ import Testing
     }
 
     @Test func entitlementsGrantNothingDangerous() throws {
-        let url = Self.root.appendingPathComponent("packaging/iClean.entitlements")
+        let url = Self.root.appendingPathComponent("packaging/iClear.entitlements")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any] ?? [:]
         #expect(plist["com.apple.security.cs.debugger"] == nil)
         #expect(plist["com.apple.security.network.client"] == nil && plist["com.apple.security.network.server"] == nil)
@@ -512,10 +512,10 @@ import Testing
     }
 
     @Test func launchAgentIsPerUserAndNotRoot() {
-        let i = Installer(paths: tempHome(), daemonPath: "/usr/local/bin/icleand", environment: [:])
+        let i = Installer(paths: Paths(environment: [:]), daemonPath: "/usr/local/bin/icleard")
         let p = (try? PropertyListSerialization.propertyList(from: i.plistData(), format: nil)) as? [String: Any] ?? [:]
         #expect(p["UserName"] == nil && p["GroupName"] == nil)
         #expect(i.plist.path.contains("LaunchAgents"))
-        #expect(p["Label"] as? String == "io.github.urrra39.iclean")
+        #expect(p["Label"] as? String == "io.github.urrra39.iclear")
     }
 }

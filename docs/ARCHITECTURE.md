@@ -1,12 +1,12 @@
 # Architecture
 
 ```
-            ┌──────────── iCleanMenu (SwiftUI menu bar) ──┐   ┌── iclean (CLI) ──┐
+            ┌──────────── iClearMenu (SwiftUI menu bar) ──┐   ┌── iclear (CLI) ──┐
             │ status, why, digest, thaw all, hotkey        │   │ all commands      │
             └───────────────────┬──────────────────────────┘   └────────┬─────────┘
                                 │   Unix domain socket, 1 JSON line each way
                                 ▼
-┌──────────────────────── icleand (per-user LaunchAgent) ──────────────────────────┐
+┌──────────────────────── icleard (per-user LaunchAgent) ──────────────────────────┐
 │ ICSystem: sample (sysctl, host_statistics64) ─┐                                  │
 │           apps (NSWorkspace + libproc trees,  ├─► TickInput ─► ICCore.Engine ─► actions
 │           windows, audio, power assertions)   ┘     (pure, deterministic)        │
@@ -15,21 +15,21 @@
 │ writes:   actions.jsonl, traces/*.jsonl, state.json                              │
 └───────────────┬──────────────────────────────────────────────────────────────────┘
                 │ kqueue NOTE_EXIT
-        icleand --watchdog  (own session): replays the journal if the daemon dies
+        icleard --watchdog  (own session): replays the journal if the daemon dies
 ```
 
 | Target | Role | System calls |
 |---|---|---|
 | `ICCore` | Models, config, policy, scoring, engine state machine, journal recovery plan, health score, forecast, regret, habits, guards, runaway, diagnosis, digest, advisor, traces, simulator | none |
 | `ICSystem` | Sampler, process table, app collector, inspector, signals, journal store, IPC, daemon runtime, doctor, installer, bench | yes |
-| `icleand` | Daemon entry point; also the watchdog (`--watchdog <pid>`) | |
-| `iclean` | CLI | |
-| `iCleanMenu` | Menu-bar app (macOS 13+ `MenuBarExtra`) | |
+| `icleard` | Daemon entry point; also the watchdog (`--watchdog <pid>`) | |
+| `iclear` | CLI | |
+| `iClearMenu` | Menu-bar app (macOS 13+ `MenuBarExtra`) | |
 | `ic-hog` | Test process: memory, CPU, sockets, files, locks, heartbeats, crash/hang after SIGCONT | |
 
 Floor: macOS 13 for everything (see [DECISIONS.md](DECISIONS.md) #19). Older MacBooks
 are limited to the macOS versions they can run; a MacBook that cannot run macOS 13
-cannot run iClean.
+cannot run iClear.
 
 ## Engine tick
 
@@ -108,16 +108,16 @@ Other: `RUNAWAY_CPU`, `RUNAWAY_MEMORY_GROWTH`, `UNHEALTHY_AFTER_THAW`.
 
 ## Files
 
-Everything lives in `~/Library/Application Support/iClean/` (mode 0700), or in
-`$ICLEAN_HOME` if set: `config.json`, `state.json` (engine state, learned thresholds,
+Everything lives in `~/Library/Application Support/iClear/` (mode 0700), or in
+`$ICLEAR_HOME` if set: `config.json`, `state.json` (engine state, learned thresholds,
 habits, regret records, daily totals), `journal.json` (only while something is
 frozen), `actions.jsonl` (+ `.1`, 5 MB rotation), `traces/` (daily JSON Lines, 7 days,
-20 MB), `hardware.json`, `icleand.sock`, `icleand.lock`, `icleand.log`. The
-LaunchAgent is `~/Library/LaunchAgents/io.github.urrra39.iclean.plist`.
+20 MB), `hardware.json`, `icleard.sock`, `icleard.lock`, `icleard.log`. The
+LaunchAgent is `~/Library/LaunchAgents/io.github.urrra39.iclear.plist`.
 
 ## Configuration
 
-`iclean config show` prints every key with its default. Unknown keys are rejected.
-Changes are picked up within one tick (or immediately with `iclean config` commands);
+`iclear config show` prints every key with its default. Unknown keys are rejected.
+Changes are picked up within one tick (or immediately with `iclear config` commands);
 an invalid file keeps the previous config running and shows the error in `status`
 and the menu.

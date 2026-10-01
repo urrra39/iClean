@@ -7,7 +7,7 @@ import ICCore
 import IOKit.pwr_mgt
 
 /// Which processes are playing or recording audio (CoreAudio process objects,
-/// macOS 14.2+). On older systems attribution is unavailable and iClean relies on
+/// macOS 14.2+). On older systems attribution is unavailable and iClear relies on
 /// power assertions, which media players hold while playing.
 public enum AudioActivity {
     public static var available: Bool {

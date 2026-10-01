@@ -1,6 +1,6 @@
 # Trace format (version 1)
 
-Traces are JSON Lines files in `~/Library/Application Support/iClean/traces/`, one
+Traces are JSON Lines files in `~/Library/Application Support/iClear/traces/`, one
 file per day (`YYYY-MM-DD.jsonl`). They hold bundle identifiers, app display names,
 process IDs, numbers and timestamps. They never hold window titles, file paths, URLs
 or content. Retention: 7 days and 20 MB total by default
@@ -16,7 +16,7 @@ Every line is one object:
 | `t` | number | seconds since 1970 |
 | `tick` | object | for `tick`: the engine input (below) |
 | `app`, `name`, `wd`, `h` | | for `activate`: bundle ID, display name, weekday (1 = Sunday), hour |
-| `action` | object | for `action`: what iClean did or would do (`kind`, `appID`, `name`, `processes`, `reasons`, `dryRun`, `reliefEstimateMB`, `delaySeconds`, `message`) |
+| `action` | object | for `action`: what iClear did or would do (`kind`, `appID`, `name`, `processes`, `reasons`, `dryRun`, `reliefEstimateMB`, `delaySeconds`, `message`) |
 
 `tick` holds `sample` (pressure level 1/2/4, `availablePercent`, `physicalMB`,
 `freeMB`, `compressedMB`, `swapUsedMB`, cumulative `swapOuts`/`swapIns`, `thermal`
@@ -30,10 +30,10 @@ sharing, mirroring, fullscreen, lock) and `weekday`, `hour`, `events`.
 Readers skip lines that are not valid JSON, are longer than 1 MB, or have `v` ≠ 1,
 and count them as skipped.
 
-`iclean trace export --anonymize` replaces bundle IDs and names with salted hashes
+`iclear trace export --anonymize` replaces bundle IDs and names with salted hashes
 (`app-…`, a new salt per export), zeroes process IDs, and drops action messages, so
 a trace can be attached to a bug report.
 
-`iclean simulate [--config FILE] [--since 7d]` replays `tick` and `activate` records
+`iclear simulate [--config FILE] [--since 7d]` replays `tick` and `activate` records
 through the engine in Active mode. Recorded `action` lines are ignored (they describe
 what happened, not inputs).

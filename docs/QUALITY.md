@@ -5,9 +5,9 @@ adjectives. Anything below 9 lists what is missing.
 
 | Dimension | Score | Evidence |
 |---|---|---|
-| Correctness | 7 | 103 unit and golden-trace tests and 28 integration tests against real processes pass locally (macOS 27.0.1) and in CI on macOS 15.7 arm64, macOS 15.7 Intel and macOS 26.6 ([run 36811882428](https://github.com/urrra39/iClean/actions/runs/36811882428)). `ICCore` line coverage 96.3%; 100% for `Policy`, `Journal`, `Health`, `Guards`, `Protection`, `Profiles`, `Runaway`. Capped at 7 because Active mode has never run on real apps. |
+| Correctness | 7 | 103 unit and golden-trace tests and 28 integration tests against real processes pass locally (macOS 27.0.1) and in CI on macOS 15.7 arm64, macOS 15.7 Intel and macOS 26.6 ([run 36811882428](https://github.com/urrra39/iClear/actions/runs/36811882428)). `ICCore` line coverage 96.3%; 100% for `Policy`, `Journal`, `Health`, `Guards`, `Protection`, `Profiles`, `Runaway`. Capped at 7 because Active mode has never run on real apps. |
 | Safety | 9 | All 8 invariants in [SAFETY.md](SAFETY.md) have passing tests, including a real `kill -9` of the daemon with watchdog recovery, PID reuse, partial-tree rollback, corrupt journal and unwritable journal. Observe mode is the default. |
-| UX | 7 | Menu with health, swap timeline, last action, mode/profile, Resume all, Undo, hotkey, in English and Uzbek (`docs/images/`). `iclean why` and `explain` give plain-language answers. |
+| UX | 7 | Menu with health, swap timeline, last action, mode/profile, Resume all, Undo, hotkey, in English and Uzbek (`docs/images/`). `iclear why` and `explain` give plain-language answers. |
 | Performance | 9 | Installed daemon idle: 0.35% CPU, 40 MB resident ([BENCHMARKS.md](BENCHMARKS.md)). Resume signal < 0.2 ms p99. Guard inspection 1.0 ms p50. |
 | Docs | 8 | README (English and Uzbek) with beta banner, feasibility study, recorded decisions, architecture, safety, benchmarks, signature-feature status, trace format, novelty audit, naming, FAQ, dogfooding plan. |
 | Tests | 8 | 131 tests on three CI runners plus local; golden traces; adversarial cases listed in SAFETY.md; swift-format lint is blocking in CI. |
@@ -50,7 +50,7 @@ These are designed and unit- or integration-tested with synthetic inputs, but ha
 
 ## Release 0.1.0
 
-[Pre-release](https://github.com/urrra39/iClean/releases/tag/v0.1.0) built by the
+[Pre-release](https://github.com/urrra39/iClear/releases/tag/v0.1.0) built by the
 release workflow from tag `v0.1.0`. Verified after download: SHA256 checksums match
 `SHA256SUMS.txt`; all six binaries are universal (`x86_64 arm64`); the app's ad-hoc
 signature verifies (`codesign --verify --deep --strict`, hardened runtime flag set);

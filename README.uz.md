@@ -1,27 +1,30 @@
-# iClean
+# iClear (avvalgi nomi iClean)
 
-[![CI](https://github.com/urrra39/iClean/actions/workflows/ci.yml/badge.svg)](https://github.com/urrra39/iClean/actions/workflows/ci.yml)
+[![CI](https://github.com/urrra39/iClear/actions/workflows/ci.yml/badge.svg)](https://github.com/urrra39/iClear/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Beta (0.1.0).** Sintetik sinov jarayonlari bilan va bitta Mac'da (Apple M3 Pro,
-> macOS 27.0.1) sinalgan. Haqiqiy ilovalarda Faol rejim hali tasdiqlanmagan. Dastur
-> Kuzatish rejimida boshlanadi, u faqat nima qilgan bo'lardi, shuni yozib boradi.
+> **1.0 sari ishlab chiqilayotgan versiya** (oxirgi reliz: iClean 0.1.0 beta). Sintetik
+> sinov jarayonlari bilan va bitta Mac'da (Apple M3 Pro, macOS 27.0.1) sinalgan.
+> Haqiqiy ilovalarda Faol rejim hali tasdiqlanmagan. Dastur Kuzatish rejimida
+> boshlanadi, u faqat nima qilgan bo'lardi, shuni yozib boradi. Loyiha nomi iClean dan
+> iClear ga o'zgartirildi; "iClean dan o'tish" bo'limiga qarang.
 
-iClean xotirasi tugayotgan Mac'da fonda bo'sh turgan ilovalarni pauza qiladi va siz
+iClear xotirasi tugayotgan Mac'da fonda bo'sh turgan ilovalarni pauza qiladi va siz
 qaysi biriga qaytsangiz, uni o'sha zahoti davom ettiradi. Pauza qilingan ilova
 oynalari, tablari va saqlanmagan holatini saqlab qoladi. U shunchaki ishlashdan
 to'xtaydi, shunda macOS u bilan RAM uchun kurashish o'rniga uning xotirasini siqishi
-yoki svopga chiqarishi mumkin. Xotira bosimi me'yorida bo'lsa, iClean hech narsa
+yoki svopga chiqarishi mumkin. Xotira bosimi me'yorida bo'lsa, iClear hech narsa
 qilmaydi.
 
-**iClean hech qachon fayllaringizni o'chirmaydi.** Nomida "clean" (tozalash) bor,
-lekin u faqat pauza qiladi, davom ettiradi va maslahat beradi. Kesh, log yoki
-yuklanmalarni o'chirmaydi.
+**iClear hech qachon fayllaringizni o'chirmaydi.** U faqat pauza qiladi, davom ettiradi
+va maslahat beradi. Kesh, log yoki yuklanmalarni o'chirmaydi. Apple Inc. bilan bog'liq
+emas va shunga o'xshash nomli tozalagich ilovalar bilan aloqasi yo'q
+([NAMING.md](docs/NAMING.md)).
 
 [English](README.md) · [Qanday ishlaydi](docs/ARCHITECTURE.md) · [Xavfsizlik](docs/SAFETY.md) ·
 [O'lchovlar](docs/BENCHMARKS.md) · [Savol-javob](docs/FAQ.md) (hujjatlar ingliz tilida)
 
-<p align="center"><img src="docs/images/menu-uz.png" width="360" alt="iClean menyusi: Mac salomatligi 100/100, xotira me'yorida, Kuzatish rejimi"></p>
+<p align="center"><img src="docs/images/menu-uz.png" width="360" alt="iClear menyusi: Mac salomatligi 100/100, xotira me'yorida, Kuzatish rejimi"></p>
 
 ## Qachon yordam beradi va qachon bermaydi
 
@@ -31,14 +34,14 @@ fonda tez-tez uyg'onib turadi.
 
 **Yordam bermaydi:**
 
-- Xotira bosimi yashil. macOS buni o'zi yaxshi uddalaydi va iClean hech narsa qilmaydi.
+- Xotira bosimi yashil. macOS buni o'zi yaxshi uddalaydi va iClear hech narsa qilmaydi.
 - Xotirani siz hozir ishlayotgan ilova egallagan.
 - Xotira to'xtamasligi kerak bo'lgan narsaga tegishli (build, model, virtual mashina,
-  qo'ng'iroq). iClean ularni pauza qilmaydi.
+  qo'ng'iroq). iClear ularni pauza qilmaydi.
 - Uyg'onmasdan jim turgan ilovalar. macOS ularni baribir siqadi, muzlatilgan yoki
   muzlatilmaganidan qat'i nazar.
 - Kundalik ishingiz uchun RAM shunchaki yetmaydi. Bir haftalik ma'lumot yig'ilgach,
-  `iclean advise` buni aytib beradi.
+  `iclear advise` buni aytib beradi.
 
 ## Nima qiladi
 
@@ -46,7 +49,7 @@ fonda tez-tez uyg'onib turadi.
   ettiradi**: butun jarayonlar daraxti, faqat ko'rinadigan oynasi yo'q ilovalar, faqat
   barcha xavfsizlik tekshiruvlaridan o'tgandan keyin. Ilova faollashtirilganda birinchi
   ish uni davom ettirish bo'ladi.
-- **`iclean why`**: "Mac nega hozir sekin?" degan savolga o'lchangan ma'lumotlardan
+- **`iclear why`**: "Mac nega hozir sekin?" degan savolga o'lchangan ma'lumotlardan
   (bosim, svop, eng katta ilovalar, protsessorni band qilganlar, qizish, kam disk, Low
   Power Mode) tartiblangan, oddiy tildagi javob.
 - **Mac salomatligi bahosi** (0-100, formula [ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -57,23 +60,23 @@ fonda tez-tez uyg'onib turadi.
   ekran ko'zgulanganda yoki ulashilganda, yoki jadval bo'yicha avtomatik almashadi.
 - **Fokus xavfsiz rejimi**: qo'ng'iroq, ekran ulashish, ko'zgulash yoki to'liq ekran
   paytida avtomatik amal bajarilmaydi.
-- **Avval Kuzatish rejimi**: uni Faol rejimga o'tkazmaguningizcha, iClean faqat nima
+- **Avval Kuzatish rejimi**: uni Faol rejimga o'tkazmaguningizcha, iClear faqat nima
   qilgan bo'lardi, shuni yozib boradi.
 - **Bekor qilish, Hammasini davom ettirish va favqulodda tugmalar**
   (Control-Option-Command-T, menyu ilovasi ishlab turganda). Hammasini davom ettirish
-  (menyu yoki `iclean thaw --all`) xizmat ishdan chiqqan bo'lsa ham ishlaydi; u
+  (menyu yoki `iclear thaw --all`) xizmat ishdan chiqqan bo'lsa ham ishlaydi; u
   muzlatish jurnalini qayta o'qiydi.
 - **Kunlik/haftalik hisobot**: faqat o'lchangan raqamlar, va "bu ilova vaqtning 92%
   ida bo'sh turdi, qo'shamizmi?" yoki "buni bir daqiqa ichida uch marta qayta
   ochdingiz, chiqarib tashlaymizmi?" kabi takliflar.
-- **Tushuntiriladi**: har bir amalning sabab kodlari bor; `iclean explain <ilova>`
+- **Tushuntiriladi**: har bir amalning sabab kodlari bor; `iclear explain <ilova>`
   ilova nega pauza qilingani yoki qilinmaganini ko'rsatadi.
 
 Asosiy imkoniyatlar, har biri uchun nima o'lchangani va nimasi yoqilgan yoki
 o'chirilgan holda chiqishi [SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md) da:
 bosim prognozi, afsusni hisobga oluvchi qarorlar, odat statistikasi, ulanish va yozish
 himoyalari, davom ettirishdan keyingi salomatlik tekshiruvi va karantin, iz (trace)
-qayta ijrosi (`iclean simulate`), ish to'plamlari (ixtiyoriy bosqichma-bosqich davom
+qayta ijrosi (`iclear simulate`), ish to'plamlari (ixtiyoriy bosqichma-bosqich davom
 ettirish bilan), va RAM hajmi bo'yicha taxmin.
 
 ## O'lchangan natijalar
@@ -114,50 +117,23 @@ fayl). Hozircha tasdiqlangani: build va to'liq testlar CI da macOS 15.7 (Apple S
 Intel) va macOS 26.6 da, mahalliy ravishda macOS 27.0.1 (Apple M3 Pro) da. macOS 13 va
 14 tasdiqlanmagan.
 
-**1. v0.1.0 sinov relizini yuklab oling**
-[Releases sahifasidan](https://github.com/urrra39/iClean/releases/tag/v0.1.0):
+**Reliz.** Oxirgi chiqarilgan build nom o'zgarishidan oldingi
+[iClean 0.1.0 sinov relizi](https://github.com/urrra39/iClear/releases/tag/v0.1.0): uning
+fayllari va buyruqlari eski nomlarda (`iclean`, `icleand`). iClear buildlari keyingi
+reliz bilan chiqariladi. Ungacha manba koddan quring.
 
-- `iClean-0.1.0.zip`: menyu paneli ilovasi (buyruq qatori vositalari
-  `iClean.app/Contents/Helpers/` ichida)
-- `iclean-0.1.0-macos.tar.gz`: `iclean`, `icleand` va `ic-hog` (`iclean bench` uchun)
-- `SHA256SUMS.txt`: ikkalasining nazorat yig'indilari
-
-Biror narsani ochishdan oldin, yuklab olingan papkada nazorat yig'indisini tekshiring:
+**Manba koddan:**
 
 ```sh
-shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # har bir yuklangan fayl uchun "OK" chiqishi kerak
+git clone https://github.com/urrra39/iClear.git && cd iClear
+scripts/build-release.sh           # universal ikkilik fayllar, dist/iClear.app
+cp -R dist/iClear.app /Applications/
 ```
 
-Buildlar ad-hoc imzolangan va **notarizatsiyadan o'tmagan**, shuning uchun macOS birinchi
-ishga tushirishni to'xtatadi:
-
-- **Ilova:** arxivni oching, `iClean.app` ni Applications ga ko'chiring, keyin uni o'ng
-  tugma bilan bosing, Open ni tanlang va tasdiqlang. macOS ning yangi versiyalarida
-  buning o'rniga bir marta System Settings > Privacy & Security da ruxsat berish
-  kerak bo'lishi mumkin.
-- **Buyruq qatori vositalari:** arxivni oching, yuklab olish karantin belgisini olib
-  tashlang va xizmatni ishga tushiring:
-
-  ```sh
-  tar xzf iclean-0.1.0-macos.tar.gz && cd iclean-0.1.0
-  xattr -d com.apple.quarantine iclean icleand ic-hog
-  ./iclean install
-  ```
-
-  Agar `xattr` "No such xattr" desa, fayllar karantinga tushmagan (masalan, `curl`
-  bilan yuklanganda); davom etavering.
-
-**2. Manba koddan:**
-
-```sh
-git clone https://github.com/urrra39/iClean.git && cd iClean
-scripts/build-release.sh           # universal ikkilik fayllar, dist/iClean.app
-cp -R dist/iClean.app /Applications/
-```
-
-Mahalliy build ham ad-hoc imzolangan; birinchi ishga tushirish qadamlari xuddi shunday.
-Buyruq qatori vositalari `dist/iclean-0.1.0/` da va ilova ichida
-`iClean.app/Contents/Helpers/` da.
+Mahalliy build ad-hoc imzolangan: agar macOS birinchi ishga tushirishni to'xtatsa,
+ilovani o'ng tugma bilan bosing, Open ni tanlang va tasdiqlang.
+Buyruq qatori vositalari `dist/iclear-<version>/` da va ilova ichida
+`iClear.app/Contents/Helpers/` da.
 
 Homebrew tap rejalashtirilgan, lekin hali chiqarilmagan. Formula va cask shablonlari
 [`packaging/homebrew/`](packaging/homebrew/) da.
@@ -165,19 +141,19 @@ Homebrew tap rejalashtirilgan, lekin hali chiqarilmagan. Formula va cask shablon
 ## Tez boshlash (60 soniya)
 
 ```sh
-iclean install          # foydalanuvchi xizmatini Kuzatish rejimida ishga tushiradi
-iclean status           # u nimani ko'rmoqda va nima qilgan bo'lardi
-iclean why              # Mac nega hozir sekin?
-iclean explain Chrome   # ilova nega pauza qilindi yoki qilinmadi
+iclear install          # foydalanuvchi xizmatini Kuzatish rejimida ishga tushiradi
+iclear status           # u nimani ko'rmoqda va nima qilgan bo'lardi
+iclear why              # Mac nega hozir sekin?
+iclear explain Chrome   # ilova nega pauza qilindi yoki qilinmadi
 # ...Mac'ingizdan bir kun foydalaning, keyin:
-iclean stats --days 1   # u nima qilgan bo'lardi va taxminiy afsus darajasi
-iclean mode active      # unga amal qilishga ruxsat bering
+iclear stats --days 1   # u nima qilgan bo'lardi va taxminiy afsus darajasi
+iclear mode active      # unga amal qilishga ruxsat bering
 ```
 
-Ilova bilan: iClean ni Applications dan oching. Menyuda xuddi shu ma'lumotlar bor,
-"iClean'ni ishga tushirish" esa xizmatni o'rnatadi.
+Ilova bilan: iClear ni Applications dan oching. Menyuda xuddi shu ma'lumotlar bor,
+"iClear'ni ishga tushirish" esa xizmatni o'rnatadi.
 
-Favqulodda holat: **Control-Option-Command-T** yoki `iclean thaw --all` hammasini
+Favqulodda holat: **Control-Option-Command-T** yoki `iclear thaw --all` hammasini
 davom ettiradi.
 
 ## Xavfsizlik modeli
@@ -198,16 +174,16 @@ testi bor; [SAFETY.md](docs/SAFETY.md) ga qarang.
 Bu loyihalar o'xshash muammolarni hal qiladi va ularning bir nechtasi buni ilgariroq
 qilgan. 2026-09-30 sanasida ularning README fayllarini o'qib chiqildi:
 
-| Loyiha | Yondashuv | iClean dan farqi |
+| Loyiha | Yondashuv | iClear dan farqi |
 |---|---|---|
-| [ForceNap](https://github.com/omikun/ForceNap) | Siz tanlagan ilovalarni fokusdan chiqqanda to'xtatadi, fokusga qaytganda davom ettiradi | Oddiy va to'g'ridan-to'g'ri. U tanlangan ilovalarni xotira bosimidan qat'i nazar to'xtatadi; iClean faqat bosim ostida harakat qiladi va ilovalarni o'zi tanlaydi |
-| [Auto Pause Mac Apps](https://github.com/fazalrshah/auto-pause-mac-apps) | Ilovalarni pauza qilib RAM ni qaytarish uchun menyu ilovasi, holatni saqlab yopadigan "Deep Sleep" rejimi bilan | Qo'lda boshqarish qulay va iClean da yo'q holatni saqlab yopish rejimi bor. iClean avtomatik, bosimga asoslangan va himoyalar bilan tekshiriladi |
-| [caproom](https://github.com/intelogroup/caproom) | Buyruqlar uchun xotira chegarasi; bo'sh jarayon daraxtlarini SIGSTOP bilan "to'xtatib qo'yadi", chegaradan oshsa o'chiradi | Terminal ishlari va agentlar uchun qat'iy chegaralar bilan qurilgan. iClean GUI ilovalarni nishonga oladi va hech qachon o'chirmaydi |
-| [ProcessX](https://github.com/avantigroupai/ProcessX) | Jarayon/ustuvorlik monitori; protsessorni to'xtatib-davom ettirish orqali cheklaydi | Protsessor va ustuvorlikka qaratilgan. iClean xotira bosimiga qaratilgan |
-| [GreenRAM](https://github.com/lwj1994/greenram) | RAM/svop chegarasidan oshganda uzoq bo'sh turgan fon ilovalarini majburan yopadi | Yopish barcha xotirani bo'shatadi, lekin holat yo'qoladi. iClean pauza qiladi va holatni saqlaydi |
-| [Canaryd](https://github.com/ThaddeusJiang/canaryd) | To'xtab qolgan xizmatlar, Simulator, qizish va bo'sh xotira uchun kuzatuvchi; bo'sh og'ir ilovalardan yopilishni so'raydi | Dasturchi kompyuteri uchun kengroq kuzatuvchi. iClean yopish o'rniga pauza qiladi |
-| [MemoryShield](https://github.com/MaatheusGois/MemoryShield) | Har bir jarayon xotira tarixi; chegaradan oshganda avtomatik o'chira oladi | Tarix va ogohlantirishlar u yerda ham bor. iClean o'chirmaydi |
-| [mac-memory-guard](https://github.com/TomGranot/mac-memory-guard) | Xotira tufayli qotishdan oldin ogohlantiradi va ilovalarni birma-bir yopishga imkon beradi | Avval ogohlantiradi, qarorni inson qiladi. iClean o'zi harakat qiladi |
+| [ForceNap](https://github.com/omikun/ForceNap) | Siz tanlagan ilovalarni fokusdan chiqqanda to'xtatadi, fokusga qaytganda davom ettiradi | Oddiy va to'g'ridan-to'g'ri. U tanlangan ilovalarni xotira bosimidan qat'i nazar to'xtatadi; iClear faqat bosim ostida harakat qiladi va ilovalarni o'zi tanlaydi |
+| [Auto Pause Mac Apps](https://github.com/fazalrshah/auto-pause-mac-apps) | Ilovalarni pauza qilib RAM ni qaytarish uchun menyu ilovasi, holatni saqlab yopadigan "Deep Sleep" rejimi bilan | Qo'lda boshqarish qulay va iClear da yo'q holatni saqlab yopish rejimi bor. iClear avtomatik, bosimga asoslangan va himoyalar bilan tekshiriladi |
+| [caproom](https://github.com/intelogroup/caproom) | Buyruqlar uchun xotira chegarasi; bo'sh jarayon daraxtlarini SIGSTOP bilan "to'xtatib qo'yadi", chegaradan oshsa o'chiradi | Terminal ishlari va agentlar uchun qat'iy chegaralar bilan qurilgan. iClear GUI ilovalarni nishonga oladi va hech qachon o'chirmaydi |
+| [ProcessX](https://github.com/avantigroupai/ProcessX) | Jarayon/ustuvorlik monitori; protsessorni to'xtatib-davom ettirish orqali cheklaydi | Protsessor va ustuvorlikka qaratilgan. iClear xotira bosimiga qaratilgan |
+| [GreenRAM](https://github.com/lwj1994/greenram) | RAM/svop chegarasidan oshganda uzoq bo'sh turgan fon ilovalarini majburan yopadi | Yopish barcha xotirani bo'shatadi, lekin holat yo'qoladi. iClear pauza qiladi va holatni saqlaydi |
+| [Canaryd](https://github.com/ThaddeusJiang/canaryd) | To'xtab qolgan xizmatlar, Simulator, qizish va bo'sh xotira uchun kuzatuvchi; bo'sh og'ir ilovalardan yopilishni so'raydi | Dasturchi kompyuteri uchun kengroq kuzatuvchi. iClear yopish o'rniga pauza qiladi |
+| [MemoryShield](https://github.com/MaatheusGois/MemoryShield) | Har bir jarayon xotira tarixi; chegaradan oshganda avtomatik o'chira oladi | Tarix va ogohlantirishlar u yerda ham bor. iClear o'chirmaydi |
+| [mac-memory-guard](https://github.com/TomGranot/mac-memory-guard) | Xotira tufayli qotishdan oldin ogohlantiradi va ilovalarni birma-bir yopishga imkon beradi | Avval ogohlantiradi, qarorni inson qiladi. iClear o'zi harakat qiladi |
 
 2026-09-30 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi
 muzlatish, pauzadan oldingi ulanish/yozish himoyalari, davom ettirishdan keyingi
@@ -218,17 +194,29 @@ topmadik ([NOVELTY.md](docs/NOVELTY.md)). Topilmagani mavjud emasligini isbotlam
 
 Haqiqiy foydalanish, o'lchovlar va o'rnatish/o'chirish: hozircha bitta Mac (Apple M3 Pro,
 18 GB, macOS 27.0.1). Avtomatik testlar GitHub'ning macOS 15.7 (Apple Silicon va Intel)
-va macOS 26.6 runnerlarida ham o'tadi. iClean chegaralarini
+va macOS 26.6 runnerlarida ham o'tadi. iClear chegaralarini
 RAM hajmi, disk turi va batareyaga moslaydi, lekin "har qanday MacBook'ga moslashadi"
-degani "har bir MacBook'da sinalgan" degani emas. `iclean doctor --report` ni ishga
+degani "har bir MacBook'da sinalgan" degani emas. `iclear doctor --report` ni ishga
 tushiring va Mac'ingizni [COMPATIBILITY.md](docs/COMPATIBILITY.md) ga qo'shing.
+
+## iClean dan o'tish
+
+iClear bu iClean ning yangi nomi. Agar iClean 0.1.0 o'rnatilgan bo'lsa, `iclear install`
+(yoki `iclear migrate`) avval iClean pauza qilgan hamma narsani davom ettiradi (agar
+uning xizmati ishlayotgan bo'lsa u orqali, keyin muzlatish jurnalini qayta o'qib), faqat
+shundan keyin eski LaunchAgent ni to'xtatadi va o'chirib qo'yadi hamda sozlamalar, holat
+va izlarni nusxalaydi. Agar eski jurnaldagi jarayon hali ham pauzada bo'lsa, hech narsani
+o'zgartirmasdan to'xtaydi. Eski fayllar `iclear migrate --remove-old` ni ishga
+tushirmaguningizcha joyida qoladi. `iclear migrate --dry-run` avval rejani ko'rsatadi.
+Alohida uy kataloglarida soxta eski o'rnatma bilan sinalgan (`MigrationTests`), jumladan
+ishdan chiqqan eski xizmat va yarim yozilgan jurnal bilan.
 
 ## O'chirib tashlash
 
 ```sh
-iclean uninstall --purge   # xizmatni to'xtatadi (hammasini davom ettiradi), LaunchAgent ni
-                           # olib tashlaydi va ~/Library/Application Support/iClean ni o'chiradi
-rm -rf /Applications/iClean.app
+iclear uninstall --purge   # xizmatni to'xtatadi (hammasini davom ettiradi), LaunchAgent ni
+                           # olib tashlaydi va ~/Library/Application Support/iClear ni o'chiradi
+rm -rf /Applications/iClear.app
 ```
 
 ## Batafsil
@@ -239,5 +227,5 @@ rm -rf /Applications/iClean.app
 [Xavfsizlik siyosati](SECURITY.md) · [O'zgarishlar](CHANGELOG.md)
 
 MIT litsenziyasi. Apple Inc. bilan bog'liq emas. macOS va MacBook Apple Inc.ning
-savdo belgilaridir. iClean shunga o'xshash nomli kesh va disk tozalagichlar bilan
+savdo belgilaridir. iClear shunga o'xshash nomli kesh va disk tozalagichlar bilan
 bog'liq emas ([NAMING.md](docs/NAMING.md)).

@@ -3,14 +3,16 @@ import Foundation
 @testable import ICCore
 @testable import ICSystem
 
-/// Directory holding the built products (ic-hog, icleand, iclean).
+/// Directory holding the built products (ic-hog, icleard, iclear).
 let products = Bundle(for: FakeProbe.self).bundleURL.deletingLastPathComponent()
 let hogPath = products.appendingPathComponent("ic-hog").path
 
 func tempHome() -> Paths {
     let dir = "/tmp/ic-t-\(UUID().uuidString.prefix(8))"
     try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-    return Paths(environment: ["ICLEAN_HOME": dir])
+    let paths = Paths(environment: ["ICLEAR_HOME": dir])
+    try? paths.ensure()
+    return paths
 }
 
 func hog(_ args: [String] = []) throws -> SpawnedHog {

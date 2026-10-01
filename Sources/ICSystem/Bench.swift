@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import ICCore
 
-/// An `ic-hog` process spawned by iClean's own tests and benchmarks. These are the
+/// An `ic-hog` process spawned by iClear's own tests and benchmarks. These are the
 /// only processes that tests and benchmarks ever signal.
 public final class SpawnedHog {
     public let process = Process()
@@ -217,8 +217,8 @@ public enum Bench {
         r.stats["daemon tick: CPU time (ms)"] = Stat(cpu)
         r.stats["S4 guard inspection of every regular app (ms)"] = Stat(guardMs)
         if let p50 = Stat(cpu)?.p50 { r.values["daemon CPU % at the 15 s idle interval (from tick CPU p50)"] = p50 / 15_000 * 100 }
-        if let d = Proc.table().values.first(where: { $0.name == "icleand" }) {
-            r.values["running icleand resident memory (MB)"] = d.residentMB
+        if let d = Proc.table().values.first(where: { $0.name == "icleard" }) {
+            r.values["running icleard resident memory (MB)"] = d.residentMB
         }
     }
 

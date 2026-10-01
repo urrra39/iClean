@@ -1,23 +1,23 @@
 # Safety model
 
-iClean stops other people's programs. The rules below are what make that acceptable,
+iClear stops other people's programs. The rules below are what make that acceptable,
 and each has a test that must pass before a release.
 
 | # | Invariant | How | Test |
 |---|---|---|---|
-| 1 | Nothing stays frozen if the daemon dies | Journal written (fsync + rename) **before** every SIGSTOP; recovery on start; SIGTERM/SIGINT/SIGHUP and normal exit thaw all; a watchdog process in its own session replays the journal on daemon exit (kqueue `NOTE_EXIT`); `iclean thaw --all` and the menu's "Resume all" work without the daemon | `watchdogThawsAfterDaemonIsKilled` (real `kill -9`), `daemonStartRecoversJournal`, `cliThawAllWorksWithoutDaemon`, `wakeAndShutdownThawEverything` |
+| 1 | Nothing stays frozen if the daemon dies | Journal written (fsync + rename) **before** every SIGSTOP; recovery on start; SIGTERM/SIGINT/SIGHUP and normal exit thaw all; a watchdog process in its own session replays the journal on daemon exit (kqueue `NOTE_EXIT`); `iclear thaw --all` and the menu's "Resume all" work without the daemon | `watchdogThawsAfterDaemonIsKilled` (real `kill -9`), `daemonStartRecoversJournal`, `cliThawAllWorksWithoutDaemon`, `wakeAndShutdownThawEverything` |
 | 2 | PID reuse can never redirect a signal | Every signal re-checks PID + start time (`PROC_PIDTBSDINFO`) + owner uid | `pidReuseGuardNeverSignalsAnotherProcess`, `recoveryNeverSignalsReusedPIDs`, `recoveryThawsOnlyExactIdentities` |
 | 3 | The protected set cannot be overridden | `Protection.isProtected` is checked first and returns before any rule; allow lists, tiers and wake windows for protected apps are ignored with a warning | `protectedSetIsNotOverridable`, `protectedAppsRefusedEvenOnRequest` |
 | 4 | Whole trees, all or nothing | If any live process of a tree refuses SIGSTOP, everything already stopped is resumed and removed from the journal | `partialTreeFailureRollsBack`, `freezeAndThawWholeTreeWithJournal`, `freezeFailureRollsBack` |
 | 5 | Bounded freeze time and size | Max 240 min per freeze (config range 1-1440, cannot be unbounded); max 8 apps and 50% of RAM frozen at once | `maxFrozenDurationThaws`, `budgetsBoundFrozenCountAndSize`, config range tests |
 | 6 | No root, no SIP changes, no network, no telemetry | Per-user LaunchAgent without `UserName`; the daemon refuses to run as root; no networking or privilege APIs in product code; empty entitlements | `productCodeHasNoNetworkingOrPrivilegeEscalation`, `entitlementsGrantNothingDangerous`, `launchAgentIsPerUserAndNotRoot` |
-| 7 | Everything is explainable | Every action carries reason codes and is logged to `actions.jsonl`; `iclean explain <app>` prints the current checks and recent actions | engine tests assert reason codes; `ipcRoundTrip` |
+| 7 | Everything is explainable | Every action carries reason codes and is logged to `actions.jsonl`; `iclear explain <app>` prints the current checks and recent actions | engine tests assert reason codes; `ipcRoundTrip` |
 | 8 | Tests only signal their own processes | Tests and benchmarks signal only `ic-hog` children they spawned; `ic-hog` exits when its parent dies; `SpawnedHog.kill` refuses PID 0 | the whole suite runs on a live machine with the maintainer's apps open |
 
 ## What "protected" covers
 
 Never frozen, deprioritised or asked to quit: anything under `/System` or `/usr`,
-iClean itself, its parent and its children, Finder, Dock, SystemUIServer,
+iClear itself, its parent and its children, Finder, Dock, SystemUIServer,
 loginwindow, WindowServer, Spotlight, Control Center, Notification Center, security
 agents, input methods, accessibility tools, terminals, AI coding-agent hosts,
 password managers, backup and sync clients, and VPN clients. Menu-bar and background
@@ -41,7 +41,7 @@ welcome by pull request.
 - Focus Safe Mode pauses all automatic action during calls, screen sharing,
   mirroring and fullscreen use.
 - Regret budget: too many freezes that the user undid by coming straight back make
-  iClean act only on critical pressure for 24 hours.
+  iClear act only on critical pressure for 24 hours.
 - Quarantine: an app that crashes or hangs after a thaw is never frozen again until
   released.
 
@@ -50,7 +50,7 @@ welcome by pull request.
 | Attack | Result | Test |
 |---|---|---|
 | `kill -9` the daemon mid-freeze | watchdog thawed the victim within the 5 s window | `watchdogThawsAfterDaemonIsKilled` |
-| Kill daemon and watchdog | next daemon start, `iclean thaw --all`, or the menu's Resume all thaws from the journal | `daemonStartRecoversJournal`, `cliThawAllWorksWithoutDaemon` |
+| Kill daemon and watchdog | next daemon start, `iclear thaw --all`, or the menu's Resume all thaws from the journal | `daemonStartRecoversJournal`, `cliThawAllWorksWithoutDaemon` |
 | Sleep/wake and unlock during a freeze | everything thawed | `wakeAndShutdownThawEverything`, `eventsThawEverything` |
 | Cmd+Tab storm (200 alternating activations) | nothing left stopped, journal empty | `rapidActivationStorm` |
 | App launches new helpers while frozen | helpers join the freeze | `newProcessesJoinAFrozenTree` |

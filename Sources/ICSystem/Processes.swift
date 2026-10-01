@@ -158,7 +158,7 @@ public enum Signals {
     }
 
     /// Thaws everything in the journal (identity-checked) and clears it. Used on daemon
-    /// start, by the watchdog, and by `iclean thaw --all` when the daemon is not running.
+    /// start, by the watchdog, and by `iclear thaw --all` when the daemon is not running.
     public static func recover(journal: JournalStore) -> (thawed: Int, stale: Int, corrupt: Bool) {
         switch journal.load() {
         case .ok(let j):

@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>io.github.urrra39.iclean</string>
+    <string>io.github.urrra39.iclear</string>
     <key>CFBundleName</key>
-    <string>iClean</string>
+    <string>iClear</string>
     <key>CFBundleDisplayName</key>
-    <string>iClean</string>
+    <string>iClear</string>
     <key>CFBundleExecutable</key>
-    <string>iClean</string>
+    <string>iClear</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -30,6 +30,6 @@
     <key>NSHumanReadableCopyright</key>
     <string>MIT License. Not affiliated with Apple Inc.</string>
     <key>NSAccessibilityUsageDescription</key>
-    <string>Optional. iClean asks a resumed app one Accessibility question to check that it responds. It never reads window content.</string>
+    <string>Optional. iClear asks a resumed app one Accessibility question to check that it responds. It never reads window content.</string>
 </dict>
 </plist>

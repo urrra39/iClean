@@ -2,9 +2,9 @@ import Darwin
 import Foundation
 import ICCore
 
-public let icleanVersion = "0.1.0"
+public let iclearVersion = "1.0.0-dev"
 
-/// `iclean doctor`: what this Mac is, which mechanisms work here, and daemon health.
+/// `iclear doctor`: what this Mac is, which mechanisms work here, and daemon health.
 /// Mechanism checks only ever touch a child process the doctor starts itself.
 public enum Doctor {
     public struct Mechanisms: Codable, Sendable {
@@ -16,7 +16,7 @@ public enum Doctor {
     }
 
     public struct Report: Codable, Sendable {
-        public var icleanVersion: String
+        public var iclearVersion: String
         public var model: String
         public var arch: String
         public var memoryGB: Int
@@ -82,7 +82,7 @@ public enum Doctor {
             if let j = try? JSONDecoder().decode(Journal.self, from: data) { entries = j.entries.count } else { corrupt = true }
         }
         return Report(
-            icleanVersion: icleanVersion, model: hw.model, arch: hw.arch, memoryGB: Int(hw.memoryGB.rounded()),
+            iclearVersion: iclearVersion, model: hw.model, arch: hw.arch, memoryGB: Int(hw.memoryGB.rounded()),
             macOS: hw.osVersion, ramProfile: RAMProfile(memoryGB: hw.memoryGB).rawValue,
             rotationalDisk: hw.rotationalDisk, battery: hw.hasBattery, mechanisms: mechanisms(),
             permissions: Permissions.status(),
@@ -95,11 +95,11 @@ public enum Doctor {
     public static func text(_ r: Report) -> String {
         func yn(_ b: Bool) -> String { b ? "yes" : "no" }
         return """
-            iClean \(r.icleanVersion)
+            iClear \(r.iclearVersion)
             Mac: \(r.model), \(r.arch), \(r.memoryGB) GB RAM (profile: \(r.ramProfile)), macOS \(r.macOS)
-            Disk: \(r.rotationalDisk ? "rotational (iClean is extra conservative)" : "solid state"), battery: \(yn(r.battery))
+            Disk: \(r.rotationalDisk ? "rotational (iClear is extra conservative)" : "solid state"), battery: \(yn(r.battery))
             Mechanisms on this Mac:
-              SIGSTOP/SIGCONT freeze:        \(yn(r.mechanisms.sigstop))\(r.mechanisms.sigstop ? "" : "  <- iClean cannot freeze anything here")
+              SIGSTOP/SIGCONT freeze:        \(yn(r.mechanisms.sigstop))\(r.mechanisms.sigstop ? "" : "  <- iClear cannot freeze anything here")
               Background priority (BG band): \(yn(r.mechanisms.backgroundPriority))
               Mach task suspend:             \(yn(r.mechanisms.machSuspend)) (not used)
               Forced pageout:                \(yn(r.mechanisms.forcedPageout)) (not used; the kernel reclaims frozen apps' memory)
@@ -109,7 +109,7 @@ public enum Doctor {
               Screen Recording: \(yn(r.permissions.screenRecording)) (not needed)
               Input Monitoring: \(yn(r.permissions.inputMonitoring)) (only for experimental predictive thaw)
             Daemon: \(r.daemonRunning ? "running" : "not running"), LaunchAgent \(r.launchAgentInstalled ? "installed" : "not installed")
-            Journal: \(r.journalCorrupt ? "CORRUPT (run `iclean thaw --all`)" : "\(r.journalEntries) frozen process(es) recorded")
+            Journal: \(r.journalCorrupt ? "CORRUPT (run `iclear thaw --all`)" : "\(r.journalEntries) frozen process(es) recorded")
             Now: pressure \(r.pressure), swap \(r.swapUsedMB) MB
             """
     }
@@ -118,10 +118,10 @@ public enum Doctor {
     /// hardware UUID or IP address is collected in the first place.
     public static func issueReport(_ r: Report) -> String {
         """
-        ### iClean compatibility report
+        ### iClear compatibility report
         | Field | Value |
         |---|---|
-        | iClean | \(r.icleanVersion) |
+        | iClear | \(r.iclearVersion) |
         | Model identifier | \(r.model) |
         | Architecture | \(r.arch) |
         | RAM | \(r.memoryGB) GB |
@@ -142,14 +142,10 @@ public struct Installer: Sendable {
     public let label: String
     public let daemonPath: String
 
-    public init(
-        paths: Paths = Paths(), daemonPath: String,
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) {
+    public init(paths: Paths = Paths(), daemonPath: String) {
         self.paths = paths
         self.daemonPath = daemonPath
-        let isolated = !(environment["ICLEAN_HOME"] ?? "").isEmpty
-        label = "io.github.urrra39.iclean" + (isolated ? ".isolated" : "")
+        label = "io.github.urrra39.iclear" + (paths.instance.map { "." + $0 } ?? "")
     }
 
     public var plist: URL { paths.launchAgents.appendingPathComponent("\(label).plist") }
@@ -157,7 +153,9 @@ public struct Installer: Sendable {
 
     public func plistData() -> Data {
         var env: [String: String] = [:]
-        if let h = ProcessInfo.processInfo.environment["ICLEAN_HOME"], !h.isEmpty { env["ICLEAN_HOME"] = h }
+        for key in ["ICLEAR_HOME", "ICLEAR_INSTANCE", "ICLEAR_LAB"] {
+            if let v = ProcessInfo.processInfo.environment[key], !v.isEmpty { env[key] = v }
+        }
         let dict: [String: Any] = [
             "Label": label,
             "ProgramArguments": [daemonPath],
@@ -167,7 +165,7 @@ public struct Installer: Sendable {
             "ThrottleInterval": 10,
             "ProcessType": "Adaptive",
             "EnvironmentVariables": env,
-            "StandardErrorPath": paths.base.appendingPathComponent("icleand.log").path,
+            "StandardErrorPath": paths.base.appendingPathComponent("icleard.log").path,
         ]
         return try! PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
     }
@@ -188,19 +186,19 @@ public struct Installer: Sendable {
     public var isLoaded: Bool { Self.launchctl(["print", "\(domain)/\(label)"]).status == 0 }
 
     public func install() throws -> String {
-        guard FileManager.default.isExecutableFile(atPath: daemonPath) else { return "icleand not found at \(daemonPath)" }
+        guard FileManager.default.isExecutableFile(atPath: daemonPath) else { return "icleard not found at \(daemonPath)" }
         try paths.ensure()
         try FileManager.default.createDirectory(at: paths.launchAgents, withIntermediateDirectories: true)
         if isLoaded { Self.launchctl(["bootout", "\(domain)/\(label)"]) }
         try Files.atomicWrite(plistData(), to: plist)
         let r = Self.launchctl(["bootstrap", domain, plist.path])
         return r.status == 0
-            ? "Installed and started \(label) (Observe mode until you run `iclean mode active`)."
+            ? "Installed and started \(label) (Observe mode until you run `iclear mode active`)."
             : "Wrote \(plist.path) but launchctl bootstrap failed: \(r.output)"
     }
 
     /// Stops the daemon (which thaws everything on exit), thaws anything left in the
-    /// journal, and removes the LaunchAgent. `purge` also deletes iClean's data.
+    /// journal, and removes the LaunchAgent. `purge` also deletes iClear's data.
     public func uninstall(purge: Bool) -> String {
         var l: [String] = []
         if isLoaded {

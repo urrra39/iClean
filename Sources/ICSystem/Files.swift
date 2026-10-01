@@ -1,21 +1,28 @@
 import Foundation
 import ICCore
 
-/// Where iClean keeps its files. Everything lives in one directory so uninstall is
-/// one `rm -r`. `ICLEAN_HOME` relocates it (tests and isolated installs).
+/// Where iClear keeps its files. Everything lives in one directory so uninstall is
+/// one `rm -r`. `ICLEAR_HOME` replaces the home directory (tests, lab and soak
+/// instances); `ICLEAR_INSTANCE` names a separate instance (its own LaunchAgent label).
 public struct Paths: Sendable {
+    /// The home directory iClear works under (the real one unless `ICLEAR_HOME` is set).
+    public let home: URL
+    /// Instance name for non-default installs ("isolated" when only `ICLEAR_HOME` is set).
+    public let instance: String?
     public let base: URL
     public let launchAgents: URL
+    /// Where iClean (the project's former name) kept its data.
+    public let legacyBase: URL
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
-        if let home = environment["ICLEAN_HOME"], !home.isEmpty {
-            base = URL(fileURLWithPath: home)
-            launchAgents = base.appendingPathComponent("LaunchAgents")
-        } else {
-            let lib = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library")
-            base = lib.appendingPathComponent("Application Support/iClean")
-            launchAgents = lib.appendingPathComponent("LaunchAgents")
-        }
+        let custom = environment["ICLEAR_HOME"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
+        home = custom ?? FileManager.default.homeDirectoryForCurrentUser
+        let name = environment["ICLEAR_INSTANCE"].flatMap { $0.isEmpty ? nil : $0 }
+        instance = name ?? (custom == nil ? nil : "isolated")
+        let lib = home.appendingPathComponent("Library")
+        base = lib.appendingPathComponent("Application Support/iClear" + (name.map { "-" + $0 } ?? ""))
+        launchAgents = lib.appendingPathComponent("LaunchAgents")
+        legacyBase = lib.appendingPathComponent("Application Support/iClean")
     }
 
     public var config: URL { base.appendingPathComponent("config.json") }
@@ -23,8 +30,8 @@ public struct Paths: Sendable {
     public var journal: URL { base.appendingPathComponent("journal.json") }
     public var actions: URL { base.appendingPathComponent("actions.jsonl") }
     public var traces: URL { base.appendingPathComponent("traces") }
-    public var socket: URL { base.appendingPathComponent("icleand.sock") }
-    public var lock: URL { base.appendingPathComponent("icleand.lock") }
+    public var socket: URL { base.appendingPathComponent("icleard.sock") }
+    public var lock: URL { base.appendingPathComponent("icleard.lock") }
     public var hardware: URL { base.appendingPathComponent("hardware.json") }
 
     public func ensure() throws {
@@ -125,7 +132,7 @@ public final class JournalStore: @unchecked Sendable {
     }
 }
 
-/// Timestamped JSON Lines log of every action, for `iclean stats`, `explain` and the menu.
+/// Timestamped JSON Lines log of every action, for `iclear stats`, `explain` and the menu.
 public struct ActionLogEntry: Codable, Sendable {
     public var t: Double
     public var action: Action

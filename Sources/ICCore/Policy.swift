@@ -56,13 +56,13 @@ public enum Policy {
     public static let guardCodes: Set<String> = [Code.connActive, Code.listener, Code.writeRecent, Code.lockfile]
 
     /// All reasons an app must not be frozen now. Empty means safe to freeze.
-    /// Checks are listed in the order `iclean explain` prints them. With
+    /// Checks are listed in the order `iclear explain` prints them. With
     /// `requireInspection`, an app whose S4 guards were not inspected is never safe.
     public static func skipReasons(_ app: AppSnapshot, _ ctx: PolicyContext, requireInspection: Bool = true) -> [Reason] {
         var r: [Reason] = []
         let c = ctx.config
         if Protection.isProtected(app) {
-            r.append(Reason(Code.protected, app.isDaemonLineage ? "iClean itself or its parent" : nil))
+            r.append(Reason(Code.protected, app.isDaemonLineage ? "iClear itself or its parent" : nil))
             return r  // nothing else matters, and nothing may override it
         }
         if c.deny.contains(app.id) { r.append(Reason(Code.denyRule)) }
