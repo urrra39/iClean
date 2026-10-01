@@ -43,3 +43,12 @@ lists what is missing.
 **Not yet done from the original plan:** P1 disk-headroom advisory, dev-load handling
 (Simulators, Gradle and Kotlin daemons, orphaned node processes), thermal/battery
 advisor, Shortcuts/App Intents (P2). Notarized releases (needs a Developer ID).
+
+## Secret scanning
+
+gitleaks was **not** run: Homebrew is not installed on the maintainer's Mac, and
+installing it needs an administrator password. Instead, every commit in the history
+(14 at the time) and the working tree were scanned with a regular-expression pass
+covering GitHub, AWS, Slack, Google, GitLab and npm token formats, private-key
+blocks, and `api_key`/`secret`/`password` assignments. Result on 2026-10-01: 0 hits.
+Running gitleaks (`gitleaks detect --log-opts=--all`) remains a to-do.
