@@ -34,6 +34,9 @@ while let a = it.next() {
 }
 
 let parent = getppid()
+// Measure scheduling, not App Nap: macOS slows the timers of hidden apps.
+let activity = ProcessInfo.processInfo.beginActivity(
+    options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "iClear lab probe")
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 let window = NSWindow(
@@ -87,4 +90,4 @@ usr1.setEventHandler {
 }
 usr1.resume()
 print("ready pid=\(getpid())")
-app.run()
+withExtendedLifetime(activity) { app.run() }

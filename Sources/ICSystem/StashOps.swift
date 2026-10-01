@@ -15,6 +15,11 @@ extension Daemon {
         let now = clock()
         let frames = Windows.frames()
         var apps = probe.collect(now: now).apps.filter(\.isRegularApp)
+        if labMode {
+            ScopeLock.load(paths.labRegistry)
+            let allowed = ScopeLock.allowed ?? []
+            apps = apps.filter { a in !a.processes.isEmpty && a.processes.allSatisfy { allowed.contains($0) } }
+        }
         for i in apps.indices { AppCollector.inspectGuards(&apps[i], engine: engine, now: now) }
         return apps.map { a in
             let windows = a.processes.flatMap { frames[$0.pid] ?? [] }
@@ -38,7 +43,11 @@ extension Daemon {
                 ok: plan.refusal == nil, text: (options.dryRun ? "Preview of stash \(name):\n" : "") + plan.text, data: encode(plan))
         }
         let now = clock()
-        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        // Fresh per-app query: NSWorkspace.frontmostApplication is only refreshed on the
+        // main run loop and can be stale.
+        let front = candidates.first { c in
+            c.app.processes.first.flatMap { NSRunningApplication(processIdentifier: $0.pid)?.isActive } == true
+        }?.app.id
         let byID = Dictionary(candidates.map { ($0.app.id, $0) }, uniquingKeysWith: { a, _ in a })
         let chosen = plan.stashed.compactMap { byID[$0.appID] }
         let frontToBack = Self.frontToBack(chosen.map(\.app))

@@ -301,18 +301,39 @@ public enum Signals {
         }
         // hide() reports false even when it works (FEASIBILITY 1.0 a); the window list decides.
         _ = app.hide()
+        // Done when the app reports itself hidden and none of its windows is on screen
+        // (a window on another Space is not on screen even before the hide completes).
+        func done() -> Bool {
+            NSRunningApplication(processIdentifier: root.pid)?.isHidden == true && !Windows.facts().visiblePIDs.contains(root.pid)
+        }
         let end = Date().addingTimeInterval(timeout)
         while Date() < end {
-            if !Windows.facts().visiblePIDs.contains(root.pid) { return true }
+            if done() { return true }
             usleep(10_000)
         }
-        return !Windows.facts().visiblePIDs.contains(root.pid)
+        return done()
     }
 
-    /// Unhides an app only if iClear hid it, then forgets the record.
-    public static func unhide(_ root: ProcessIdentity, journal: JournalStore) {
+    /// Unhides an app only if iClear hid it, then forgets the record. An unhide request
+    /// sent right after a resume is sometimes ignored, so it is checked and retried.
+    @discardableResult
+    public static func unhide(_ root: ProcessIdentity, journal: JournalStore) -> Bool {
         let r = journal.read().restorations.first { $0.kind == .hidden && $0.identity == root }
-        if let r { apply(r) }
+        var shown = true
+        if let r, !r.previous {
+            shown = false
+            for _ in 0..<3 where !shown {
+                apply(r)
+                for _ in 0..<25 {
+                    if NSRunningApplication(processIdentifier: root.pid)?.isHidden == false {
+                        shown = true
+                        break
+                    }
+                    usleep(20_000)
+                }
+            }
+        }
         try? journal.update { $0.removeRestorations(.hidden, [root]) }
+        return shown
     }
 }
