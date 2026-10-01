@@ -9,7 +9,7 @@ import Foundation
 public struct ForecastState: Codable, Equatable, Sendable {
     public var lastTime: Double?
     public var lastAvailable: Double?
-    public var slope: Double?          // percent per minute
+    public var slope: Double?  // percent per minute
     public var slopeVariance = 0.0
     public var lastLevel: PressureLevel = .normal
     /// `availablePercent` values seen at normal -> warning and warning -> critical transitions.
@@ -63,7 +63,8 @@ public struct Forecast: Codable, Equatable, Sendable {
 public enum Forecaster {
     /// Feeds one sample. Returns the forecast and whether a new alarm was raised.
     public static func update(_ s: inout ForecastState, sample: SystemSample, settings: Config.ForecastSettings)
-        -> (Forecast, alarmRaised: Bool) {
+        -> (Forecast, alarmRaised: Bool)
+    {
         let t = sample.time
         let avail = Double(sample.availablePercent)
         let level = sample.pressure
@@ -117,7 +118,10 @@ public enum Forecaster {
         let sd = s.slopeVariance.squareRoot()
         let gap = avail - s.warningLevel
         if gap <= 0 {
-            f.etaWarning = 0; f.etaWarningLow = 0; f.etaWarningHigh = 0; f.stable = false
+            f.etaWarning = 0
+            f.etaWarningLow = 0
+            f.etaWarningHigh = 0
+            f.stable = false
         } else if slope < -0.05 {
             f.stable = false
             f.etaWarning = gap / -slope

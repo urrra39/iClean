@@ -1,4 +1,5 @@
 import Testing
+
 @testable import ICCore
 
 @Suite struct EngineTests {
@@ -59,7 +60,8 @@ import Testing
     }
 
     @Test func stopsAtReliefTarget() {
-        let big1 = app("com.x.one", mb: 2000), big2 = app("com.x.two", mb: 1900)
+        let big1 = app("com.x.one", mb: 2000)
+        let big2 = app("com.x.two", mb: 1900)
         let e = engine(activeConfig { $0.deprioritizeBeforeFreeze = false }, apps: [big1, big2])
         let r = e.tick(TickInput(sample: sample(0, .warning), apps: [big1, big2]))
         #expect(r.actions.of(.freeze).ids == [big1.id])
@@ -117,8 +119,10 @@ import Testing
         #expect(r.actions.of(.thaw).first?.reasons.first?.code == Code.thawRelieved)
     }
 
-    @Test(arguments: [(SystemEvent.wake, Code.thawWake), (.unlock, Code.thawUnlock),
-                      (.lowBattery, Code.thawLowBattery), (.shutdown, Code.thawShutdown)])
+    @Test(arguments: [
+        (SystemEvent.wake, Code.thawWake), (.unlock, Code.thawUnlock),
+        (.lowBattery, Code.thawLowBattery), (.shutdown, Code.thawShutdown),
+    ])
     func eventsThawEverything(event: SystemEvent, code: String) {
         let e = engine(apps: [a, b])
         _ = e.tick(TickInput(sample: sample(0, .critical), apps: [a, b]))
@@ -159,9 +163,11 @@ import Testing
 
     @Test func focusSafeModePausesAutomaticAction() {
         let e = engine(apps: [a])
-        for s in [SessionContext(cameraInUse: true), SessionContext(microphoneInUse: true),
-                  SessionContext(screenSharing: true), SessionContext(displayMirrored: true),
-                  SessionContext(frontmostFullscreen: true)] {
+        for s in [
+            SessionContext(cameraInUse: true), SessionContext(microphoneInUse: true),
+            SessionContext(screenSharing: true), SessionContext(displayMirrored: true),
+            SessionContext(frontmostFullscreen: true),
+        ] {
             let r = e.tick(TickInput(sample: sample(0, .critical), apps: [a], session: s))
             #expect(r.actions.isEmpty)
             #expect(!r.focusSafe.isEmpty)
@@ -205,15 +211,22 @@ import Testing
 
     @Test func unhealthyThawQuarantines() {
         let e = engine(apps: [a])
-        #expect(e.thawOutcome(a.id, name: a.name, outcome: ThawOutcome(alive: true, responsive: true),
-                              latencyMs: 12, faultedMB: 100, at: 0).isEmpty)
-        let q = e.thawOutcome(a.id, name: a.name, outcome: ThawOutcome(alive: false, responsive: nil),
-                              latencyMs: nil, faultedMB: nil, at: 10)
+        #expect(
+            e.thawOutcome(
+                a.id, name: a.name, outcome: ThawOutcome(alive: true, responsive: true),
+                latencyMs: 12, faultedMB: 100, at: 0
+            ).isEmpty)
+        let q = e.thawOutcome(
+            a.id, name: a.name, outcome: ThawOutcome(alive: false, responsive: nil),
+            latencyMs: nil, faultedMB: nil, at: 10)
         #expect(q.of(.quarantine).count == 1)
         #expect(e.state.quarantine[a.id]?.reason == "exited after thaw")
         // Only once.
-        #expect(e.thawOutcome(a.id, name: a.name, outcome: ThawOutcome(alive: true, responsive: false),
-                              latencyMs: nil, faultedMB: nil, at: 20).isEmpty)
+        #expect(
+            e.thawOutcome(
+                a.id, name: a.name, outcome: ThawOutcome(alive: true, responsive: false),
+                latencyMs: nil, faultedMB: nil, at: 20
+            ).isEmpty)
         #expect(e.tick(TickInput(sample: sample(30, .critical), apps: [a])).actions.of(.freeze).isEmpty)
         #expect(e.releaseQuarantine(a.id))
         #expect(!e.releaseQuarantine(a.id))
@@ -237,7 +250,8 @@ import Testing
         #expect(no1 == nil && r1.map(\.code) == [Code.protected])
         let (no2, r2) = e.userFreeze(app("com.example.d", visible: true), at: 0)
         #expect(no2 == nil && r2.map(\.code) == [Code.visibleWindow])
-        let (no3, r3) = e.userFreeze(app("com.example.e", signals: ActivitySignals(audioOutput: true, activeConnection: false, recentWrite: false)), at: 0)
+        let (no3, r3) = e.userFreeze(
+            app("com.example.e", signals: ActivitySignals(audioOutput: true, activeConnection: false, recentWrite: false)), at: 0)
         #expect(no3 == nil && r3.map(\.code) == [Code.audio])
     }
 

@@ -18,8 +18,10 @@ public enum StagedThaw {
     /// Delay in seconds before each app is thawed. The first app always has delay 0.
     /// `swapInMBps` is the measured fault-in throughput; delays are capped so the last
     /// app never waits more than `maxTotalSeconds`.
-    public static func schedule(_ apps: [ThawCandidate], swapInMBps: Double,
-                                maxTotalSeconds: Double = 10) -> [(appID: String, delay: Double)] {
+    public static func schedule(
+        _ apps: [ThawCandidate], swapInMBps: Double,
+        maxTotalSeconds: Double = 10
+    ) -> [(appID: String, delay: Double)] {
         let ordered = apps.sorted { $0.priority != $1.priority ? $0.priority > $1.priority : $0.appID < $1.appID }
         var out: [(String, Double)] = []
         var t = 0.0

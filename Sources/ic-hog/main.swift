@@ -7,20 +7,20 @@ import Foundation
 
 struct Options {
     var mb = 0
-    var data = "compressible"      // zero | compressible | random
-    var touchEvery = 0.0           // seconds between re-touching all pages; 0 = never
-    var heartbeatMs = 0            // print "hb <ns>" every N ms; 0 = off
-    var touchOnCont = false        // after SIGCONT, touch every page and print "touched <ns>"
-    var cpu = false                // spin one core
-    var growMBps = 0.0             // grow allocation steadily (runaway simulation)
-    var children = 0               // spawn N child copies (same flags, no children)
-    var connect: String?           // host:port, keep an established TCP connection
-    var listen: UInt16?            // listen on 127.0.0.1:port
-    var writeFile: String?         // keep appending to this file
-    var lockFile: String?          // hold an flock on this file
-    var afterCont: String?         // crash | hang
-    var gui = false                // show a small AppKit window
-    var exitAfter = 0.0            // exit after N seconds; 0 = run until killed
+    var data = "compressible"  // zero | compressible | random
+    var touchEvery = 0.0  // seconds between re-touching all pages; 0 = never
+    var heartbeatMs = 0  // print "hb <ns>" every N ms; 0 = off
+    var touchOnCont = false  // after SIGCONT, touch every page and print "touched <ns>"
+    var cpu = false  // spin one core
+    var growMBps = 0.0  // grow allocation steadily (runaway simulation)
+    var children = 0  // spawn N child copies (same flags, no children)
+    var connect: String?  // host:port, keep an established TCP connection
+    var listen: UInt16?  // listen on 127.0.0.1:port
+    var writeFile: String?  // keep appending to this file
+    var lockFile: String?  // hold an flock on this file
+    var afterCont: String?  // crash | hang
+    var gui = false  // show a small AppKit window
+    var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
 }
 
 func parse() -> Options {
@@ -78,7 +78,11 @@ func fill(_ p: UnsafeMutableRawPointer, _ bytes: Int) {
     let words = p.bindMemory(to: UInt64.self, capacity: bytes / 8)
     switch opts.data {
     case "zero":
-        for i in stride(from: 0, to: bytes / 8, by: pageSize / 8) { words[i] = 0; words[i] = 1; words[i] = 0 }
+        for i in stride(from: 0, to: bytes / 8, by: pageSize / 8) {
+            words[i] = 0
+            words[i] = 1
+            words[i] = 0
+        }
     case "random":
         for i in 0..<(bytes / 8) { words[i] = rng.next() }
     default:
@@ -120,7 +124,10 @@ if opts.children > 0 {
 }
 atexit { for k in kids where k.isRunning { k.terminate() } }
 signal(SIGTERM) { _ in
-    for k in kids where k.isRunning { kill(k.processIdentifier, SIGCONT); k.terminate() }
+    for k in kids where k.isRunning {
+        kill(k.processIdentifier, SIGCONT)
+        k.terminate()
+    }
     exit(0)
 }
 
@@ -151,8 +158,9 @@ if let port = opts.listen {
 }
 if let target = opts.connect {
     let parts = target.split(separator: ":")
-    var hints = addrinfo(ai_flags: 0, ai_family: AF_UNSPEC, ai_socktype: SOCK_STREAM, ai_protocol: 0,
-                         ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil)
+    var hints = addrinfo(
+        ai_flags: 0, ai_family: AF_UNSPEC, ai_socktype: SOCK_STREAM, ai_protocol: 0,
+        ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil)
     var res: UnsafeMutablePointer<addrinfo>?
     precondition(getaddrinfo(String(parts[0]), String(parts[1]), &hints, &res) == 0, "resolve failed")
     let ai = res!.pointee
@@ -221,14 +229,18 @@ func tick() {
 }
 
 if opts.cpu {
-    Thread.detachNewThread { var x = 0.0; while true { x += sin(x) } }
+    Thread.detachNewThread {
+        var x = 0.0
+        while true { x += sin(x) }
+    }
 }
 
 if opts.gui {
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
-    let w = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
-                     styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+    let w = NSWindow(
+        contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
+        styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
     w.title = "ic-hog \(getpid())"
     w.makeKeyAndOrderFront(nil)
     Timer.scheduledTimer(withTimeInterval: 0.001, repeats: true) { _ in tick() }

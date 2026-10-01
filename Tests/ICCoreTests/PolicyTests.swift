@@ -1,11 +1,14 @@
 import Foundation
 import Testing
+
 @testable import ICCore
 
 @Suite struct ProtectionTests {
-    @Test(arguments: ["com.apple.finder", "com.apple.dock", "com.apple.Terminal", "com.googlecode.iterm2",
-                      "com.anthropic.claudefordesktop", "com.1password.1password", "com.getdropbox.dropbox",
-                      "com.apple.inputmethod.Kotoeri", "io.tailscale.ipn.macos", "com.apple.WindowServer"])
+    @Test(arguments: [
+        "com.apple.finder", "com.apple.dock", "com.apple.Terminal", "com.googlecode.iterm2",
+        "com.anthropic.claudefordesktop", "com.1password.1password", "com.getdropbox.dropbox",
+        "com.apple.inputmethod.Kotoeri", "io.tailscale.ipn.macos", "com.apple.WindowServer",
+    ])
     func protectedIDs(id: String) {
         #expect(Protection.isProtectedID(id))
         #expect(Protection.defaultTier(for: id) == .never)
@@ -101,14 +104,22 @@ import Testing
     }
 
     @Test func wakeRefreezeSkipsIdleAndCooldownOnly() {
-        let c = ctx { $0.lastActiveAt["com.a"] = now - 60; $0.lastThawAt["com.a"] = now - 30; $0.wakeRefreeze = ["com.a"] }
+        let c = ctx {
+            $0.lastActiveAt["com.a"] = now - 60
+            $0.lastThawAt["com.a"] = now - 30
+            $0.wakeRefreeze = ["com.a"]
+        }
         #expect(codes(app("com.a"), c).isEmpty)
         #expect(codes(app("com.a", visible: true), c) == [Code.visibleWindow])
     }
 
     @Test func tiersAndRules() {
-        let slack = "com.tinyspeck.slackmacgap", docker = "com.docker.docker"
-        var c = ctx { $0.lastActiveAt[slack] = now - 3600; $0.lastActiveAt[docker] = now - 3600 }
+        let slack = "com.tinyspeck.slackmacgap"
+        let docker = "com.docker.docker"
+        var c = ctx {
+            $0.lastActiveAt[slack] = now - 3600
+            $0.lastActiveAt[docker] = now - 3600
+        }
         #expect(codes(app(slack), c) == [Code.tierNever])
         #expect(codes(app(docker), c) == [Code.tierOptIn])
         c.config.allow = [slack, docker]
@@ -124,9 +135,18 @@ import Testing
     }
 
     @Test func devProfileProtectsIDEs() {
-        let c = ctx { $0.profile = .dev; $0.lastActiveAt["com.microsoft.VSCode"] = now - 3600 }
+        let c = ctx {
+            $0.profile = .dev
+            $0.lastActiveAt["com.microsoft.VSCode"] = now - 3600
+        }
         #expect(codes(app("com.microsoft.VSCode"), c) == [Code.tierNever])
-        #expect(codes(app("com.jetbrains.intellij"), ctx { $0.profile = .dev; $0.lastActiveAt["com.jetbrains.intellij"] = now - 3600 }) == [Code.tierNever])
+        #expect(
+            codes(
+                app("com.jetbrains.intellij"),
+                ctx {
+                    $0.profile = .dev
+                    $0.lastActiveAt["com.jetbrains.intellij"] = now - 3600
+                }) == [Code.tierNever])
     }
 
     @Test func guardInspectionOnlyForOtherwiseEligibleApps() {
@@ -155,11 +175,13 @@ import Testing
     }
 
     @Test func netValue() {
-        let good = Policy.netValue(reliefMB: 600, targetMB: 1024, pressureWeight: 1, pReturnSoon: 0.05,
-                                   expectedThawMs: 100, thawBudgetMs: 500)
+        let good = Policy.netValue(
+            reliefMB: 600, targetMB: 1024, pressureWeight: 1, pReturnSoon: 0.05,
+            expectedThawMs: 100, thawBudgetMs: 500)
         #expect(good > 0)
-        let bad = Policy.netValue(reliefMB: 100, targetMB: 1024, pressureWeight: 1, pReturnSoon: 0.9,
-                                  expectedThawMs: 800, thawBudgetMs: 500)
+        let bad = Policy.netValue(
+            reliefMB: 100, targetMB: 1024, pressureWeight: 1, pReturnSoon: 0.9,
+            expectedThawMs: 800, thawBudgetMs: 500)
         #expect(bad < 0)
         #expect(Policy.pReturn(activationsPerHour: 0, windowMinutes: 5) == 0)
         #expect(abs(Policy.pReturn(activationsPerHour: 12, windowMinutes: 5) - (1 - exp(-1))) < 1e-9)

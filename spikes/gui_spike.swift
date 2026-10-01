@@ -18,8 +18,10 @@ let bundle = URL(fileURLWithPath: CommandLine.arguments[2]).appendingPathCompone
 try? FileManager.default.removeItem(at: bundle)
 try! FileManager.default.createDirectory(at: bundle.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
 try! FileManager.default.copyItem(atPath: CommandLine.arguments[1], toPath: bundle.appendingPathComponent("Contents/MacOS/ic-hog").path)
-let plist: [String: Any] = ["CFBundleIdentifier": "io.github.iclean.hog", "CFBundleExecutable": "ic-hog",
-                            "CFBundleName": "ic-hog", "CFBundlePackageType": "APPL"]
+let plist: [String: Any] = [
+    "CFBundleIdentifier": "io.github.iclean.hog", "CFBundleExecutable": "ic-hog",
+    "CFBundleName": "ic-hog", "CFBundlePackageType": "APPL",
+]
 (plist as NSDictionary).write(to: bundle.appendingPathComponent("Contents/Info.plist"), atomically: true)
 
 let hog = Process()
@@ -34,15 +36,21 @@ hogOut.fileHandleForReading.readabilityHandler = { h in
     hogBuffer += String(data: h.availableData, encoding: .utf8) ?? ""
     let parts = hogBuffer.components(separatedBy: "\n")
     hogBuffer = parts.last!
-    hogLock.lock(); hogLines += parts.dropLast(); hogLock.unlock()
+    hogLock.lock()
+    hogLines += parts.dropLast()
+    hogLock.unlock()
 }
 try! hog.run()
 let pid = hog.processIdentifier
-atexit { kill(pid, SIGCONT); kill(pid, SIGKILL) }
+atexit {
+    kill(pid, SIGCONT)
+    kill(pid, SIGKILL)
+}
 signal(SIGINT) { _ in exit(1) }
 
 func lastStamp(_ prefix: String, after t: UInt64) -> UInt64? {
-    hogLock.lock(); defer { hogLock.unlock() }
+    hogLock.lock()
+    defer { hogLock.unlock() }
     return hogLines.compactMap { l -> UInt64? in
         guard l.hasPrefix(prefix + " "), let v = UInt64(l.dropFirst(prefix.count + 1)), v > t else { return nil }
         return v
@@ -56,9 +64,13 @@ func windows() -> [[String: Any]] {
     return all.filter { ($0[kCGWindowOwnerPID as String] as? pid_t) == pid }
 }
 func state() -> String {
-    let p = Process(); let out = Pipe()
-    p.executableURL = URL(fileURLWithPath: "/bin/ps"); p.arguments = ["-o", "stat=", "-p", "\(pid)"]
-    p.standardOutput = out; try? p.run(); p.waitUntilExit()
+    let p = Process()
+    let out = Pipe()
+    p.executableURL = URL(fileURLWithPath: "/bin/ps")
+    p.arguments = ["-o", "stat=", "-p", "\(pid)"]
+    p.standardOutput = out
+    try? p.run()
+    p.waitUntilExit()
     return String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
@@ -66,12 +78,16 @@ for _ in 0..<50 where app() == nil || windows().isEmpty { pump(0.1) }
 pump(0.5)
 
 print("== permissions of this process (preflight only, never prompts)")
-print("  Screen Recording: \(CGPreflightScreenCaptureAccess())  Input Monitoring: \(CGPreflightListenEventAccess())  Accessibility: \(AXIsProcessTrusted())")
+print(
+    "  Screen Recording: \(CGPreflightScreenCaptureAccess())  Input Monitoring: \(CGPreflightListenEventAccess())  Accessibility: \(AXIsProcessTrusted())"
+)
 
 print("== CGWindowListCopyWindowInfo for the hog window")
 for w in windows() where (w[kCGWindowLayer as String] as? Int) == 0 {
     print("  keys: \(w.keys.sorted().joined(separator: ", "))")
-    print("  owner name: \(w[kCGWindowOwnerName as String] ?? "nil"), window name: \(w[kCGWindowName as String] ?? "nil (hidden without Screen Recording)")")
+    print(
+        "  owner name: \(w[kCGWindowOwnerName as String] ?? "nil"), window name: \(w[kCGWindowName as String] ?? "nil (hidden without Screen Recording)")"
+    )
     print("  onscreen: \(w[kCGWindowIsOnscreen as String] ?? "nil"), bounds: \(w[kCGWindowBounds as String] ?? "nil")")
 }
 
@@ -80,7 +96,9 @@ print("  before: ps=\(state()) running-app listed=\(app() != nil) windows=\(wind
 kill(pid, SIGSTOP)
 pump(3)
 let onscreen = windows().filter { ($0[kCGWindowIsOnscreen as String] as? Bool) == true }.count
-print("  after 3 s stopped: ps=\(state()) running-app listed=\(app() != nil) terminated=\(app()?.isTerminated ?? true) windows=\(windows().count) onscreen=\(onscreen)")
+print(
+    "  after 3 s stopped: ps=\(state()) running-app listed=\(app() != nil) terminated=\(app()?.isTerminated ?? true) windows=\(windows().count) onscreen=\(onscreen)"
+)
 kill(pid, SIGCONT)
 pump(0.5)
 print("  after SIGCONT: ps=\(state())")
@@ -99,8 +117,11 @@ let token = center.addObserver(forName: NSWorkspace.didActivateApplicationNotifi
 let previous = NSWorkspace.shared.frontmostApplication
 func restoreFocus() {
     if let url = previous?.bundleURL {
-        let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", url.path]
-        try? p.run(); p.waitUntilExit()
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        p.arguments = ["-a", url.path]
+        try? p.run()
+        p.waitUntilExit()
     }
     pump(0.4)
 }
@@ -124,9 +145,14 @@ var openRunning: [Double] = []
 for frozen in [false, true] {
     for _ in 0..<5 {
         activatedPid = 0
-        if frozen { kill(pid, SIGSTOP); pump(0.3) }
+        if frozen {
+            kill(pid, SIGSTOP)
+            pump(0.3)
+        }
         let t = now()
-        let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", bundle.path]
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        p.arguments = ["-a", bundle.path]
         try? p.run()
         if waitActivation(5) {
             if frozen {
@@ -151,6 +177,8 @@ func summary(_ xs: [Double]) -> String {
 }
 print("  app self-activation -> didActivate notification in observer: \(summary(selfActivation))")
 print("  `open -a` on running app -> didActivate: \(summary(openRunning))")
-print("  `open -a` on FROZEN app -> didActivate: \(summary(openFrozen.map(\.notify).filter { $0 >= 0 }))  (\(openFrozen.filter { $0.notify < 0 }.count) of \(openFrozen.count) not delivered)")
+print(
+    "  `open -a` on FROZEN app -> didActivate: \(summary(openFrozen.map(\.notify).filter { $0 >= 0 }))  (\(openFrozen.filter { $0.notify < 0 }.count) of \(openFrozen.count) not delivered)"
+)
 print("  frozen app: didActivate -> SIGCONT -> first heartbeat: \(summary(openFrozen.map(\.heartbeat).filter { $0 >= 0 }))")
 center.removeObserver(token)

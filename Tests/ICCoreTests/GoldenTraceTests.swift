@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import ICCore
 
 /// Golden traces: deterministic synthetic traces replayed through the engine. A policy
@@ -12,7 +13,7 @@ import Testing
     struct LCG {
         var state: UInt64
         mutating func next() -> Double {
-            state = state &* 6364136223846793005 &+ 1442695040888963407
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
             return Double(state >> 11) / Double(1 << 53)
         }
     }
@@ -24,8 +25,10 @@ import Testing
     ]
 
     /// `pressure(minute) -> (level, available%)`, `focus(minute) -> frontmost app index`.
-    static func scenario(minutes: Int, seed: UInt64, pressure: (Int) -> (PressureLevel, Int),
-                         focus: (Int, inout LCG) -> Int) -> [TraceRecord] {
+    static func scenario(
+        minutes: Int, seed: UInt64, pressure: (Int) -> (PressureLevel, Int),
+        focus: (Int, inout LCG) -> Int
+    ) -> [TraceRecord] {
         var rng = LCG(state: seed)
         var out: [TraceRecord] = []
         var front = 1
@@ -40,15 +43,18 @@ import Testing
                 }
                 let (level, avail) = pressure(m)
                 let apps = catalog.enumerated().map { i, c in
-                    AppSnapshot(id: c.id, name: c.id, processes: [ProcessIdentity(pid: c.pid, startTime: UInt64(c.pid))],
-                                residentMB: c.mb + Double(m % 7) * 3, footprintMB: c.mb, cpuPercent: i == front ? 12 : 0.3,
-                                isFrontmost: i == front, hasVisibleWindow: i == front,
-                                signals: ActivitySignals(audioOutput: c.id == "com.spotify.client" && m < 90,
-                                                         activeConnection: false, servingListener: false,
-                                                         recentWrite: false, lockHeld: false))
+                    AppSnapshot(
+                        id: c.id, name: c.id, processes: [ProcessIdentity(pid: c.pid, startTime: UInt64(c.pid))],
+                        residentMB: c.mb + Double(m % 7) * 3, footprintMB: c.mb, cpuPercent: i == front ? 12 : 0.3,
+                        isFrontmost: i == front, hasVisibleWindow: i == front,
+                        signals: ActivitySignals(
+                            audioOutput: c.id == "com.spotify.client" && m < 90,
+                            activeConnection: false, servingListener: false,
+                            recentWrite: false, lockHeld: false))
                 }
-                let s = SystemSample(time: t, pressure: level, availablePercent: avail, physicalMB: 16384,
-                                     compressedMB: Double(100 - avail) * 40, swapOuts: UInt64(max(0, 50 - avail)) * 1000)
+                let s = SystemSample(
+                    time: t, pressure: level, availablePercent: avail, physicalMB: 16384,
+                    compressedMB: Double(100 - avail) * 40, swapOuts: UInt64(max(0, 50 - avail)) * 1000)
                 out.append(.tick(TickInput(sample: s, apps: apps, weekday: 3, hour: 9 + m / 60)))
             }
         }
@@ -58,26 +64,30 @@ import Testing
     static let scenarios: [String: () -> [TraceRecord]] = [
         // Healthy all morning: iClean must do nothing.
         "steady": {
-            scenario(minutes: 120, seed: 1, pressure: { _ in (.normal, 55) },
-                     focus: { m, r in m % 20 == 0 ? (r.next() < 0.5 ? 0 : 1) : (m < 1 ? 1 : -1) })
+            scenario(
+                minutes: 120, seed: 1, pressure: { _ in (.normal, 55) },
+                focus: { m, r in m % 20 == 0 ? (r.next() < 0.5 ? 0 : 1) : (m < 1 ? 1 : -1) })
         },
         // Memory drains over an hour, stays in warning, briefly critical, then recovers.
         "pressure-episode": {
-            scenario(minutes: 200, seed: 2, pressure: { m in
-                switch m {
-                case ..<60: return (.normal, 50)
-                case ..<100: return (.normal, 50 - (m - 60) * 3 / 4)
-                case ..<140: return (.warning, 18)
-                case ..<150: return (.critical, 9)
-                case ..<170: return (.warning, 17)
-                default: return (.normal, 45)
-                }
-            }, focus: { m, r in m % 15 == 0 ? [0, 1, 1, 2][Int(r.next() * 4)] : -1 })
+            scenario(
+                minutes: 200, seed: 2,
+                pressure: { m in
+                    switch m {
+                    case ..<60: return (.normal, 50)
+                    case ..<100: return (.normal, 50 - (m - 60) * 3 / 4)
+                    case ..<140: return (.warning, 18)
+                    case ..<150: return (.critical, 9)
+                    case ..<170: return (.warning, 17)
+                    default: return (.normal, 45)
+                    }
+                }, focus: { m, r in m % 15 == 0 ? [0, 1, 1, 2][Int(r.next() * 4)] : -1 })
         },
         // Pressure flaps every few minutes: hysteresis must keep actions bounded.
         "flapping": {
-            scenario(minutes: 90, seed: 3, pressure: { m in m >= 30 && (m / 3) % 2 == 0 ? (.warning, 20) : (.normal, 30) },
-                     focus: { m, r in m % 10 == 0 ? Int(r.next() * 3) : -1 })
+            scenario(
+                minutes: 90, seed: 3, pressure: { m in m >= 30 && (m / 3) % 2 == 0 ? (.warning, 20) : (.normal, 30) },
+                focus: { m, r in m % 10 == 0 ? Int(r.next() * 3) : -1 })
         },
     ]
 
@@ -111,7 +121,8 @@ import Testing
 
         let episode = Simulator.run(try Self.materialize("pressure-episode"), config: activeConfig(), hardware: hw16)
         #expect(episode.freezes > 0)
-        #expect(episode.freezesByApp.keys.allSatisfy { !["com.tinyspeck.slackmacgap", "com.docker.docker", "com.apple.Terminal"].contains($0) })
+        #expect(
+            episode.freezesByApp.keys.allSatisfy { !["com.tinyspeck.slackmacgap", "com.docker.docker", "com.apple.Terminal"].contains($0) })
         #expect(episode.freezesByApp["com.spotify.client"] == nil)  // playing audio during the episode
 
         let flap = Simulator.run(try Self.materialize("flapping"), config: activeConfig(), hardware: hw16)

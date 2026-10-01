@@ -17,8 +17,9 @@ public enum AudioActivity {
 
     public static func pids() -> (output: Set<Int32>, input: Set<Int32>) {
         guard #available(macOS 14.2, *) else { return ([], []) }
-        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList,
-                                              mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyProcessObjectList,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var size: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size) == noErr, size > 0 else {
             return ([], [])
@@ -27,7 +28,8 @@ public enum AudioActivity {
         guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &ids) == noErr else {
             return ([], [])
         }
-        var out = Set<Int32>(), inp = Set<Int32>()
+        var out = Set<Int32>()
+        var inp = Set<Int32>()
         for id in ids {
             let pid: Int32 = read(id, kAudioProcessPropertyPID) ?? 0
             let o: UInt32 = read(id, kAudioProcessPropertyIsRunningOutput) ?? 0
@@ -39,8 +41,9 @@ public enum AudioActivity {
     }
 
     static func read<T>(_ obj: AudioObjectID, _ selector: AudioObjectPropertySelector) -> T? {
-        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
-                                              mElement: kAudioObjectPropertyElementMain)
+        var addr = AudioObjectPropertyAddress(
+            mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
         var size = UInt32(MemoryLayout<T>.size)
         let p = UnsafeMutablePointer<T>.allocate(capacity: 1)
         defer { p.deallocate() }
@@ -50,8 +53,9 @@ public enum AudioActivity {
 
     /// Is the default input device (microphone) running for anyone?
     public static func microphoneInUse() -> Bool {
-        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
-                                              mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var dev = AudioObjectID(0)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
         guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &dev) == noErr, dev != 0 else {
@@ -65,18 +69,24 @@ public enum AudioActivity {
 public enum Camera {
     /// True if any camera is running for any process (CoreMediaIO). Cannot say which.
     public static func inUse() -> Bool {
-        var addr = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
-                                             mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
-                                             mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+        var addr = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
         var size: UInt32 = 0
-        guard CMIOObjectGetPropertyDataSize(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil, &size) == 0, size > 0 else { return false }
+        guard CMIOObjectGetPropertyDataSize(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil, &size) == 0, size > 0 else {
+            return false
+        }
         var devices = [CMIOObjectID](repeating: 0, count: Int(size) / MemoryLayout<CMIOObjectID>.size)
         var used: UInt32 = 0
-        guard CMIOObjectGetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil, size, &used, &devices) == 0 else { return false }
+        guard CMIOObjectGetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil, size, &used, &devices) == 0 else {
+            return false
+        }
         for d in devices {
-            var a = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
-                                              mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeWildcard),
-                                              mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementWildcard))
+            var a = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeWildcard),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementWildcard))
             var running: UInt32 = 0
             var got: UInt32 = 0
             if CMIOObjectGetPropertyData(d, &a, 0, nil, UInt32(MemoryLayout<UInt32>.size), &got, &running) == 0, running != 0 {
@@ -89,13 +99,16 @@ public enum Camera {
 
 public enum PowerAssertions {
     /// Assertion types that mean "this process is doing something the user cares about".
-    static let relevant: Set<String> = ["PreventUserIdleSystemSleep", "PreventUserIdleDisplaySleep",
-                                        "PreventSystemSleep", "NoIdleSleepAssertion", "NoDisplaySleepAssertion"]
+    static let relevant: Set<String> = [
+        "PreventUserIdleSystemSleep", "PreventUserIdleDisplaySleep",
+        "PreventSystemSleep", "NoIdleSleepAssertion", "NoDisplaySleepAssertion",
+    ]
 
     public static func pids() -> Set<Int32> {
         var dict: Unmanaged<CFDictionary>?
         guard IOPMCopyAssertionsByProcess(&dict) == kIOReturnSuccess,
-              let d = dict?.takeRetainedValue() as? [NSNumber: [[String: Any]]] else { return [] }
+            let d = dict?.takeRetainedValue() as? [NSNumber: [[String: Any]]]
+        else { return [] }
         var out = Set<Int32>()
         for (pid, list) in d where list.contains(where: { relevant.contains($0["AssertType"] as? String ?? "") }) {
             out.insert(pid.int32Value)
@@ -114,16 +127,19 @@ public struct WindowFacts: Sendable {
 public enum Windows {
     /// Works without Screen Recording: only owner PID, layer, alpha and bounds are used.
     public static func facts() -> WindowFacts {
-        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+        let list =
+            CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             as? [[String: Any]] ?? []
         let displays = activeDisplays().map { CGDisplayBounds($0) }
-        var above: [CGRect] = []   // front-to-back order
-        var visible = Set<Int32>(), full = Set<Int32>()
+        var above: [CGRect] = []  // front-to-back order
+        var visible = Set<Int32>()
+        var full = Set<Int32>()
         for w in list {
             guard (w[kCGWindowLayer as String] as? Int) == 0,
-                  let pid = w[kCGWindowOwnerPID as String] as? Int32,
-                  let b = w[kCGWindowBounds as String] as? [String: CGFloat],
-                  let rect = CGRect(dictionaryRepresentation: b as CFDictionary) else { continue }
+                let pid = w[kCGWindowOwnerPID as String] as? Int32,
+                let b = w[kCGWindowBounds as String] as? [String: CGFloat],
+                let rect = CGRect(dictionaryRepresentation: b as CFDictionary)
+            else { continue }
             let alpha = w[kCGWindowAlpha as String] as? Double ?? 1
             guard alpha > 0.01, rect.width * rect.height >= 1600 else { continue }
             // Conservative occlusion: only a single opaque window above that fully
@@ -154,11 +170,12 @@ public enum SessionProbe {
 
     public static func context(frontmostPID: Int32?, windows: WindowFacts) -> SessionContext {
         let locked = (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] as? Bool ?? false
-        return SessionContext(cameraInUse: Camera.inUse(), microphoneInUse: AudioActivity.microphoneInUse(),
-                              screenSharing: !allProcessNames().isDisjoint(with: sharingProcessNames),
-                              displayMirrored: Windows.mirrored(),
-                              frontmostFullscreen: frontmostPID.map { windows.fullscreenPIDs.contains($0) } ?? false,
-                              screenLocked: locked)
+        return SessionContext(
+            cameraInUse: Camera.inUse(), microphoneInUse: AudioActivity.microphoneInUse(),
+            screenSharing: !allProcessNames().isDisjoint(with: sharingProcessNames),
+            displayMirrored: Windows.mirrored(),
+            frontmostFullscreen: frontmostPID.map { windows.fullscreenPIDs.contains($0) } ?? false,
+            screenLocked: locked)
     }
 
     /// Names of all processes, including other users' (screensharingd runs as root),
@@ -170,9 +187,10 @@ public enum SessionProbe {
         var procs = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride + 16)
         size = procs.count * MemoryLayout<kinfo_proc>.stride
         guard sysctl(&mib, 4, &procs, &size, nil, 0) == 0 else { return [] }
-        return Set(procs.prefix(size / MemoryLayout<kinfo_proc>.stride).map { p in
-            withUnsafeBytes(of: p.kp_proc.p_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
-        })
+        return Set(
+            procs.prefix(size / MemoryLayout<kinfo_proc>.stride).map { p in
+                withUnsafeBytes(of: p.kp_proc.p_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+            })
     }
 }
 
@@ -185,7 +203,8 @@ public enum Permissions {
 
     /// Preflight only; never shows a prompt.
     public static func status() -> Status {
-        Status(accessibility: AXIsProcessTrusted(), screenRecording: CGPreflightScreenCaptureAccess(),
-               inputMonitoring: CGPreflightListenEventAccess())
+        Status(
+            accessibility: AXIsProcessTrusted(), screenRecording: CGPreflightScreenCaptureAccess(),
+            inputMonitoring: CGPreflightListenEventAccess())
     }
 }

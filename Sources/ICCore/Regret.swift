@@ -42,23 +42,28 @@ public enum RegretTracker {
 
     /// Closes the open record for `appID`. Returns the per-app regret EWMA after the update.
     @discardableResult
-    public static func recordThaw(_ s: inout RegretState, appID: String, at: Double, reason: String,
-                                  realizedReliefMB: Double?, settings: Config.RegretSettings) -> Double {
+    public static func recordThaw(
+        _ s: inout RegretState, appID: String, at: Double, reason: String,
+        realizedReliefMB: Double?, settings: Config.RegretSettings
+    ) -> Double {
         guard let i = s.records.lastIndex(where: { $0.appID == appID && $0.thawedAt == nil }) else {
             return s.perApp[appID] ?? 0
         }
         s.records[i].thawedAt = at
         s.records[i].thawReason = reason
         s.records[i].realizedReliefMB = realizedReliefMB
-        s.records[i].returnedSoon = reason == Code.thawActivated
+        s.records[i].returnedSoon =
+            reason == Code.thawActivated
             && at - s.records[i].frozenAt < settings.returnWindowMinutes * 60
         return update(&s, index: i, at: at, settings: settings)
     }
 
     /// Adds the measured thaw latency to the most recent closed record for `appID`.
     @discardableResult
-    public static func recordLatency(_ s: inout RegretState, appID: String, latencyMs: Double, at: Double,
-                                     settings: Config.RegretSettings) -> Double {
+    public static func recordLatency(
+        _ s: inout RegretState, appID: String, latencyMs: Double, at: Double,
+        settings: Config.RegretSettings
+    ) -> Double {
         guard let i = s.records.lastIndex(where: { $0.appID == appID && $0.thawedAt != nil }) else {
             return s.perApp[appID] ?? 0
         }

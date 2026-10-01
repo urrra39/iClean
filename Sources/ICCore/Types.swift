@@ -46,11 +46,13 @@ public struct SystemSample: Codable, Equatable, Sendable {
     public var lowPowerMode: Bool
     public var freeDiskGB: Double
 
-    public init(time: Double, pressure: PressureLevel = .normal, availablePercent: Int = 60,
-                physicalMB: Double = 16384, freeMB: Double = 4096, compressedMB: Double = 0,
-                swapUsedMB: Double = 0, swapOuts: UInt64 = 0, swapIns: UInt64 = 0,
-                thermal: Thermal = .nominal, onBattery: Bool = false, batteryPercent: Int? = nil,
-                lowPowerMode: Bool = false, freeDiskGB: Double = 100) {
+    public init(
+        time: Double, pressure: PressureLevel = .normal, availablePercent: Int = 60,
+        physicalMB: Double = 16384, freeMB: Double = 4096, compressedMB: Double = 0,
+        swapUsedMB: Double = 0, swapOuts: UInt64 = 0, swapIns: UInt64 = 0,
+        thermal: Thermal = .nominal, onBattery: Bool = false, batteryPercent: Int? = nil,
+        lowPowerMode: Bool = false, freeDiskGB: Double = 100
+    ) {
         self.time = time
         self.pressure = pressure
         self.availablePercent = availablePercent
@@ -90,9 +92,11 @@ public struct ActivitySignals: Codable, Equatable, Sendable {
     public var recentWrite: Bool?
     public var lockHeld: Bool?
 
-    public init(audioOutput: Bool = false, audioInput: Bool = false, powerAssertion: Bool = false,
-                busyChildren: Bool = false, activeConnection: Bool? = nil, servingListener: Bool? = nil,
-                recentWrite: Bool? = nil, lockHeld: Bool? = nil) {
+    public init(
+        audioOutput: Bool = false, audioInput: Bool = false, powerAssertion: Bool = false,
+        busyChildren: Bool = false, activeConnection: Bool? = nil, servingListener: Bool? = nil,
+        recentWrite: Bool? = nil, lockHeld: Bool? = nil
+    ) {
         self.audioOutput = audioOutput
         self.audioInput = audioInput
         self.powerAssertion = powerAssertion
@@ -106,8 +110,8 @@ public struct ActivitySignals: Codable, Equatable, Sendable {
 
 /// Where an app's code lives. The engine never sees paths, only this classification.
 public enum AppOrigin: String, Codable, Sendable {
-    case system        // under /System or /usr
-    case apple         // Apple app outside /System
+    case system  // under /System or /usr
+    case apple  // Apple app outside /System
     case thirdParty
 }
 
@@ -136,11 +140,13 @@ public struct AppSnapshot: Codable, Equatable, Sendable {
     public var isDaemonLineage: Bool
     public var signals: ActivitySignals
 
-    public init(id: String, name: String, processes: [ProcessIdentity] = [], residentMB: Double = 0,
-                footprintMB: Double = 0, cpuPercent: Double = 0, isFrontmost: Bool = false,
-                hasVisibleWindow: Bool = false, isHidden: Bool = false, isRegularApp: Bool = true,
-                isElectron: Bool = false, origin: AppOrigin = .thirdParty, partialTree: Bool = false,
-                isDaemonLineage: Bool = false, signals: ActivitySignals = ActivitySignals()) {
+    public init(
+        id: String, name: String, processes: [ProcessIdentity] = [], residentMB: Double = 0,
+        footprintMB: Double = 0, cpuPercent: Double = 0, isFrontmost: Bool = false,
+        hasVisibleWindow: Bool = false, isHidden: Bool = false, isRegularApp: Bool = true,
+        isElectron: Bool = false, origin: AppOrigin = .thirdParty, partialTree: Bool = false,
+        isDaemonLineage: Bool = false, signals: ActivitySignals = ActivitySignals()
+    ) {
         self.id = id
         self.name = name
         self.processes = processes
@@ -168,8 +174,10 @@ public struct SessionContext: Codable, Equatable, Sendable {
     public var frontmostFullscreen = false
     public var screenLocked = false
 
-    public init(cameraInUse: Bool = false, microphoneInUse: Bool = false, screenSharing: Bool = false,
-                displayMirrored: Bool = false, frontmostFullscreen: Bool = false, screenLocked: Bool = false) {
+    public init(
+        cameraInUse: Bool = false, microphoneInUse: Bool = false, screenSharing: Bool = false,
+        displayMirrored: Bool = false, frontmostFullscreen: Bool = false, screenLocked: Bool = false
+    ) {
         self.cameraInUse = cameraInUse
         self.microphoneInUse = microphoneInUse
         self.screenSharing = screenSharing
@@ -188,8 +196,10 @@ public struct Hardware: Codable, Equatable, Sendable {
     public var rotationalDisk: Bool
     public var hasBattery: Bool
 
-    public init(model: String = "unknown", arch: String = "arm64", memoryGB: Double = 16,
-                osVersion: String = "unknown", rotationalDisk: Bool = false, hasBattery: Bool = true) {
+    public init(
+        model: String = "unknown", arch: String = "arm64", memoryGB: Double = 16,
+        osVersion: String = "unknown", rotationalDisk: Bool = false, hasBattery: Bool = true
+    ) {
         self.model = model
         self.arch = arch
         self.memoryGB = memoryGB

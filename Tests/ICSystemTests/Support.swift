@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import ICCore
 @testable import ICSystem
 
@@ -53,14 +54,19 @@ final class FakeProbe: Probe {
 }
 
 func hogApp(_ id: String, _ hogs: [SpawnedHog], inspected: Bool = true, signals: ActivitySignals? = nil) -> AppSnapshot {
-    let s = signals ?? (inspected ? ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false)
-                                  : ActivitySignals())
+    let s =
+        signals
+        ?? (inspected
+            ? ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false)
+            : ActivitySignals())
     return AppSnapshot(id: id, name: id, processes: hogs.compactMap(\.identity), residentMB: 100, isRegularApp: true, signals: s)
 }
 
 /// A daemon on a fake probe, in Active mode, with apps that have been idle for hours.
-func testDaemon(_ probe: FakeProbe, paths: Paths = tempHome(), mode: Mode = .active,
-                edit: (inout Config) -> Void = { _ in }) throws -> Daemon {
+func testDaemon(
+    _ probe: FakeProbe, paths: Paths = tempHome(), mode: Mode = .active,
+    edit: (inout Config) -> Void = { _ in }
+) throws -> Daemon {
     try paths.ensure()
     var c = Config()
     c.mode = mode

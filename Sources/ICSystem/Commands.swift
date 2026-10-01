@@ -39,35 +39,41 @@ extension Daemon {
 
     public func status() -> Status {
         let s = engine.recent.last ?? SystemSample(time: clock())
-        return Status(mode: engine.config.mode, profile: engine.lastProfile.rawValue, pressure: s.pressure.name,
-                      availablePercent: s.availablePercent, swapUsedMB: s.swapUsedMB, compressedMB: s.compressedMB,
-                      health: lastResult?.health ?? Health.score(s, swapOutMBPerMinute: 0, runawayApps: 0),
-                      forecast: engine.lastForecast.summary, focusSafe: engine.lastFocusSafe,
-                      conservative: engine.state.regret.isConservative(at: clock()),
-                      frozen: engine.state.frozen.values.sorted { $0.frozenAt < $1.frozenAt },
-                      deprioritized: engine.state.deprioritized.keys.sorted(), lastAction: engine.state.lastAction,
-                      configError: configError, quarantined: engine.state.quarantine.values.sorted { $0.at < $1.at },
-                      observeSince: engine.state.startedAt,
-                      recentPressure: engine.recent.map(\.pressure.rawValue), recentSwapMB: engine.recent.map(\.swapUsedMB))
+        return Status(
+            mode: engine.config.mode, profile: engine.lastProfile.rawValue, pressure: s.pressure.name,
+            availablePercent: s.availablePercent, swapUsedMB: s.swapUsedMB, compressedMB: s.compressedMB,
+            health: lastResult?.health ?? Health.score(s, swapOutMBPerMinute: 0, runawayApps: 0),
+            forecast: engine.lastForecast.summary, focusSafe: engine.lastFocusSafe,
+            conservative: engine.state.regret.isConservative(at: clock()),
+            frozen: engine.state.frozen.values.sorted { $0.frozenAt < $1.frozenAt },
+            deprioritized: engine.state.deprioritized.keys.sorted(), lastAction: engine.state.lastAction,
+            configError: configError, quarantined: engine.state.quarantine.values.sorted { $0.at < $1.at },
+            observeSince: engine.state.startedAt,
+            recentPressure: engine.recent.map(\.pressure.rawValue), recentSwapMB: engine.recent.map(\.swapUsedMB))
     }
 
     public func statusText() -> String {
         let s = status()
         var l = ["iClean \(s.mode.rawValue) mode, profile \(s.profile). Mac Health \(s.health.score)/100 (\(s.health.band.rawValue))."]
-        l.append("Memory pressure \(s.pressure), \(s.availablePercent)% available, \(Int(s.compressedMB)) MB compressed, \(Int(s.swapUsedMB)) MB swap. Forecast: \(s.forecast).")
+        l.append(
+            "Memory pressure \(s.pressure), \(s.availablePercent)% available, \(Int(s.compressedMB)) MB compressed, \(Int(s.swapUsedMB)) MB swap. Forecast: \(s.forecast)."
+        )
         if !s.focusSafe.isEmpty { l.append("Focus Safe Mode: paused (\(s.focusSafe.joined(separator: ", ")))") }
         if s.conservative { l.append("Conservative for 24 h: too many regretted freezes today.") }
         if s.frozen.isEmpty { l.append("Nothing frozen.") }
         for f in s.frozen {
-            l.append("\(f.dryRun ? "Would be frozen" : "Frozen"): \(f.name) for \(Int((clock() - f.frozenAt) / 60)) min [\(f.reasons.map(\.code).joined(separator: ", "))]")
+            l.append(
+                "\(f.dryRun ? "Would be frozen" : "Frozen"): \(f.name) for \(Int((clock() - f.frozenAt) / 60)) min [\(f.reasons.map(\.code).joined(separator: ", "))]"
+            )
         }
         if let last = s.lastAction { l.append("Last action: \(last)") }
         if let e = s.configError { l.append("Config error (previous config in use): \(e)") }
         if s.mode == .observe {
             let hours = (clock() - s.observeSince) / 3600
-            l.append(hours >= 24
-                     ? "Observe mode has run \(Int(hours)) h. Review `iclean stats`, then `iclean mode active` to let iClean act."
-                     : "Observe mode: iClean only records what it would do.")
+            l.append(
+                hours >= 24
+                    ? "Observe mode has run \(Int(hours)) h. Review `iclean stats`, then `iclean mode active` to let iClean act."
+                    : "Observe mode: iClean only records what it would do.")
         }
         return l.joined(separator: "\n")
     }
@@ -80,17 +86,22 @@ extension Daemon {
         l.append("  tier \(ctx.tier(app.id).rawValue)" + (Protection.isProtected(app) ? ", protected (can never be frozen)" : ""))
         l.append(String(format: "  idle %.0f min, threshold %.0f min", ctx.idleMinutes(app), ctx.idleThreshold(app.id)))
         if let f = engine.state.frozen[app.id] {
-            l.append("  \(f.dryRun ? "would be frozen (Observe mode)" : "FROZEN") since \(Int((clock() - f.frozenAt) / 60)) min: " + f.reasons.map(\.description).joined(separator: ", "))
+            l.append(
+                "  \(f.dryRun ? "would be frozen (Observe mode)" : "FROZEN") since \(Int((clock() - f.frozenAt) / 60)) min: "
+                    + f.reasons.map(\.description).joined(separator: ", "))
         } else {
             let r = engine.state.lastSkips[app.id] ?? []
-            l.append(r.isEmpty ? "  eligible; not frozen because no trigger fired" : "  not frozen: " + r.map(\.description).joined(separator: ", "))
+            l.append(
+                r.isEmpty
+                    ? "  eligible; not frozen because no trigger fired" : "  not frozen: " + r.map(\.description).joined(separator: ", "))
         }
         if let sc = engine.state.lastScores[app.id] { l.append(String(format: "  last score %.0f", sc)) }
         if let r = engine.state.regret.perApp[app.id] { l.append(String(format: "  regret %.2f", r)) }
         if let q = engine.state.quarantine[app.id] { l.append("  quarantined: \(q.reason)") }
         let history = ActionLog.read(paths: paths, last: 1000).filter { $0.action.appID == app.id }.suffix(5)
         for h in history {
-            l.append("  \(Date(timeIntervalSince1970: h.t).formatted(date: .omitted, time: .shortened)) \(h.action.summary) -> \(h.outcome)")
+            l.append(
+                "  \(Date(timeIntervalSince1970: h.t).formatted(date: .omitted, time: .shortened)) \(h.action.summary) -> \(h.outcome)")
         }
         return Response(ok: true, text: l.joined(separator: "\n"))
     }
@@ -117,8 +128,10 @@ extension Daemon {
         case "status":
             return Response(ok: true, text: statusText(), data: req.json == true ? encode(status()) : nil)
         case "why":
-            let d = Why.diagnose(samples: engine.recent, apps: lastApps, runaway: engine.lastRunaway,
-                                 forecast: engine.lastForecast) { [engine] id in
+            let d = Why.diagnose(
+                samples: engine.recent, apps: lastApps, runaway: engine.lastRunaway,
+                forecast: engine.lastForecast
+            ) { [engine] id in
                 engine.state.lastActiveAt[id].map { (now - $0) / 60 } ?? 0
             }
             return Response(ok: true, text: d.text, data: req.json == true ? encode(d) : nil)
@@ -129,7 +142,8 @@ extension Daemon {
             if req.app == nil || req.app == "all" {
                 acts = engine.thawAll(reason: Code.thawUser, at: now)
             } else {
-                let id = findApp(req.app!)?.id ?? engine.state.frozen.keys.first { $0.lowercased().contains(req.app!.lowercased()) } ?? req.app!
+                let id =
+                    findApp(req.app!)?.id ?? engine.state.frozen.keys.first { $0.lowercased().contains(req.app!.lowercased()) } ?? req.app!
                 acts = engine.thaw(id, reason: Code.thawUser, at: now)
             }
             execute(acts, immediate: true)
@@ -146,13 +160,20 @@ extension Daemon {
             execute(acts, immediate: true)
             return Response(ok: true, text: acts.isEmpty ? "Nothing to undo." : acts.map(\.summary).joined(separator: "\n"))
         case "mode":
-            guard let m = req.value.flatMap(Mode.init(rawValue:)) else { return Response(ok: true, text: "Mode: \(engine.config.mode.rawValue)") }
+            guard let m = req.value.flatMap(Mode.init(rawValue:)) else {
+                return Response(ok: true, text: "Mode: \(engine.config.mode.rawValue)")
+            }
             return setMode(m)
         case "profile":
             var c = engine.config
-            if req.value == "auto" { c.profiles.manual = nil }
-            else if let p = req.value.flatMap(ProfileName.init(rawValue:)) { c.profiles.manual = p }
-            else { return Response(ok: true, text: "Profile: \(engine.lastProfile.rawValue)" + (c.profiles.manual == nil ? " (automatic)" : " (manual)")) }
+            if req.value == "auto" {
+                c.profiles.manual = nil
+            } else if let p = req.value.flatMap(ProfileName.init(rawValue:)) {
+                c.profiles.manual = p
+            } else {
+                return Response(
+                    ok: true, text: "Profile: \(engine.lastProfile.rawValue)" + (c.profiles.manual == nil ? " (automatic)" : " (manual)"))
+            }
             try? Files.atomicWrite(c.encoded(), to: paths.config)
             reloadConfig()
             configMTime = Self.mtime(paths.config)
@@ -163,11 +184,16 @@ extension Daemon {
             return Response(ok: true, text: d.text, data: req.json == true ? encode(d) : nil)
         case "quarantine":
             if let app = req.app {
-                let id = engine.state.quarantine.keys.first { $0 == app || engine.state.quarantine[$0]?.name.lowercased() == app.lowercased() } ?? app
-                return engine.releaseQuarantine(id) ? Response(ok: true, text: "Released \(id).") : Response(ok: false, text: "\(app) is not quarantined.")
+                let id =
+                    engine.state.quarantine.keys.first { $0 == app || engine.state.quarantine[$0]?.name.lowercased() == app.lowercased() }
+                    ?? app
+                return engine.releaseQuarantine(id)
+                    ? Response(ok: true, text: "Released \(id).") : Response(ok: false, text: "\(app) is not quarantined.")
             }
             let q = engine.state.quarantine.values.sorted { $0.at < $1.at }
-            return Response(ok: true, text: q.isEmpty ? "No quarantined apps." : q.map { "\($0.name) (\($0.appID)): \($0.reason)" }.joined(separator: "\n"))
+            return Response(
+                ok: true,
+                text: q.isEmpty ? "No quarantined apps." : q.map { "\($0.name) (\($0.appID)): \($0.reason)" }.joined(separator: "\n"))
         case "habits":
             if req.value == "reset" {
                 engine.resetHabits()
@@ -187,11 +213,17 @@ extension Daemon {
                 }
                 let (a, refused) = engine.freezeWorkspace(name, apps: apps, at: now)
                 if !refused.isEmpty {
-                    return Response(ok: false, text: "Workspace not frozen:\n" + refused.map { "  \($0.key): " + $0.value.map(\.description).joined(separator: ", ") }.joined(separator: "\n"))
+                    return Response(
+                        ok: false,
+                        text: "Workspace not frozen:\n"
+                            + refused.map { "  \($0.key): " + $0.value.map(\.description).joined(separator: ", ") }.joined(separator: "\n"))
                 }
                 acts = a
             } else {
-                return Response(ok: true, text: engine.config.workspaces.map { "\($0.key): \($0.value.joined(separator: ", "))" }.sorted().joined(separator: "\n"))
+                return Response(
+                    ok: true,
+                    text: engine.config.workspaces.map { "\($0.key): \($0.value.joined(separator: ", "))" }.sorted().joined(separator: "\n")
+                )
             }
             execute(acts)
             return Response(ok: true, text: acts.isEmpty ? "Nothing to do." : acts.map(\.summary).joined(separator: "\n"))
@@ -208,8 +240,13 @@ extension Daemon {
             guard let app = req.app else { return Response(ok: false, text: "Which app?") }
             let id = findApp(app)?.id ?? app
             var c = engine.config
-            if req.cmd == "deny" { c.deny = Array(Set(c.deny + [id])).sorted(); c.allow.removeAll { $0 == id } }
-            else { c.allow = Array(Set(c.allow + [id])).sorted(); c.deny.removeAll { $0 == id } }
+            if req.cmd == "deny" {
+                c.deny = Array(Set(c.deny + [id])).sorted()
+                c.allow.removeAll { $0 == id }
+            } else {
+                c.allow = Array(Set(c.allow + [id])).sorted()
+                c.deny.removeAll { $0 == id }
+            }
             try? Files.atomicWrite(c.encoded(), to: paths.config)
             reloadConfig()
             configMTime = Self.mtime(paths.config)

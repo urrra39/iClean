@@ -12,8 +12,9 @@ struct ICleanMenuApp: App {
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             MainActor.assumeIsolated {
-                let view = NSHostingView(rootView: MenuView().environmentObject(Model())
-                    .background(Color(nsColor: .windowBackgroundColor)))
+                let view = NSHostingView(
+                    rootView: MenuView().environmentObject(Model())
+                        .background(Color(nsColor: .windowBackgroundColor)))
                 view.frame.size = view.fittingSize
                 let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: false)
                 window.contentView = view
@@ -35,7 +36,8 @@ struct ICleanMenuApp: App {
             MenuView().environmentObject(model)
         } label: {
             Image(systemName: model.icon)
-                .accessibilityLabel(Text(model.status.map { String(format: L("a11y.icon"), $0.health.score) } ?? L("daemon.notRunning")))
+                .accessibilityLabel(
+                    Text(model.status.map { String(format: localized("a11y.icon"), $0.health.score) } ?? localized("daemon.notRunning")))
         }
         .menuBarExtraStyle(.window)
     }
@@ -53,8 +55,8 @@ struct MenuView: View {
                 Divider()
                 frozen(s)
             } else {
-                Text(L("daemon.notRunning")).font(.headline)
-                Button(L("daemon.start")) { model.startDaemon() }
+                Text(localized("daemon.notRunning")).font(.headline)
+                Button(localized("daemon.start")) { model.startDaemon() }
             }
             Divider()
             actions
@@ -63,7 +65,7 @@ struct MenuView: View {
                 Text(model.detailTitle).font(.headline)
                 ScrollView { Text(d).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
                     .frame(maxHeight: 220)
-                Button(L("close")) { model.detail = nil }
+                Button(localized("close")) { model.detail = nil }
             }
             if let m = model.message {
                 Text(m).font(.caption).foregroundStyle(.secondary).lineLimit(4)
@@ -79,9 +81,9 @@ struct MenuView: View {
     func header(_ s: Status) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(String(format: L("health"), s.health.score)).font(.headline)
+                Text(String(format: localized("health"), s.health.score)).font(.headline)
                 Spacer()
-                Text(L("pressure." + s.pressure)).foregroundStyle(s.pressure == "normal" ? Color.secondary : .orange)
+                Text(localized("pressure." + s.pressure)).foregroundStyle(s.pressure == "normal" ? Color.secondary : .orange)
             }
             .accessibilityElement(children: .combine)
             if !s.recentPressure.isEmpty {
@@ -91,17 +93,17 @@ struct MenuView: View {
                 .chartXAxis(.hidden)
                 .chartYAxis { AxisMarks(position: .leading) }
                 .frame(height: 40)
-                .accessibilityLabel(Text(String(format: L("a11y.swap"), Int(s.swapUsedMB))))
+                .accessibilityLabel(Text(String(format: localized("a11y.swap"), Int(s.swapUsedMB))))
             }
-            Text(String(format: L("forecast"), s.forecast)).font(.caption)
+            Text(String(format: localized("forecast"), s.forecast)).font(.caption)
             if !s.focusSafe.isEmpty {
-                Text(String(format: L("focusSafe"), s.focusSafe.joined(separator: ", "))).font(.caption).foregroundStyle(.blue)
+                Text(String(format: localized("focusSafe"), s.focusSafe.joined(separator: ", "))).font(.caption).foregroundStyle(.blue)
             }
             // Zero-surprise: the last action is always visible.
-            Text(s.lastAction.map { String(format: L("lastAction"), $0) } ?? L("lastAction.none"))
+            Text(s.lastAction.map { String(format: localized("lastAction"), $0) } ?? localized("lastAction.none"))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             if s.frozen.isEmpty && s.pressure == "normal" {
-                Text(L("healthyIdle")).font(.caption)
+                Text(localized("healthyIdle")).font(.caption)
             }
             if let e = s.configError { Text(e).font(.caption).foregroundStyle(.red).lineLimit(3) }
         }
@@ -109,13 +111,13 @@ struct MenuView: View {
 
     func controls(_ s: Status) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Picker(L("mode"), selection: Binding(get: { s.mode }, set: { model.setMode($0) })) {
-                Text(L("mode.observe")).tag(Mode.observe)
-                Text(L("mode.active")).tag(Mode.active)
+            Picker(localized("mode"), selection: Binding(get: { s.mode }, set: { model.setMode($0) })) {
+                Text(localized("mode.observe")).tag(Mode.observe)
+                Text(localized("mode.active")).tag(Mode.active)
             }
             .pickerStyle(.segmented)
-            Picker(L("profile"), selection: Binding(get: { s.profile }, set: { model.setProfile($0) })) {
-                ForEach(["auto", "work", "batterySaver", "presentation", "dev"], id: \.self) { Text(L("profile." + $0)).tag($0) }
+            Picker(localized("profile"), selection: Binding(get: { s.profile }, set: { model.setProfile($0) })) {
+                ForEach(["auto", "work", "batterySaver", "presentation", "dev"], id: \.self) { Text(localized("profile." + $0)).tag($0) }
             }
         }
     }
@@ -123,17 +125,17 @@ struct MenuView: View {
     func frozen(_ s: Status) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if s.frozen.isEmpty {
-                Text(L("frozen.none")).foregroundStyle(.secondary)
+                Text(localized("frozen.none")).foregroundStyle(.secondary)
             }
             ForEach(s.frozen, id: \.id) { f in
                 HStack {
                     Image(systemName: f.dryRun ? "eye" : "snowflake").accessibilityHidden(true)
                     Text(f.name).lineLimit(1)
                     Spacer()
-                    Button(L("thaw")) { model.thaw(f.id) }
-                        .accessibilityLabel(Text(String(format: L("a11y.thaw"), f.name)))
-                    Button(L("neverFreeze")) { model.neverFreeze(f.id) }
-                        .accessibilityLabel(Text(String(format: L("a11y.never"), f.name)))
+                    Button(localized("thaw")) { model.thaw(f.id) }
+                        .accessibilityLabel(Text(String(format: localized("a11y.thaw"), f.name)))
+                    Button(localized("neverFreeze")) { model.neverFreeze(f.id) }
+                        .accessibilityLabel(Text(String(format: localized("a11y.never"), f.name)))
                 }
             }
         }
@@ -142,13 +144,13 @@ struct MenuView: View {
     var actions: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Button(L("thawAll")) { model.thawAll() }.keyboardShortcut("t", modifiers: [.command])
-                Button(L("undo")) { model.undo() }.keyboardShortcut("z", modifiers: [.command])
+                Button(localized("thawAll")) { model.thawAll() }.keyboardShortcut("t", modifiers: [.command])
+                Button(localized("undo")) { model.undo() }.keyboardShortcut("z", modifiers: [.command])
             }
-            Text(L("hotkey")).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(localized("hotkey")).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button(L("why")) { model.show("why", title: L("why")) }
-                Button(L("digest")) { model.show("stats", title: L("digest")) }
+                Button(localized("why")) { model.show("why", title: localized("why")) }
+                Button(localized("digest")) { model.show("stats", title: localized("digest")) }
             }
         }
     }
@@ -156,17 +158,19 @@ struct MenuView: View {
     var permissions: some View {
         HStack {
             Image(systemName: model.accessibility ? "checkmark.shield" : "shield").accessibilityHidden(true)
-            Text(model.accessibility ? L("perm.ax.on") : L("perm.ax.off")).font(.caption)
+            Text(model.accessibility ? localized("perm.ax.on") : localized("perm.ax.off")).font(.caption)
             Spacer()
-            if !model.accessibility { Button(L("perm.open")) { model.openAccessibilitySettings() }.font(.caption) }
+            if !model.accessibility { Button(localized("perm.open")) { model.openAccessibilitySettings() }.font(.caption) }
         }
     }
 
     var about: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(L("about.noDelete")).font(.caption).bold().fixedSize(horizontal: false, vertical: true)
-            Text(String(format: L("about.version"), icleanVersion) + " · " + L("about.trademark")).font(.caption2).foregroundStyle(.secondary)
-            Button(L("quit")) { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
+            Text(localized("about.noDelete")).font(.caption).bold().fixedSize(horizontal: false, vertical: true)
+            Text(String(format: localized("about.version"), icleanVersion) + " · " + localized("about.trademark")).font(.caption2)
+                .foregroundStyle(
+                    .secondary)
+            Button(localized("quit")) { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
         }
     }
 }

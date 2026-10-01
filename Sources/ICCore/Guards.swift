@@ -14,8 +14,10 @@ public struct SocketFact: Codable, Equatable, Sendable {
     /// Stable key for "have I seen this connection before".
     public var key: String
 
-    public init(kind: Kind, listening: Bool = false, established: Bool = false, localPort: Int = 0,
-                remotePort: Int = 0, remoteIsLoopback: Bool = false, queuedBytes: Int = 0, key: String = "") {
+    public init(
+        kind: Kind, listening: Bool = false, established: Bool = false, localPort: Int = 0,
+        remotePort: Int = 0, remoteIsLoopback: Bool = false, queuedBytes: Int = 0, key: String = ""
+    ) {
         self.kind = kind
         self.listening = listening
         self.established = established
@@ -43,8 +45,10 @@ public struct FileFact: Codable, Equatable, Sendable {
 public enum Guards {
     /// Connection verdicts. `firstSeen` remembers when each connection key was first
     /// seen for this app and is updated in place (keys no longer present are dropped).
-    public static func connection(_ sockets: [SocketFact], firstSeen: inout [String: Double], now: Double,
-                                  settings: Config.GuardSettings) -> (active: Bool, serving: Bool) {
+    public static func connection(
+        _ sockets: [SocketFact], firstSeen: inout [String: Double], now: Double,
+        settings: Config.GuardSettings
+    ) -> (active: Bool, serving: Bool) {
         var seen: [String: Double] = [:]
         var active = false
         let listeningPorts = Set(sockets.filter { $0.kind == .tcp && $0.listening }.map(\.localPort))

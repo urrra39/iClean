@@ -40,12 +40,17 @@ public enum Doctor {
         child.arguments = ["30"]
         try? child.run()
         let pid = child.processIdentifier
-        defer { kill(pid, SIGCONT); child.terminate(); child.waitUntilExit() }
+        defer {
+            kill(pid, SIGCONT)
+            child.terminate()
+            child.waitUntilExit()
+        }
         usleep(50_000)
 
         var stop = false
         if let id = Proc.startTime(pid).map({ ProcessIdentity(pid: pid, startTime: $0) }),
-           Signals.send(SIGSTOP, to: id) == .sent {
+            Signals.send(SIGSTOP, to: id) == .sent
+        {
             usleep(50_000)
             stop = Proc.bsdInfo(pid)?.pbi_status == UInt32(SSTOP)
             _ = Signals.send(SIGCONT, to: id)
@@ -59,51 +64,54 @@ public enum Doctor {
         var pageout = false
         if let p, p != MAP_FAILED {
             memset(p, 1, len)
-            pageout = madvise(p, len, 10 /* MADV_PAGEOUT */) == 0
+            pageout = madvise(p, len, 10) == 0  // 10 = MADV_PAGEOUT
             munmap(p, len)
         }
         let bg = setpriority(PRIO_DARWIN_PROCESS, id_t(pid), PRIO_DARWIN_BG) == 0
-        return Mechanisms(sigstop: stop, machSuspend: mach, forcedPageout: pageout, backgroundPriority: bg,
-                          audioAttribution: AudioActivity.available)
+        return Mechanisms(
+            sigstop: stop, machSuspend: mach, forcedPageout: pageout, backgroundPriority: bg,
+            audioAttribution: AudioActivity.available)
     }
 
     public static func run(paths: Paths, installer: Installer) -> Report {
         let hw = SystemSampler.hardware()
         let s = SystemSampler.sample()
-        var entries = 0, corrupt = false
+        var entries = 0
+        var corrupt = false
         if let data = try? Data(contentsOf: paths.journal) {
             if let j = try? JSONDecoder().decode(Journal.self, from: data) { entries = j.entries.count } else { corrupt = true }
         }
-        return Report(icleanVersion: icleanVersion, model: hw.model, arch: hw.arch, memoryGB: Int(hw.memoryGB.rounded()),
-                      macOS: hw.osVersion, ramProfile: RAMProfile(memoryGB: hw.memoryGB).rawValue,
-                      rotationalDisk: hw.rotationalDisk, battery: hw.hasBattery, mechanisms: mechanisms(),
-                      permissions: Permissions.status(),
-                      daemonRunning: IPC.send(Request("ping"), path: paths.socket.path, timeout: 2)?.ok == true,
-                      launchAgentInstalled: FileManager.default.fileExists(atPath: installer.plist.path),
-                      journalEntries: entries, journalCorrupt: corrupt, pressure: s.pressure.name,
-                      swapUsedMB: Int(s.swapUsedMB))
+        return Report(
+            icleanVersion: icleanVersion, model: hw.model, arch: hw.arch, memoryGB: Int(hw.memoryGB.rounded()),
+            macOS: hw.osVersion, ramProfile: RAMProfile(memoryGB: hw.memoryGB).rawValue,
+            rotationalDisk: hw.rotationalDisk, battery: hw.hasBattery, mechanisms: mechanisms(),
+            permissions: Permissions.status(),
+            daemonRunning: IPC.send(Request("ping"), path: paths.socket.path, timeout: 2)?.ok == true,
+            launchAgentInstalled: FileManager.default.fileExists(atPath: installer.plist.path),
+            journalEntries: entries, journalCorrupt: corrupt, pressure: s.pressure.name,
+            swapUsedMB: Int(s.swapUsedMB))
     }
 
     public static func text(_ r: Report) -> String {
         func yn(_ b: Bool) -> String { b ? "yes" : "no" }
         return """
-        iClean \(r.icleanVersion)
-        Mac: \(r.model), \(r.arch), \(r.memoryGB) GB RAM (profile: \(r.ramProfile)), macOS \(r.macOS)
-        Disk: \(r.rotationalDisk ? "rotational (iClean is extra conservative)" : "solid state"), battery: \(yn(r.battery))
-        Mechanisms on this Mac:
-          SIGSTOP/SIGCONT freeze:        \(yn(r.mechanisms.sigstop))\(r.mechanisms.sigstop ? "" : "  <- iClean cannot freeze anything here")
-          Background priority (BG band): \(yn(r.mechanisms.backgroundPriority))
-          Mach task suspend:             \(yn(r.mechanisms.machSuspend)) (not used)
-          Forced pageout:                \(yn(r.mechanisms.forcedPageout)) (not used; the kernel reclaims frozen apps' memory)
-          Per-app audio detection:       \(yn(r.mechanisms.audioAttribution))\(r.mechanisms.audioAttribution ? "" : " (macOS 14.2+; power assertions are used instead)")
-        Permissions (optional):
-          Accessibility:    \(yn(r.permissions.accessibility)) (post-thaw responsiveness check and thaw latency)
-          Screen Recording: \(yn(r.permissions.screenRecording)) (not needed)
-          Input Monitoring: \(yn(r.permissions.inputMonitoring)) (only for experimental predictive thaw)
-        Daemon: \(r.daemonRunning ? "running" : "not running"), LaunchAgent \(r.launchAgentInstalled ? "installed" : "not installed")
-        Journal: \(r.journalCorrupt ? "CORRUPT (run `iclean thaw --all`)" : "\(r.journalEntries) frozen process(es) recorded")
-        Now: pressure \(r.pressure), swap \(r.swapUsedMB) MB
-        """
+            iClean \(r.icleanVersion)
+            Mac: \(r.model), \(r.arch), \(r.memoryGB) GB RAM (profile: \(r.ramProfile)), macOS \(r.macOS)
+            Disk: \(r.rotationalDisk ? "rotational (iClean is extra conservative)" : "solid state"), battery: \(yn(r.battery))
+            Mechanisms on this Mac:
+              SIGSTOP/SIGCONT freeze:        \(yn(r.mechanisms.sigstop))\(r.mechanisms.sigstop ? "" : "  <- iClean cannot freeze anything here")
+              Background priority (BG band): \(yn(r.mechanisms.backgroundPriority))
+              Mach task suspend:             \(yn(r.mechanisms.machSuspend)) (not used)
+              Forced pageout:                \(yn(r.mechanisms.forcedPageout)) (not used; the kernel reclaims frozen apps' memory)
+              Per-app audio detection:       \(yn(r.mechanisms.audioAttribution))\(r.mechanisms.audioAttribution ? "" : " (macOS 14.2+; power assertions are used instead)")
+            Permissions (optional):
+              Accessibility:    \(yn(r.permissions.accessibility)) (post-thaw responsiveness check and thaw latency)
+              Screen Recording: \(yn(r.permissions.screenRecording)) (not needed)
+              Input Monitoring: \(yn(r.permissions.inputMonitoring)) (only for experimental predictive thaw)
+            Daemon: \(r.daemonRunning ? "running" : "not running"), LaunchAgent \(r.launchAgentInstalled ? "installed" : "not installed")
+            Journal: \(r.journalCorrupt ? "CORRUPT (run `iclean thaw --all`)" : "\(r.journalEntries) frozen process(es) recorded")
+            Now: pressure \(r.pressure), swap \(r.swapUsedMB) MB
+            """
     }
 
     /// Anonymized block for a compatibility report: no hostname, user name, serial,
@@ -134,8 +142,10 @@ public struct Installer: Sendable {
     public let label: String
     public let daemonPath: String
 
-    public init(paths: Paths = Paths(), daemonPath: String,
-                environment: [String: String] = ProcessInfo.processInfo.environment) {
+    public init(
+        paths: Paths = Paths(), daemonPath: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) {
         self.paths = paths
         self.daemonPath = daemonPath
         let isolated = !(environment["ICLEAN_HOME"] ?? "").isEmpty
@@ -184,7 +194,8 @@ public struct Installer: Sendable {
         if isLoaded { Self.launchctl(["bootout", "\(domain)/\(label)"]) }
         try Files.atomicWrite(plistData(), to: plist)
         let r = Self.launchctl(["bootstrap", domain, plist.path])
-        return r.status == 0 ? "Installed and started \(label) (Observe mode until you run `iclean mode active`)."
+        return r.status == 0
+            ? "Installed and started \(label) (Observe mode until you run `iclean mode active`)."
             : "Wrote \(plist.path) but launchctl bootstrap failed: \(r.output)"
     }
 

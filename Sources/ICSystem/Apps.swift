@@ -74,21 +74,23 @@ public final class AppCollector {
             let outside = procs.dropFirst().filter { !$0.path.hasPrefix(bundlePath) }
             let id = app.bundleIdentifier!
             let path = app.bundleURL?.path ?? ""
-            apps.append(AppSnapshot(
-                id: id, name: app.localizedName ?? id, processes: procs.map(\.identity),
-                residentMB: procs.map(\.residentMB).reduce(0, +), footprintMB: procs.map(\.footprintMB).reduce(0, +),
-                cpuPercent: tree.compactMap { cpu[$0] }.reduce(0, +),
-                isFrontmost: root == frontPID,
-                hasVisibleWindow: !windows.visiblePIDs.isDisjoint(with: tree) && !app.isHidden,
-                isHidden: app.isHidden, isRegularApp: app.activationPolicy == .regular,
-                isElectron: FileManager.default.fileExists(atPath: path + "/Contents/Frameworks/Electron Framework.framework"),
-                origin: path.hasPrefix("/System/") ? .system : id.hasPrefix("com.apple.") ? .apple : .thirdParty,
-                partialTree: Self.partialTreeIDs.contains(id),
-                isDaemonLineage: !lineage.isDisjoint(with: tree),
-                signals: ActivitySignals(audioOutput: !audio.output.isDisjoint(with: tree),
-                                         audioInput: !audio.input.isDisjoint(with: tree),
-                                         powerAssertion: !asserting.isDisjoint(with: tree),
-                                         busyChildren: outside.contains { (cpu[$0.pid] ?? 0) > 1 })))
+            apps.append(
+                AppSnapshot(
+                    id: id, name: app.localizedName ?? id, processes: procs.map(\.identity),
+                    residentMB: procs.map(\.residentMB).reduce(0, +), footprintMB: procs.map(\.footprintMB).reduce(0, +),
+                    cpuPercent: tree.compactMap { cpu[$0] }.reduce(0, +),
+                    isFrontmost: root == frontPID,
+                    hasVisibleWindow: !windows.visiblePIDs.isDisjoint(with: tree) && !app.isHidden,
+                    isHidden: app.isHidden, isRegularApp: app.activationPolicy == .regular,
+                    isElectron: FileManager.default.fileExists(atPath: path + "/Contents/Frameworks/Electron Framework.framework"),
+                    origin: path.hasPrefix("/System/") ? .system : id.hasPrefix("com.apple.") ? .apple : .thirdParty,
+                    partialTree: Self.partialTreeIDs.contains(id),
+                    isDaemonLineage: !lineage.isDisjoint(with: tree),
+                    signals: ActivitySignals(
+                        audioOutput: !audio.output.isDisjoint(with: tree),
+                        audioInput: !audio.input.isDisjoint(with: tree),
+                        powerAssertion: !asserting.isDisjoint(with: tree),
+                        busyChildren: outside.contains { (cpu[$0.pid] ?? 0) > 1 })))
         }
 
         // Large standalone processes (for example a Python job), grouped by name.
@@ -100,15 +102,18 @@ public final class AppCollector {
             let mb = procs.map(\.residentMB).reduce(0, +)
             guard mb >= standaloneMinMB else { continue }
             let system = procs.allSatisfy { $0.path.hasPrefix("/System/") || $0.path.hasPrefix("/usr/") }
-            apps.append(AppSnapshot(id: id, name: String(id.dropFirst(4)), processes: procs.map(\.identity),
-                                    residentMB: mb, footprintMB: procs.map(\.footprintMB).reduce(0, +),
-                                    cpuPercent: procs.compactMap { cpu[$0.pid] }.reduce(0, +),
-                                    isRegularApp: false, origin: system ? .system : .thirdParty,
-                                    isDaemonLineage: procs.contains { lineage.contains($0.pid) }))
+            apps.append(
+                AppSnapshot(
+                    id: id, name: String(id.dropFirst(4)), processes: procs.map(\.identity),
+                    residentMB: mb, footprintMB: procs.map(\.footprintMB).reduce(0, +),
+                    cpuPercent: procs.compactMap { cpu[$0.pid] }.reduce(0, +),
+                    isRegularApp: false, origin: system ? .system : .thirdParty,
+                    isDaemonLineage: procs.contains { lineage.contains($0.pid) }))
         }
         apps.sort { $0.id < $1.id }
-        return Result(apps: apps, session: SessionProbe.context(frontmostPID: frontPID, windows: windows),
-                      table: table, frontmostPID: frontPID)
+        return Result(
+            apps: apps, session: SessionProbe.context(frontmostPID: frontPID, windows: windows),
+            table: table, frontmostPID: frontPID)
     }
 
     /// Fills in the S4 guard signals for one app (sockets and files of every process).

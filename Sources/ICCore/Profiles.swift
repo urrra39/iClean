@@ -19,8 +19,10 @@ public enum RAMProfile: String, Codable, Sendable {
 
 /// Picks the active context profile. Manual choice wins, then presentation
 /// signals, then the schedule, then battery.
-public func activeProfile(settings: Config.ProfileSettings, session: SessionContext, sample: SystemSample,
-                          weekday: Int, hour: Int) -> ProfileName {
+public func activeProfile(
+    settings: Config.ProfileSettings, session: SessionContext, sample: SystemSample,
+    weekday: Int, hour: Int
+) -> ProfileName {
     if let m = settings.manual { return m }
     if settings.autoPresentation, session.displayMirrored || session.screenSharing { return .presentation }
     if let rule = settings.schedule.first(where: { $0.weekdays.contains(weekday) && hour >= $0.startHour && hour < $0.endHour }) {
@@ -81,7 +83,9 @@ public func profileAllowsAction(_ hardware: Hardware, level: PressureLevel) -> B
 
 /// Apps treated as Tier S while the Dev profile is active.
 public func devProtected(_ app: AppSnapshot) -> Bool {
-    let devIDs: Set<String> = ["com.microsoft.VSCode", "com.apple.dt.Xcode", "com.sublimetext.4",
-                               "dev.zed.Zed", "com.panic.Nova", "com.apple.iphonesimulator"]
+    let devIDs: Set<String> = [
+        "com.microsoft.VSCode", "com.apple.dt.Xcode", "com.sublimetext.4",
+        "dev.zed.Zed", "com.panic.Nova", "com.apple.iphonesimulator",
+    ]
     return devIDs.contains(app.id) || app.id.hasPrefix("com.jetbrains.")
 }

@@ -98,4 +98,3 @@ public struct HabitEvaluation: Codable, Equatable, Sendable {
         return e
     }
 }
-

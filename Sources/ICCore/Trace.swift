@@ -48,7 +48,10 @@ public enum Trace {
         var skipped = 0
         let d = JSONDecoder()
         for line in data.split(separator: 0x0A, omittingEmptySubsequences: true) {
-            guard out.count < maxRecords else { skipped += 1; continue }
+            guard out.count < maxRecords else {
+                skipped += 1
+                continue
+            }
             guard line.count <= maxLineBytes, let r = try? d.decode(TraceRecord.self, from: Data(line)), r.v == 1 else {
                 skipped += 1
                 continue
@@ -62,8 +65,8 @@ public enum Trace {
     /// The same salt maps the same app to the same token within one export.
     public static func anonymize(_ r: TraceRecord, salt: String) -> TraceRecord {
         func token(_ id: String) -> String {
-            var h: UInt64 = 0xcbf29ce484222325
-            for b in (salt + id).utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
+            var h: UInt64 = 0xcbf2_9ce4_8422_2325
+            for b in (salt + id).utf8 { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 }
             return "app-" + String(h, radix: 16)
         }
         var r = r
@@ -115,15 +118,19 @@ public struct SimulationResult: Codable, Equatable, Sendable {
         l.append("  ticks \(ticks), activations \(activations), skipped records \(skippedRecords)")
         l.append("  freezes \(freezes), deprioritizations \(deprioritizations), thaws \(thaws)")
         l.append(String(format: "  predicted relief %.0f MB (estimate)", predictedReliefMB))
-        l.append(closedFreezes > 0
-                 ? String(format: "  regret: %d of %d closed freezes (%.0f%%)", regretted, closedFreezes, 100 * Double(regretted) / Double(closedFreezes))
-                 : "  regret: not enough data")
+        l.append(
+            closedFreezes > 0
+                ? String(
+                    format: "  regret: %d of %d closed freezes (%.0f%%)", regretted, closedFreezes,
+                    100 * Double(regretted) / Double(closedFreezes))
+                : "  regret: not enough data")
         let alarms = forecastHits + forecastFalseAlarms
-        l.append(alarms + forecastMissed > 0
-                 ? "  forecast: \(forecastHits) hits, \(forecastFalseAlarms) false alarms, \(forecastMissed) missed"
-                   + (forecastLeadP50Minutes.map { String(format: ", lead p50 %.1f min", $0) } ?? "")
-                   + (forecastLeadP95Minutes.map { String(format: ", p95 %.1f min", $0) } ?? "")
-                 : "  forecast: no pressure events in trace")
+        l.append(
+            alarms + forecastMissed > 0
+                ? "  forecast: \(forecastHits) hits, \(forecastFalseAlarms) false alarms, \(forecastMissed) missed"
+                    + (forecastLeadP50Minutes.map { String(format: ", lead p50 %.1f min", $0) } ?? "")
+                    + (forecastLeadP95Minutes.map { String(format: ", p95 %.1f min", $0) } ?? "")
+                : "  forecast: no pressure events in trace")
         for (id, n) in freezesByApp.sorted(by: { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }).prefix(10) {
             l.append("    \(id): \(n)")
         }
@@ -132,8 +139,10 @@ public struct SimulationResult: Codable, Equatable, Sendable {
 }
 
 public enum Simulator {
-    public static func run(_ records: [TraceRecord], config: Config, hardware: Hardware,
-                           skipped: Int = 0) -> SimulationResult {
+    public static func run(
+        _ records: [TraceRecord], config: Config, hardware: Hardware,
+        skipped: Int = 0
+    ) -> SimulationResult {
         var r = SimulationResult()
         r.skippedRecords = skipped
         let start = records.first?.t ?? 0

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import ICCore
 
 @Suite struct JournalTests {
@@ -54,7 +55,8 @@ import Testing
     }
 
     @Test func swapRate() {
-        let a = sample(0, swapOuts: 0), b = sample(60, swapOuts: 6400)  // 6400 x 16 KB = 100 MB
+        let a = sample(0, swapOuts: 0)
+        let b = sample(60, swapOuts: 6400)  // 6400 x 16 KB = 100 MB
         #expect(Health.swapOutRate(a, b) == 100)
         #expect(Health.swapOutRate(b, a) == 0)
     }
@@ -159,7 +161,8 @@ import Testing
         c.dailyBudget = 2
         for i in 0..<3 {
             RegretTracker.recordFreeze(&s, appID: "a\(i)", at: Double(i * 10), reliefMB: 1, dryRun: false)
-            RegretTracker.recordThaw(&s, appID: "a\(i)", at: Double(i * 10 + 5), reason: Code.thawActivated, realizedReliefMB: nil, settings: c)
+            RegretTracker.recordThaw(
+                &s, appID: "a\(i)", at: Double(i * 10 + 5), reason: Code.thawActivated, realizedReliefMB: nil, settings: c)
         }
         #expect(s.isConservative(at: 100))
         #expect(s.isConservative(at: 86000))
@@ -252,9 +255,11 @@ import Testing
 
     @Test func loopbackAndBenignPortsAreIgnored() {
         var mem: [String: Double] = [:]
-        let s = [SocketFact(kind: .tcp, established: true, remotePort: 5223, key: "push"),
-                 SocketFact(kind: .tcp, established: true, remotePort: 9000, remoteIsLoopback: true, key: "lo"),
-                 SocketFact(kind: .udp, remotePort: 443, key: "quic")]
+        let s = [
+            SocketFact(kind: .tcp, established: true, remotePort: 5223, key: "push"),
+            SocketFact(kind: .tcp, established: true, remotePort: 9000, remoteIsLoopback: true, key: "lo"),
+            SocketFact(kind: .udp, remotePort: 443, key: "quic"),
+        ]
         #expect(!Guards.connection(s, firstSeen: &mem, now: 0, settings: g).active)
     }
 
@@ -318,7 +323,9 @@ import Testing
         var s = RunawayState()
         var notes = 0
         for t in stride(from: 0.0, through: 7 * 3600, by: 60) {
-            notes += Runaway.update(&s, apps: [app("com.hot", cpu: 99), app("com.apple.Terminal", cpu: 99)], now: t, settings: settings).notify.count
+            notes +=
+                Runaway.update(&s, apps: [app("com.hot", cpu: 99), app("com.apple.Terminal", cpu: 99)], now: t, settings: settings).notify
+                .count
         }
         #expect(notes == 2)  // at ~5 min and again after 6 h
         #expect(s.series["com.apple.Terminal"] == nil)
@@ -337,9 +344,12 @@ import Testing
 
 @Suite struct StagedThawTests {
     @Test func orderAndDelays() {
-        let plan = StagedThaw.schedule([ThawCandidate(appID: "old", reclaimedMB: 1000, priority: 1),
-                                        ThawCandidate(appID: "new", reclaimedMB: 500, priority: 9),
-                                        ThawCandidate(appID: "mid", reclaimedMB: 100_000, priority: 5)], swapInMBps: 1000)
+        let plan = StagedThaw.schedule(
+            [
+                ThawCandidate(appID: "old", reclaimedMB: 1000, priority: 1),
+                ThawCandidate(appID: "new", reclaimedMB: 500, priority: 9),
+                ThawCandidate(appID: "mid", reclaimedMB: 100_000, priority: 5),
+            ], swapInMBps: 1000)
         #expect(plan.map(\.appID) == ["new", "mid", "old"])
         #expect(plan.map(\.delay) == [0, 0.5, 10])
         #expect(StagedThaw.schedule([], swapInMBps: 1).isEmpty)
@@ -351,8 +361,11 @@ import Testing
         var p = Config.ProfileSettings()
         let s = sample(0)
         #expect(activeProfile(settings: p, session: SessionContext(), sample: s, weekday: 2, hour: 10) == .work)
-        #expect(activeProfile(settings: p, session: SessionContext(), sample: sample(0, onBattery: true), weekday: 2, hour: 10) == .batterySaver)
-        #expect(activeProfile(settings: p, session: SessionContext(displayMirrored: true), sample: s, weekday: 2, hour: 10) == .presentation)
+        #expect(
+            activeProfile(settings: p, session: SessionContext(), sample: sample(0, onBattery: true), weekday: 2, hour: 10) == .batterySaver
+        )
+        #expect(
+            activeProfile(settings: p, session: SessionContext(displayMirrored: true), sample: s, weekday: 2, hour: 10) == .presentation)
         p.schedule = [ScheduleRule(weekdays: [2], startHour: 9, endHour: 18, profile: .dev)]
         #expect(activeProfile(settings: p, session: SessionContext(), sample: s, weekday: 2, hour: 10) == .dev)
         #expect(activeProfile(settings: p, session: SessionContext(), sample: s, weekday: 3, hour: 10) == .work)

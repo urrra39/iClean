@@ -11,13 +11,16 @@ final class HotKey {
         self.action = action
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let me = Unmanaged.passUnretained(self).toOpaque()
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, ctx in
-            Unmanaged<HotKey>.fromOpaque(ctx!).takeUnretainedValue().action()
-            return noErr
-        }, 1, &spec, me, &handler)
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, _, ctx in
+                Unmanaged<HotKey>.fromOpaque(ctx!).takeUnretainedValue().action()
+                return noErr
+            }, 1, &spec, me, &handler)
         let id = EventHotKeyID(signature: OSType(0x6963_6C6E), id: 1)  // "icln"
-        RegisterEventHotKey(UInt32(kVK_ANSI_T), UInt32(controlKey | optionKey | cmdKey), id,
-                            GetApplicationEventTarget(), 0, &ref)
+        RegisterEventHotKey(
+            UInt32(kVK_ANSI_T), UInt32(controlKey | optionKey | cmdKey), id,
+            GetApplicationEventTarget(), 0, &ref)
     }
 
     deinit {

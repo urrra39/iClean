@@ -6,7 +6,7 @@ import ICCore
 public struct ProcInfo: Sendable {
     public var pid: Int32
     public var ppid: Int32
-    public var startTime: UInt64   // microseconds since 1970
+    public var startTime: UInt64  // microseconds since 1970
     public var uid: uid_t
     public var name: String
     public var path: String
@@ -44,20 +44,22 @@ public enum Proc {
     public static func info(_ pid: Int32) -> ProcInfo? {
         guard let b = bsdInfo(pid) else { return nil }
         var ri = rusage_info_v4()
-        let ok = withUnsafeMutablePointer(to: &ri) {
-            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
-        } == 0
+        let ok =
+            withUnsafeMutablePointer(to: &ri) {
+                $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
+            } == 0
         let name = withUnsafeBytes(of: b.pbi_name) { raw -> String in
             let s = String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
             return s.isEmpty ? withUnsafeBytes(of: b.pbi_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) } : s
         }
         let cpu = ok ? (ri.ri_user_time + ri.ri_system_time) * timebase.numer / timebase.denom : 0
-        return ProcInfo(pid: pid, ppid: Int32(b.pbi_ppid),
-                        startTime: UInt64(b.pbi_start_tvsec) * 1_000_000 + UInt64(b.pbi_start_tvusec),
-                        uid: b.pbi_uid, name: name, path: path(pid), stopped: b.pbi_status == UInt32(SSTOP),
-                        residentMB: ok ? Double(ri.ri_resident_size) / 1_048_576 : 0,
-                        footprintMB: ok ? Double(ri.ri_phys_footprint) / 1_048_576 : 0,
-                        cpuNanos: cpu)
+        return ProcInfo(
+            pid: pid, ppid: Int32(b.pbi_ppid),
+            startTime: UInt64(b.pbi_start_tvsec) * 1_000_000 + UInt64(b.pbi_start_tvusec),
+            uid: b.pbi_uid, name: name, path: path(pid), stopped: b.pbi_status == UInt32(SSTOP),
+            residentMB: ok ? Double(ri.ri_resident_size) / 1_048_576 : 0,
+            footprintMB: ok ? Double(ri.ri_phys_footprint) / 1_048_576 : 0,
+            cpuNanos: cpu)
     }
 
     public static func allPIDs() -> [Int32] {
@@ -102,7 +104,8 @@ public enum Signals {
     /// Verifies PID, start time and owner, then signals.
     public static func send(_ sig: Int32, to id: ProcessIdentity) -> Outcome {
         guard let b = Proc.bsdInfo(id.pid),
-              UInt64(b.pbi_start_tvsec) * 1_000_000 + UInt64(b.pbi_start_tvusec) == id.startTime else { return .stale }
+            UInt64(b.pbi_start_tvsec) * 1_000_000 + UInt64(b.pbi_start_tvusec) == id.startTime
+        else { return .stale }
         guard b.pbi_uid == getuid() else { return .failed(EPERM) }
         if kill(id.pid, sig) == 0 { return .sent }
         return errno == ESRCH ? .stale : .failed(errno)
@@ -112,9 +115,12 @@ public enum Signals {
     /// If any live process cannot be stopped, everything stopped so far is resumed and
     /// removed from the journal again (all-or-nothing, safety invariant 4).
     /// `send` is replaceable so tests can inject a failure part-way through a tree.
-    public static func freezeTree(_ ids: [ProcessIdentity], appID: String, at now: Double, journal: JournalStore,
-                                  send: (Int32, ProcessIdentity) -> Outcome = { Signals.send($0, to: $1) })
-        -> (ok: Bool, stopped: [ProcessIdentity], error: String?) {
+    public static func freezeTree(
+        _ ids: [ProcessIdentity], appID: String, at now: Double, journal: JournalStore,
+        send: (Int32, ProcessIdentity) -> Outcome = { Signals.send($0, to: $1) }
+    )
+        -> (ok: Bool, stopped: [ProcessIdentity], error: String?)
+    {
         do {
             try journal.update { $0.add(ids.map { JournalEntry(pid: $0.pid, startTime: $0.startTime, appID: appID, frozenAt: now) }) }
         } catch {
@@ -156,7 +162,8 @@ public enum Signals {
     public static func recover(journal: JournalStore) -> (thawed: Int, stale: Int, corrupt: Bool) {
         switch journal.load() {
         case .ok(let j):
-            var thawed = 0, stale = 0
+            var thawed = 0
+            var stale = 0
             for step in Recovery.plan(j, startTime: Proc.startTime) {
                 switch step {
                 case .thaw(let e):

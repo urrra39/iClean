@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import ICCore
 
 @Suite struct TraceTests {
@@ -36,8 +37,11 @@ import Testing
         #expect(a.processes.allSatisfy { $0.pid == 0 })
         let act = Trace.anonymize(.activate("com.example.a", name: "a", at: 1, weekday: 1, hour: 1), salt: "s")
         #expect(act.app == a.id && act.name == nil)
-        let x = Trace.anonymize(.action(Action(kind: .thaw, appID: "com.example.a", name: "a", processes: [ProcessIdentity(pid: 1, startTime: 1)],
-                                               reasons: [], dryRun: false, message: "m"), at: 1), salt: "s")
+        let x = Trace.anonymize(
+            .action(
+                Action(
+                    kind: .thaw, appID: "com.example.a", name: "a", processes: [ProcessIdentity(pid: 1, startTime: 1)],
+                    reasons: [], dryRun: false, message: "m"), at: 1), salt: "s")
         #expect(x.action!.appID == a.id && x.action!.processes.isEmpty && x.action!.message == nil)
         #expect(Trace.anonymize(.tick(input), salt: "other").tick!.apps[0].id != a.id)
         let text = String(decoding: Trace.encode(r), as: UTF8.self)
@@ -65,11 +69,14 @@ import Testing
 
 @Suite struct WhyTests {
     @Test func healthyMachine() {
-        let d = Why.diagnose(samples: [sample(0), sample(60)], apps: [app("com.a")], runaway: [],
-                             forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
+        let d = Why.diagnose(
+            samples: [sample(0), sample(60)], apps: [app("com.a")], runaway: [],
+            forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
         #expect(d.healthy && d.causes.isEmpty)
         #expect(d.text.contains("Your Mac is healthy; iClean is idle."))
-        #expect(Why.diagnose(samples: [], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 }).healthy)
+        #expect(
+            Why.diagnose(samples: [], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 }).healthy
+        )
     }
 
     @Test func rankedCauses() {
@@ -82,13 +89,17 @@ import Testing
         let idle = app("com.idle.big", mb: 3000)
         let hot = RunawayFinding(appID: "com.hot", name: "Hot", code: Code.runawayCPU, detail: "99% CPU")
         let leak = RunawayFinding(appID: "com.leak", name: "Leak", code: Code.runawayMemory, detail: "growing")
-        let d = Why.diagnose(samples: [s0, s1], apps: [idle, app("com.front", front: true)], runaway: [hot, leak],
-                             forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 60 })
+        let d = Why.diagnose(
+            samples: [s0, s1], apps: [idle, app("com.front", front: true)], runaway: [hot, leak],
+            forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 60 })
         #expect(!d.healthy)
         #expect(d.causes.first?.code == Code.pressureCritical)
         #expect(d.causes.map(\.severity) == d.causes.map(\.severity).sorted(by: >))
         let codes = Set(d.causes.map(\.code))
-        #expect(codes.isSuperset(of: ["SWAPPING", Code.runawayCPU, Code.runawayMemory, "THERMAL_THROTTLING", "LOW_DISK", "LOW_POWER_MODE", "TOP_MEMORY"]))
+        #expect(
+            codes.isSuperset(of: [
+                "SWAPPING", Code.runawayCPU, Code.runawayMemory, "THERMAL_THROTTLING", "LOW_DISK", "LOW_POWER_MODE", "TOP_MEMORY",
+            ]))
         #expect(d.causes.first!.suggestion.contains("idle.big") || d.causes.first!.suggestion.contains("big"))
         #expect(d.health.band == .poor)
     }
@@ -99,7 +110,8 @@ import Testing
         let d = Why.diagnose(samples: [s], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
         #expect(Set(d.causes.map(\.code)) == ["COMPRESSOR_LARGE", "THERMAL_FAIR"])
         #expect(d.healthy)
-        let w = Why.diagnose(samples: [sample(0, .warning)], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
+        let w = Why.diagnose(
+            samples: [sample(0, .warning)], apps: [], runaway: [], forecast: Forecast(armed: true, stable: true), idleMinutes: { _ in 0 })
         #expect(w.causes.first?.suggestion.contains("No idle heavy apps") == true)
     }
 }

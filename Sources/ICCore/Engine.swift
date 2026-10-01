@@ -34,9 +34,11 @@ public struct Action: Codable, Equatable, Sendable {
     public var delaySeconds = 0.0
     public var message: String?
 
-    public init(kind: ActionKind, appID: String, name: String, processes: [ProcessIdentity] = [],
-                reasons: [Reason], dryRun: Bool, reliefEstimateMB: Double? = nil, delaySeconds: Double = 0,
-                message: String? = nil) {
+    public init(
+        kind: ActionKind, appID: String, name: String, processes: [ProcessIdentity] = [],
+        reasons: [Reason], dryRun: Bool, reliefEstimateMB: Double? = nil, delaySeconds: Double = 0,
+        message: String? = nil
+    ) {
         self.kind = kind
         self.appID = appID
         self.name = name
@@ -77,8 +79,10 @@ public struct TickInput: Codable, Equatable, Sendable {
     public var hour: Int
     public var events: [SystemEvent]
 
-    public init(sample: SystemSample, apps: [AppSnapshot], session: SessionContext = SessionContext(),
-                weekday: Int = 2, hour: Int = 12, events: [SystemEvent] = []) {
+    public init(
+        sample: SystemSample, apps: [AppSnapshot], session: SessionContext = SessionContext(),
+        weekday: Int = 2, hour: Int = 12, events: [SystemEvent] = []
+    ) {
         self.sample = sample
         self.apps = apps
         self.session = session
@@ -192,10 +196,11 @@ public final class Engine {
     var dryRun: Bool { config.mode == .observe }
 
     func context(_ now: Double, _ cfg: Config, profile: ProfileName, wake: Set<String> = []) -> PolicyContext {
-        PolicyContext(now: now, config: cfg, profile: profile, lastActiveAt: state.lastActiveAt,
-                      learnedIdleMinutes: state.learnedIdleMinutes, lastThawAt: state.lastThawAt,
-                      quarantined: Set(state.quarantine.keys), demoted: Set(state.demoted.keys),
-                      frozen: Set(state.frozen.keys), wakeRefreeze: wake)
+        PolicyContext(
+            now: now, config: cfg, profile: profile, lastActiveAt: state.lastActiveAt,
+            learnedIdleMinutes: state.learnedIdleMinutes, lastThawAt: state.lastThawAt,
+            quarantined: Set(state.quarantine.keys), demoted: Set(state.demoted.keys),
+            frozen: Set(state.frozen.keys), wakeRefreeze: wake)
     }
 
     public func activationsPerHour(_ id: String, now: Double) -> Double {
@@ -203,8 +208,9 @@ public final class Engine {
     }
 
     func pReturnSoon(_ id: String, now: Double, weekday: Int, hour: Int) -> Double {
-        let rate = Policy.pReturn(activationsPerHour: activationsPerHour(id, now: now),
-                                  windowMinutes: config.regret.returnWindowMinutes)
+        let rate = Policy.pReturn(
+            activationsPerHour: activationsPerHour(id, now: now),
+            windowMinutes: config.regret.returnWindowMinutes)
         guard config.habits.enabled, let from = state.lastFrontmost else { return rate }
         let h = state.habits.probability(from: from, to: id, bucket: HabitTable.bucket(weekday: weekday, hour: hour))
         return h.support >= HabitTable.minSupport ? max(rate, h.p) : rate
@@ -217,8 +223,9 @@ public final class Engine {
     public func tick(_ input: TickInput) -> TickResult {
         let s = input.sample
         let now = s.time
-        let profile = activeProfile(settings: config.profiles, session: input.session, sample: s,
-                                    weekday: input.weekday, hour: input.hour)
+        let profile = activeProfile(
+            settings: config.profiles, session: input.session, sample: s,
+            weekday: input.weekday, hour: input.hour)
         let cfg = effectiveConfig(config, hardware: hardware, profile: profile)
         var actions: [Action] = []
 
@@ -248,12 +255,15 @@ public final class Engine {
             state.normalSince = nil
         }
 
-        let (runaway, notify) = cfg.runaway.enabled
+        let (runaway, notify) =
+            cfg.runaway.enabled
             ? Runaway.update(&state.runaway, apps: input.apps, now: now, settings: cfg.runaway) : ([], [])
         lastRunaway = runaway
         for f in notify {
-            actions.append(Action(kind: .notify, appID: f.appID, name: f.name, reasons: [Reason(f.code)], dryRun: false,
-                                  message: f.detail + ". Options: lower its priority, freeze it, or quit it."))
+            actions.append(
+                Action(
+                    kind: .notify, appID: f.appID, name: f.name, reasons: [Reason(f.code)], dryRun: false,
+                    message: f.detail + ". Options: lower its priority, freeze it, or quit it."))
         }
 
         actions += mandatoryThaws(input, cfg: cfg)
@@ -262,8 +272,9 @@ public final class Engine {
         let focus = focusSafeReasons(session: input.session, profile: profile)
         lastProfile = profile
         lastFocusSafe = focus
-        let health = Health.score(s, swapOutMBPerMinute: recent.first.map { Health.swapOutRate($0, s) } ?? 0,
-                                  runawayApps: runaway.count)
+        let health = Health.score(
+            s, swapOutMBPerMinute: recent.first.map { Health.swapOutRate($0, s) } ?? 0,
+            runawayApps: runaway.count)
 
         var trigger: String?
         if focus.isEmpty {
@@ -274,8 +285,9 @@ public final class Engine {
         }
         if let last = actions.last(where: { $0.kind != .notify }) { state.lastAction = last.summary }
         state.lastSampleTime = now
-        return TickResult(actions: actions, profile: profile, focusSafe: focus, forecast: forecast,
-                          health: health, runaway: runaway, trigger: trigger)
+        return TickResult(
+            actions: actions, profile: profile, focusSafe: focus, forecast: forecast,
+            health: health, runaway: runaway, trigger: trigger)
     }
 
     func accumulateStats(_ s: SystemSample) {
@@ -316,7 +328,8 @@ public final class Engine {
             } else if now - f.frozenAt >= cfg.maxFrozenMinutes * 60 {
                 out += thaw(id, reason: Code.thawMaxDuration, at: now)
             } else if let ns = state.normalSince, now - ns >= cfg.thawAfterNormalMinutes * 60,
-                      now - f.frozenAt >= cfg.minFrozenMinutes * 60 {
+                now - f.frozenAt >= cfg.minFrozenMinutes * 60
+            {
                 out += thaw(id, reason: Code.thawRelieved, at: now)
             } else if let w = cfg.wakeWindows[id], now - (state.lastWakeAt[id] ?? f.frozenAt) >= w.everyMinutes * 60 {
                 state.lastWakeAt[id] = now
@@ -328,8 +341,10 @@ public final class Engine {
                 let new = app.processes.filter { !known.contains($0) }
                 if !new.isEmpty {
                     state.frozen[id]?.processes += new
-                    out.append(Action(kind: .freeze, appID: id, name: f.name, processes: new,
-                                      reasons: [Reason("TREE_GREW")], dryRun: f.dryRun))
+                    out.append(
+                        Action(
+                            kind: .freeze, appID: id, name: f.name, processes: new,
+                            reasons: [Reason("TREE_GREW")], dryRun: f.dryRun))
                 }
             }
         }
@@ -346,8 +361,10 @@ public final class Engine {
             if app == nil || app!.isFrontmost || app!.hasVisibleWindow || calm || state.frozen[id] != nil {
                 state.deprioritized[id] = nil
                 if let app, state.frozen[id] == nil {
-                    out.append(Action(kind: .restorePriority, appID: id, name: app.name, processes: app.processes,
-                                      reasons: [Reason(calm ? Code.thawRelieved : Code.thawActivated)], dryRun: dryRun))
+                    out.append(
+                        Action(
+                            kind: .restorePriority, appID: id, name: app.name, processes: app.processes,
+                            reasons: [Reason(calm ? Code.thawRelieved : Code.thawActivated)], dryRun: dryRun))
                 }
             }
         }
@@ -356,7 +373,8 @@ public final class Engine {
 
     func preThaw(_ input: TickInput, cfg: Config) -> [Action] {
         guard cfg.habits.enabled, cfg.habits.preThaw, input.sample.pressure != .critical,
-              let from = state.lastFrontmost else { return [] }
+            let from = state.lastFrontmost
+        else { return [] }
         let bucket = HabitTable.bucket(weekday: input.weekday, hour: input.hour)
         var out: [Action] = []
         for p in state.habits.predict(from: from, bucket: bucket) where p.p >= cfg.habits.preThawProbability {
@@ -408,7 +426,8 @@ public final class Engine {
             weight = crit ? 2 : 1
             trigger = crit ? Code.pressureCritical : Code.pressureWarning
         } else if forecast.armed, let eta = forecast.etaWarning, eta <= cfg.forecast.horizonMinutes, !conservative,
-                  profileAllowsAction(hardware, level: .warning) {
+            profileAllowsAction(hardware, level: .warning)
+        {
             target = cfg.reliefTargetWarningMB * 0.5
             weight = 0.5
             trigger = Code.forecast
@@ -433,9 +452,10 @@ public final class Engine {
 
         let scored = eligible.filter { dueWake.contains($0.id) == false }.map { app -> (AppSnapshot, Double) in
             let risk = Policy.risk(tier: ctx.tier(app.id), regret: state.regret.perApp[app.id] ?? 0)
-            let sc = Policy.score(residentMB: app.residentMB, idleMinutes: ctx.idleMinutes(app),
-                                  idleThreshold: ctx.idleThreshold(app.id), risk: risk,
-                                  activationsPerHour: activationsPerHour(app.id, now: now))
+            let sc = Policy.score(
+                residentMB: app.residentMB, idleMinutes: ctx.idleMinutes(app),
+                idleThreshold: ctx.idleThreshold(app.id), risk: risk,
+                activationsPerHour: activationsPerHour(app.id, now: now))
             state.lastScores[app.id] = sc
             return (app, sc)
         }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }
@@ -454,21 +474,25 @@ public final class Engine {
                 continue
             }
             let relief = reliefEstimate(app)
-            let value = Policy.netValue(reliefMB: relief, targetMB: target, pressureWeight: weight,
-                                        pReturnSoon: pReturnSoon(app.id, now: now, weekday: input.weekday, hour: input.hour),
-                                        expectedThawMs: relief * state.calibration.thawMsPerMB,
-                                        thawBudgetMs: cfg.regret.thawLatencyBudgetMs)
+            let value = Policy.netValue(
+                reliefMB: relief, targetMB: target, pressureWeight: weight,
+                pReturnSoon: pReturnSoon(app.id, now: now, weekday: input.weekday, hour: input.hour),
+                expectedThawMs: relief * state.calibration.thawMsPerMB,
+                thawBudgetMs: cfg.regret.thawLatencyBudgetMs)
             if value < cfg.regret.minNetValue {
                 state.lastSkips[app.id] = [Reason(Code.lowValue, String(format: "net value %.2f", value))]
                 continue
             }
-            let needsDeprioritize = cfg.deprioritizeBeforeFreeze && s.pressure != .critical
+            let needsDeprioritize =
+                cfg.deprioritizeBeforeFreeze && s.pressure != .critical
                 && (state.deprioritized[app.id].map { now - $0 < Self.roundSpacing } ?? true)
             if forecastOnlyDeprioritize || needsDeprioritize {
                 if state.deprioritized[app.id] == nil {
                     state.deprioritized[app.id] = now
-                    out.append(Action(kind: .deprioritize, appID: app.id, name: app.name, processes: app.processes,
-                                      reasons: [Reason(trig), Reason.idle(minutes: ctx.idleMinutes(app))], dryRun: dryRun))
+                    out.append(
+                        Action(
+                            kind: .deprioritize, appID: app.id, name: app.name, processes: app.processes,
+                            reasons: [Reason(trig), Reason.idle(minutes: ctx.idleMinutes(app))], dryRun: dryRun))
                 }
                 continue
             }
@@ -485,8 +509,10 @@ public final class Engine {
             for (id, f) in state.frozen.sorted(by: { $0.key < $1.key })
             where cfg.quitAllowed.contains(id) && !Protection.isProtectedID(id) && now - f.frozenAt >= cfg.minFrozenMinutes * 60 {
                 out += thaw(id, reason: Code.pressureCritical, at: now)
-                out.append(Action(kind: .requestQuit, appID: id, name: f.name, processes: f.processes,
-                                  reasons: [Reason(Code.pressureCritical)], dryRun: f.dryRun))
+                out.append(
+                    Action(
+                        kind: .requestQuit, appID: id, name: f.name, processes: f.processes,
+                        reasons: [Reason(Code.pressureCritical)], dryRun: f.dryRun))
             }
         }
         if !out.isEmpty {
@@ -499,14 +525,19 @@ public final class Engine {
     public func reliefEstimate(_ app: AppSnapshot) -> Double { app.residentMB * Policy.reliefFactor }
 
     func freeze(_ app: AppSnapshot, reasons: [Reason], relief: Double, at now: Double) -> Action {
-        state.frozen[app.id] = FrozenApp(id: app.id, name: app.name, processes: app.processes, frozenAt: now,
-                                         residentAtFreezeMB: app.residentMB, reliefEstimateMB: relief,
-                                         reasons: reasons, dryRun: dryRun, cpuPercentAtFreeze: app.cpuPercent)
+        state.frozen[app.id] = FrozenApp(
+            id: app.id, name: app.name, processes: app.processes, frozenAt: now,
+            residentAtFreezeMB: app.residentMB, reliefEstimateMB: relief,
+            reasons: reasons, dryRun: dryRun, cpuPercentAtFreeze: app.cpuPercent)
         RegretTracker.recordFreeze(&state.regret, appID: app.id, at: now, reliefMB: relief, dryRun: dryRun)
-        if dryRun { state.days[day(now), default: DayStats()].wouldFreeze += 1 }
-        else { state.days[day(now), default: DayStats()].freezes += 1 }
-        return Action(kind: .freeze, appID: app.id, name: app.name, processes: app.processes, reasons: reasons,
-                      dryRun: dryRun, reliefEstimateMB: relief)
+        if dryRun {
+            state.days[day(now), default: DayStats()].wouldFreeze += 1
+        } else {
+            state.days[day(now), default: DayStats()].freezes += 1
+        }
+        return Action(
+            kind: .freeze, appID: app.id, name: app.name, processes: app.processes, reasons: reasons,
+            dryRun: dryRun, reliefEstimateMB: relief)
     }
 
     /// Forgets a frozen app and records the thaw. Returns the thaw action (empty if not frozen).
@@ -514,8 +545,9 @@ public final class Engine {
     public func thaw(_ id: String, reason: String, at now: Double) -> [Action] {
         guard let f = state.frozen.removeValue(forKey: id) else { return [] }
         state.lastThawAt[id] = now
-        let regret = RegretTracker.recordThaw(&state.regret, appID: id, at: now, reason: reason,
-                                              realizedReliefMB: f.realizedReliefMB, settings: config.regret)
+        let regret = RegretTracker.recordThaw(
+            &state.regret, appID: id, at: now, reason: reason,
+            realizedReliefMB: f.realizedReliefMB, settings: config.regret)
         applyRegret(id, name: f.name, regret: regret, at: now)
         if !f.dryRun {
             state.days[day(now), default: DayStats()].thaws += 1
@@ -523,15 +555,18 @@ public final class Engine {
         }
         if let r = f.realizedReliefMB, !f.dryRun { state.days[day(now), default: DayStats()].realizedReliefMB.append(r) }
         state.lastRound.removeAll { $0 == id }
-        let action = Action(kind: .thaw, appID: id, name: f.name, processes: f.processes, reasons: [Reason(reason)],
-                            dryRun: f.dryRun)
+        let action = Action(
+            kind: .thaw, appID: id, name: f.name, processes: f.processes, reasons: [Reason(reason)],
+            dryRun: f.dryRun)
         state.lastAction = action.summary
         return [action]
     }
 
     func applyRegret(_ id: String, name: String, regret: Double, at now: Double) {
-        if let idle = RegretTracker.adjustedIdle(current: state.learnedIdleMinutes[id] ?? 0,
-                                                 base: config.idleMinutes, regret: regret) {
+        if let idle = RegretTracker.adjustedIdle(
+            current: state.learnedIdleMinutes[id] ?? 0,
+            base: config.idleMinutes, regret: regret)
+        {
             state.learnedIdleMinutes[id] = idle
         }
         if RegretTracker.shouldDemote(regret: regret), state.demoted[id] == nil {
@@ -554,13 +589,16 @@ public final class Engine {
         state.activations[appID] = acts
         state.activations = state.activations.filter { !$0.value.isEmpty && now - ($0.value.last ?? 0) < 86400 }
         if config.habits.enabled, let from = previous {
-            state.habits.record(from: from, to: appID, bucket: HabitTable.bucket(weekday: weekday, hour: hour),
-                                day: Int(now / 86400))
+            state.habits.record(
+                from: from, to: appID, bucket: HabitTable.bucket(weekday: weekday, hour: hour),
+                day: Int(now / 86400))
         }
         var out = thaw(appID, reason: Code.thawActivated, at: now)
         if state.deprioritized.removeValue(forKey: appID) != nil {
-            out.append(Action(kind: .restorePriority, appID: appID, name: name, reasons: [Reason(Code.thawActivated)],
-                              dryRun: dryRun))
+            out.append(
+                Action(
+                    kind: .restorePriority, appID: appID, name: name, reasons: [Reason(Code.thawActivated)],
+                    dryRun: dryRun))
         }
         return out
     }
@@ -568,11 +606,13 @@ public final class Engine {
     /// Thaws everything, staged by priority and measured fault-in speed (S7).
     public func thawAll(reason: String, at now: Double) -> [Action] {
         let ids = state.frozen.keys.sorted()
-        let plan = StagedThaw.schedule(ids.map { id in
-            let f = state.frozen[id]!
-            return ThawCandidate(appID: id, reclaimedMB: f.realizedReliefMB ?? f.reliefEstimateMB,
-                                 priority: state.lastActiveAt[id] ?? 0)
-        }, swapInMBps: state.calibration.swapInMBps)
+        let plan = StagedThaw.schedule(
+            ids.map { id in
+                let f = state.frozen[id]!
+                return ThawCandidate(
+                    appID: id, reclaimedMB: f.realizedReliefMB ?? f.reliefEstimateMB,
+                    priority: state.lastActiveAt[id] ?? 0)
+            }, swapInMBps: state.calibration.swapInMBps)
         var out: [Action] = []
         for step in plan {
             for var a in thaw(step.appID, reason: reason, at: now) {
@@ -632,16 +672,26 @@ public final class Engine {
 
     public func thawWorkspace(_ name: String, at now: Double) -> [Action] {
         let members = Set(config.workspaces[name] ?? [])
-        let plan = StagedThaw.schedule(state.frozen.values.filter { members.contains($0.id) }.map {
-            ThawCandidate(appID: $0.id, reclaimedMB: $0.realizedReliefMB ?? $0.reliefEstimateMB,
-                          priority: state.lastActiveAt[$0.id] ?? 0)
-        }, swapInMBps: state.calibration.swapInMBps)
-        return plan.flatMap { step in thaw(step.appID, reason: Code.thawUser, at: now).map { var a = $0; a.delaySeconds = step.delay; return a } }
+        let plan = StagedThaw.schedule(
+            state.frozen.values.filter { members.contains($0.id) }.map {
+                ThawCandidate(
+                    appID: $0.id, reclaimedMB: $0.realizedReliefMB ?? $0.reliefEstimateMB,
+                    priority: state.lastActiveAt[$0.id] ?? 0)
+            }, swapInMBps: state.calibration.swapInMBps)
+        return plan.flatMap { step in
+            thaw(step.appID, reason: Code.thawUser, at: now).map {
+                var a = $0
+                a.delaySeconds = step.delay
+                return a
+            }
+        }
     }
 
     /// S5: result of the post-thaw health check. Unhealthy apps are quarantined.
-    public func thawOutcome(_ id: String, name: String, outcome: ThawOutcome, latencyMs: Double?,
-                            faultedMB: Double?, at now: Double) -> [Action] {
+    public func thawOutcome(
+        _ id: String, name: String, outcome: ThawOutcome, latencyMs: Double?,
+        faultedMB: Double?, at now: Double
+    ) -> [Action] {
         if let ms = latencyMs {
             state.days[day(now), default: DayStats()].thawLatenciesMs.append(ms)
             RegretTracker.recordLatency(&state.regret, appID: id, latencyMs: ms, at: now, settings: config.regret)
@@ -654,8 +704,11 @@ public final class Engine {
         guard !outcome.healthy, state.quarantine[id] == nil else { return [] }
         let why = !outcome.alive ? "exited after thaw" : "unresponsive after thaw"
         state.quarantine[id] = QuarantineEntry(appID: id, name: name, at: now, reason: why)
-        return [Action(kind: .quarantine, appID: id, name: name, reasons: [Reason(Code.unhealthyAfterThaw, why)],
-                       dryRun: false, message: "\(name) \(why); it will not be frozen again until released")]
+        return [
+            Action(
+                kind: .quarantine, appID: id, name: name, reasons: [Reason(Code.unhealthyAfterThaw, why)],
+                dryRun: false, message: "\(name) \(why); it will not be frozen again until released")
+        ]
     }
 
     public func releaseQuarantine(_ id: String) -> Bool { state.quarantine.removeValue(forKey: id) != nil }

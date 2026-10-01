@@ -21,8 +21,10 @@ public struct RunawayFinding: Codable, Equatable, Sendable {
 public enum Runaway {
     /// Adds this tick's samples and returns the apps that are running away now.
     /// `notify` holds only the findings that are due a (rate-limited) notification.
-    public static func update(_ s: inout RunawayState, apps: [AppSnapshot], now: Double,
-                              settings: Config.RunawaySettings) -> (current: [RunawayFinding], notify: [RunawayFinding]) {
+    public static func update(
+        _ s: inout RunawayState, apps: [AppSnapshot], now: Double,
+        settings: Config.RunawaySettings
+    ) -> (current: [RunawayFinding], notify: [RunawayFinding]) {
         let keep = max(settings.cpuMinutes, settings.growthWindowMinutes) * 60
         var present = Set<String>()
         var current: [RunawayFinding] = []
@@ -35,16 +37,22 @@ public enum Runaway {
 
             let cpuWindow = pts.filter { now - $0.t <= settings.cpuMinutes * 60 }
             if let first = cpuWindow.first, now - first.t >= settings.cpuMinutes * 60 * 0.9,
-               cpuWindow.count >= 3, cpuWindow.allSatisfy({ $0.cpu >= settings.cpuPercent }), !app.isFrontmost {
+                cpuWindow.count >= 3, cpuWindow.allSatisfy({ $0.cpu >= settings.cpuPercent }), !app.isFrontmost
+            {
                 let avg = cpuWindow.map(\.cpu).reduce(0, +) / Double(cpuWindow.count)
-                current.append(.init(appID: app.id, name: app.name, code: Code.runawayCPU,
-                                     detail: "\(Int(avg))% CPU for \(Int(settings.cpuMinutes)) min in the background"))
+                current.append(
+                    .init(
+                        appID: app.id, name: app.name, code: Code.runawayCPU,
+                        detail: "\(Int(avg))% CPU for \(Int(settings.cpuMinutes)) min in the background"))
             }
             if let first = pts.first, now - first.t >= settings.growthWindowMinutes * 60 * 0.9, pts.count >= 5,
-               let fit = linearFit(pts.map { ($0.t / 60, $0.residentMB) }),
-               fit.slope >= settings.growthMBPerMinute, fit.r2 >= 0.8 {
-                current.append(.init(appID: app.id, name: app.name, code: Code.runawayMemory,
-                                     detail: "memory growing \(Int(fit.slope)) MB/min steadily"))
+                let fit = linearFit(pts.map { ($0.t / 60, $0.residentMB) }),
+                fit.slope >= settings.growthMBPerMinute, fit.r2 >= 0.8
+            {
+                current.append(
+                    .init(
+                        appID: app.id, name: app.name, code: Code.runawayMemory,
+                        detail: "memory growing \(Int(fit.slope)) MB/min steadily"))
             }
         }
         for id in s.series.keys where !present.contains(id) { s.series[id] = nil }

@@ -14,10 +14,12 @@ public struct PolicyContext: Sendable {
     /// Apps inside a wake window's refreeze slot skip the idle and cooldown checks.
     public var wakeRefreeze: Set<String>
 
-    public init(now: Double, config: Config, profile: ProfileName = .work, lastActiveAt: [String: Double] = [:],
-                learnedIdleMinutes: [String: Double] = [:], lastThawAt: [String: Double] = [:],
-                quarantined: Set<String> = [], demoted: Set<String> = [], frozen: Set<String> = [],
-                wakeRefreeze: Set<String> = []) {
+    public init(
+        now: Double, config: Config, profile: ProfileName = .work, lastActiveAt: [String: Double] = [:],
+        learnedIdleMinutes: [String: Double] = [:], lastThawAt: [String: Double] = [:],
+        quarantined: Set<String> = [], demoted: Set<String> = [], frozen: Set<String> = [],
+        wakeRefreeze: Set<String> = []
+    ) {
         self.now = now
         self.config = config
         self.profile = profile
@@ -133,16 +135,20 @@ public enum Policy {
     }
 
     /// `footprint x idle factor x (1 - risk) x 1 / (1 + re-activation rate)`.
-    public static func score(residentMB: Double, idleMinutes: Double, idleThreshold: Double,
-                             risk: Double, activationsPerHour: Double) -> Double {
+    public static func score(
+        residentMB: Double, idleMinutes: Double, idleThreshold: Double,
+        risk: Double, activationsPerHour: Double
+    ) -> Double {
         let idleFactor = min(max(idleMinutes / max(idleThreshold, 1), 1), 4)
         return residentMB * idleFactor * (1 - risk) / (1 + activationsPerHour)
     }
 
     /// S2: expected net value of freezing, in units of "share of the relief target".
     /// Relief only pays off if the user does not come back soon; coming back costs a thaw.
-    public static func netValue(reliefMB: Double, targetMB: Double, pressureWeight: Double,
-                                pReturnSoon: Double, expectedThawMs: Double, thawBudgetMs: Double) -> Double {
+    public static func netValue(
+        reliefMB: Double, targetMB: Double, pressureWeight: Double,
+        pReturnSoon: Double, expectedThawMs: Double, thawBudgetMs: Double
+    ) -> Double {
         let benefit = reliefMB / max(targetMB, 1)
         let cost = min(1, expectedThawMs / max(thawBudgetMs, 1))
         return benefit * pressureWeight * (1 - pReturnSoon) - pReturnSoon * cost

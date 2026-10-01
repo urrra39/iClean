@@ -27,7 +27,9 @@ public final class SpawnedHog {
             self.lock.unlock()
         }
         try process.run()
-        Self.liveLock.lock(); Self.live.insert(process.processIdentifier); Self.liveLock.unlock()
+        Self.liveLock.lock()
+        Self.live.insert(process.processIdentifier)
+        Self.liveLock.unlock()
     }
 
     public var pid: Int32 { process.processIdentifier }
@@ -42,7 +44,11 @@ public final class SpawnedHog {
         return false
     }
 
-    public func snapshot() -> [String] { lock.lock(); defer { lock.unlock() }; return lines }
+    public func snapshot() -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return lines
+    }
 
     /// First `<prefix> <uptime ns>` line stamped after `after` (CLOCK_UPTIME_RAW ns).
     public func stamp(_ prefix: String, after: UInt64, timeout: Double = 30) -> UInt64? {
@@ -63,15 +69,21 @@ public final class SpawnedHog {
         Darwin.kill(pid, SIGCONT)
         Darwin.kill(pid, SIGKILL)
         process.waitUntilExit()
-        Self.liveLock.lock(); Self.live.remove(pid); Self.liveLock.unlock()
+        Self.liveLock.lock()
+        Self.live.remove(pid)
+        Self.liveLock.unlock()
     }
 
     /// Hogs still alive; killed by `killAll()` on exit paths. Tests spawn from many threads.
     nonisolated(unsafe) static var live = Set<Int32>()
     static let liveLock = NSLock()
     public static func killAll() {
-        liveLock.lock(); defer { liveLock.unlock() }
-        for p in live where p > 0 { Darwin.kill(p, SIGCONT); Darwin.kill(p, SIGKILL) }
+        liveLock.lock()
+        defer { liveLock.unlock() }
+        for p in live where p > 0 {
+            Darwin.kill(p, SIGCONT)
+            Darwin.kill(p, SIGKILL)
+        }
         live.removeAll()
     }
 }
@@ -89,7 +101,11 @@ public struct Stat: Codable, Sendable {
         guard !xs.isEmpty else { return nil }
         let s = xs.sorted()
         func p(_ q: Double) -> Double { s[Swift.min(s.count - 1, Int((Double(s.count - 1) * q).rounded()))] }
-        n = s.count; p50 = p(0.5); p95 = p(0.95); p99 = p(0.99); max = s.last!
+        n = s.count
+        p50 = p(0.5)
+        p95 = p(0.95)
+        p99 = p(0.99)
+        max = s.last!
     }
 
     public var row: String { String(format: "%.2f | %.2f | %.2f | %.2f | %d", p50, p95, p99, max, n) }
@@ -110,8 +126,11 @@ public enum Bench {
         }
 
         public var markdown: String {
-            var l = ["Machine: \(hardware.model), \(hardware.arch), \(Int(hardware.memoryGB.rounded())) GB, macOS \(hardware.osVersion). Date: \(date).", "",
-                     "| Measurement | p50 | p95 | p99 | max | n |", "|---|---|---|---|---|---|"]
+            var l = [
+                "Machine: \(hardware.model), \(hardware.arch), \(Int(hardware.memoryGB.rounded())) GB, macOS \(hardware.osVersion). Date: \(date).",
+                "",
+                "| Measurement | p50 | p95 | p99 | max | n |", "|---|---|---|---|---|---|",
+            ]
             for (k, s) in stats.sorted(by: { $0.key < $1.key }) { l.append("| \(k) | \(s.row) |") }
             if !values.isEmpty {
                 l += ["", "| Value | Measured |", "|---|---|"]
@@ -126,7 +145,12 @@ public enum Bench {
 
     public static func run(hogPath: String, quick: Bool, log: (String) -> Void) -> Result {
         atexit { SpawnedHog.killAll() }
-        for s in [SIGINT, SIGTERM, SIGHUP] { signal(s) { _ in SpawnedHog.killAll(); exit(1) } }
+        for s in [SIGINT, SIGTERM, SIGHUP] {
+            signal(s) { _ in
+                SpawnedHog.killAll()
+                exit(1)
+            }
+        }
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withFullDate]
         var r = Result(date: f.string(from: Date()), hardware: SystemSampler.hardware())
@@ -142,8 +166,13 @@ public enum Bench {
         for mb in quick ? [256] : [256, 1024] {
             log("thaw latency, \(mb) MB hog")
             guard let h = try? SpawnedHog(path: hogPath, args: ["--mb", "\(mb)", "--heartbeat-ms", "1", "--touch-on-cont"]),
-                  h.waitReady() else { r.notes.append("could not start ic-hog"); return }
-            var hb: [Double] = [], all: [Double] = []
+                h.waitReady()
+            else {
+                r.notes.append("could not start ic-hog")
+                return
+            }
+            var hb: [Double] = []
+            var all: [Double] = []
             for _ in 0..<(quick ? 5 : 30) {
                 kill(h.pid, SIGSTOP)
                 usleep(200_000)
@@ -164,11 +193,13 @@ public enum Bench {
         log("daemon tick overhead")
         let collector = AppCollector()
         _ = collector.collect()
-        var cpu: [Double] = [], wall: [Double] = []
+        var cpu: [Double] = []
+        var wall: [Double] = []
         var guardMs: [Double] = []
         let engine = Engine(config: Config(), hardware: r.hardware, state: EngineState(startedAt: 0))
         for _ in 0..<(quick ? 3 : 10) {
-            var u0 = rusage(), u1 = rusage()
+            var u0 = rusage()
+            var u1 = rusage()
             getrusage(RUSAGE_SELF, &u0)
             let t = uptimeNanos()
             let res = collector.collect()
@@ -207,7 +238,10 @@ public enum Bench {
         }
         let victim = ["--mb", "512", "--data", "compressible", "--touch-every", "2", "--heartbeat-ms", "1", "--touch-on-cont"]
         let small = ["--mb", "128", "--data", "compressible", "--heartbeat-ms", "1"]
-        guard let frozen = spawn(victim), let control = spawn(victim) else { r.notes.append("could not start victims"); return }
+        guard let frozen = spawn(victim), let control = spawn(victim) else {
+            r.notes.append("could not start victims")
+            return
+        }
         let simultaneous = (0..<4).compactMap { _ in spawn(small) }
         let staged = (0..<4).compactMap { _ in spawn(small) }
         let cold = spawn(["--mb", "256", "--data", "compressible", "--heartbeat-ms", "1"])
@@ -239,7 +273,10 @@ public enum Bench {
             guard let h = spawn(["--mb", "256", "--data", "random"]) else { break }
             pressureHogs.append(h)
             induced += 256
-            if let a = check() { abort = a; break }
+            if let a = check() {
+                abort = a
+                break
+            }
         }
         for _ in 0..<10 where abort == nil {
             sleep(1)
@@ -249,13 +286,18 @@ public enum Bench {
         r.values["pressure: memory induced incl. victims (MB)"] = induced
         r.values["pressure: frozen victim resident after (MB)"] = compressed
         r.values["pressure: running twin resident after (MB)"] = control.residentMB
-        r.notes.append("pressure run: " + (abort.map { "stopped early (\($0))" } ?? (compressed <= baseline.frozen * 0.2 ? "frozen victim compressed" : "cap reached before compression")))
+        r.notes.append(
+            "pressure run: "
+                + (abort.map { "stopped early (\($0))" }
+                    ?? (compressed <= baseline.frozen * 0.2 ? "frozen victim compressed" : "cap reached before compression")))
         r.notes += transitions.map { "pressure transition: \($0)" }
 
         // Thaw under pressure.
         var t = uptimeNanos()
         kill(frozen.pid, SIGCONT)
-        if let x = frozen.stamp("touched", after: t) { r.values["thaw under pressure, 512 MB victim: SIGCONT to all pages touched (ms)"] = ms(x - t) }
+        if let x = frozen.stamp("touched", after: t) {
+            r.values["thaw under pressure, 512 MB victim: SIGCONT to all pages touched (ms)"] = ms(x - t)
+        }
 
         // S3 pre-thaw: resume early vs. resume when the user arrives.
         if let cold, let prethaw {
@@ -267,12 +309,17 @@ public enum Bench {
             sleep(2)
             t = uptimeNanos()
             kill(prethaw.pid, SIGUSR2)
-            if let x = prethaw.stamp("touched", after: t) { r.values["S3 pre-thawed 2 s early: user arrival to working set back (ms)"] = ms(x - t) }
+            if let x = prethaw.stamp("touched", after: t) {
+                r.values["S3 pre-thawed 2 s early: user arrival to working set back (ms)"] = ms(x - t)
+            }
         }
 
         // S7: four apps at once vs. one after another.
         t = uptimeNanos()
-        for h in simultaneous { kill(h.pid, SIGCONT); kill(h.pid, SIGUSR2) }
+        for h in simultaneous {
+            kill(h.pid, SIGCONT)
+            kill(h.pid, SIGUSR2)
+        }
         let simDone = simultaneous.compactMap { $0.stamp("touched", after: t) }
         if simDone.count == simultaneous.count, let first = simDone.min(), let last = simDone.max() {
             r.values["S7 simultaneous thaw of 4: first app usable (ms)"] = ms(first - t)

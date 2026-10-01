@@ -132,7 +132,10 @@ public final class Daemon {
         saveState()
         ipc?.stop()
         watchdog?.terminate()
-        if lockFD >= 0 { flock(lockFD, LOCK_UN); close(lockFD) }
+        if lockFD >= 0 {
+            flock(lockFD, LOCK_UN)
+            close(lockFD)
+        }
     }
 
     func installSignalHandlers() {
@@ -150,21 +153,27 @@ public final class Daemon {
 
     func installObservers() {
         let ws = NSWorkspace.shared.notificationCenter
-        observers.append(ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
-            guard let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-            self?.handleActivation(pid: a.processIdentifier, bundleID: a.bundleIdentifier, name: a.localizedName ?? "")
-        })
-        observers.append(ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.pendingEvents.append(.wake)
-            self?.tick()
-        })
-        observers.append(ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.saveState()
-        })
-        observers.append(DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
-            self?.pendingEvents.append(.unlock)
-            self?.tick()
-        })
+        observers.append(
+            ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
+                guard let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+                self?.handleActivation(pid: a.processIdentifier, bundleID: a.bundleIdentifier, name: a.localizedName ?? "")
+            })
+        observers.append(
+            ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.pendingEvents.append(.wake)
+                self?.tick()
+            })
+        observers.append(
+            ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.saveState()
+            })
+        observers.append(
+            DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.pendingEvents.append(.unlock)
+                self?.tick()
+            })
     }
 
     func startTimers() {
@@ -226,14 +235,16 @@ public final class Daemon {
         lastLevel = sample.pressure
 
         if let pct = sample.batteryPercent, sample.onBattery, let last = lastBatteryPercent,
-           last > engine.config.lowBatteryPercent, pct <= engine.config.lowBatteryPercent {
+            last > engine.config.lowBatteryPercent, pct <= engine.config.lowBatteryPercent
+        {
             pendingEvents.append(.lowBattery)
         }
         lastBatteryPercent = sample.batteryPercent
 
         // S4 guards cost syscalls per descriptor, so only inspect when iClean may act.
         let horizon = engine.config.forecast.horizonMinutes
-        let mayAct = sample.pressure >= .warning || (engine.lastForecast.etaWarning.map { $0 <= horizon } ?? false)
+        let mayAct =
+            sample.pressure >= .warning || (engine.lastForecast.etaWarning.map { $0 <= horizon } ?? false)
             || engine.state.wakeRefreezeAt.values.contains { $0 <= now }
         if mayAct {
             let ctx = engine.eligibilityContext(at: now)
@@ -244,8 +255,9 @@ public final class Daemon {
             }
         }
         let comps = Calendar.current.dateComponents([.weekday, .hour], from: Date(timeIntervalSince1970: now))
-        let input = TickInput(sample: sample, apps: r.apps, session: r.session, weekday: comps.weekday ?? 2,
-                              hour: comps.hour ?? 12, events: pendingEvents)
+        let input = TickInput(
+            sample: sample, apps: r.apps, session: r.session, weekday: comps.weekday ?? 2,
+            hour: comps.hour ?? 12, events: pendingEvents)
         pendingEvents = []
         traces.write(.tick(Self.traceView(input)))
         let result = engine.tick(input)
@@ -299,7 +311,8 @@ public final class Daemon {
     /// Activation handler. SIGCONT goes out before any other work.
     public func handleActivation(pid: Int32, bundleID: String?, name: String) {
         let frozen = engine.state.frozen
-        let appID = bundleID.flatMap { frozen[$0] != nil ? $0 : nil }
+        let appID =
+            bundleID.flatMap { frozen[$0] != nil ? $0 : nil }
             ?? frozen.first { $0.value.processes.contains { $0.pid == pid } }?.key
         var thawStart: Double?
         if let appID, let f = frozen[appID], !f.dryRun {
@@ -310,8 +323,9 @@ public final class Daemon {
         let comps = Calendar.current.dateComponents([.weekday, .hour], from: Date())
         let id = appID ?? bundleID ?? "exe:\(name)"
         traces.write(.activate(id, name: name, at: clock(), weekday: comps.weekday ?? 2, hour: comps.hour ?? 12))
-        execute(engine.activated(appID: id, name: name, at: clock(), weekday: comps.weekday ?? 2, hour: comps.hour ?? 12),
-                thawStartedAt: thawStart)
+        execute(
+            engine.activated(appID: id, name: name, at: clock(), weekday: comps.weekday ?? 2, hour: comps.hour ?? 12),
+            thawStartedAt: thawStart)
     }
 
     /// Perceived thaw latency: SIGCONT until the app's main thread answers an
@@ -323,8 +337,10 @@ public final class Daemon {
             guard let self, Self.axResponsive(root.pid, timeout: timeout) == true else { return }
             let ms = (self.clock() - since) * 1000
             DispatchQueue.main.async {
-                self.execute(self.engine.thawOutcome(appID, name: name, outcome: ThawOutcome(alive: true, responsive: true),
-                                                     latencyMs: ms, faultedMB: nil, at: self.clock()))
+                self.execute(
+                    self.engine.thawOutcome(
+                        appID, name: name, outcome: ThawOutcome(alive: true, responsive: true),
+                        latencyMs: ms, faultedMB: nil, at: self.clock()))
             }
         }
     }
@@ -386,8 +402,10 @@ public final class Daemon {
             // Gone within the watch window: only a crash report makes it unhealthy
             // (people quit apps all the time).
             if Self.crashReportExists(for: a.name, since: startedAt) {
-                self.execute(self.engine.thawOutcome(a.appID, name: a.name, outcome: ThawOutcome(alive: false, responsive: nil),
-                                                     latencyMs: nil, faultedMB: nil, at: self.clock()))
+                self.execute(
+                    self.engine.thawOutcome(
+                        a.appID, name: a.name, outcome: ThawOutcome(alive: false, responsive: nil),
+                        latencyMs: nil, faultedMB: nil, at: self.clock()))
             }
         }
     }
@@ -400,8 +418,10 @@ public final class Daemon {
         let responsive = alive ? Self.axResponsive(root.pid, timeout: engine.config.healthCheck.probeTimeoutMs / 1000) : nil
         let after = lastApps.first { $0.id == a.appID }?.residentMB
         let faulted = residentBefore.flatMap { b in after.map { max(0, $0 - b) } }
-        execute(engine.thawOutcome(a.appID, name: a.name, outcome: ThawOutcome(alive: alive, responsive: responsive),
-                                   latencyMs: nil, faultedMB: faulted, at: clock()))
+        execute(
+            engine.thawOutcome(
+                a.appID, name: a.name, outcome: ThawOutcome(alive: alive, responsive: responsive),
+                latencyMs: nil, faultedMB: faulted, at: clock()))
     }
 
     /// nil without Accessibility permission; false if the app does not answer in time.
@@ -444,8 +464,9 @@ public enum Watchdog {
         setsid()  // own process group, so killing the daemon's group does not take it down
         let journal = JournalStore(url: paths.journal)
         let kq = kqueue()
-        var ev = kevent(ident: UInt(parent), filter: Int16(EVFILT_PROC), flags: UInt16(EV_ADD | EV_ONESHOT),
-                        fflags: NOTE_EXIT, data: 0, udata: nil)
+        var ev = kevent(
+            ident: UInt(parent), filter: Int16(EVFILT_PROC), flags: UInt16(EV_ADD | EV_ONESHOT),
+            fflags: NOTE_EXIT, data: 0, udata: nil)
         if kevent(kq, &ev, 1, nil, 0, nil) == 0 {
             var out = kevent()
             // Also wake every 5 s in case the parent vanished before registration.

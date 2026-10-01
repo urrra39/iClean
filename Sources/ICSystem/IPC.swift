@@ -74,8 +74,12 @@ public final class IPCServer {
     private func accept() {
         let c = Darwin.accept(fd, nil, nil)
         guard c >= 0 else { return }
-        var uid: uid_t = 0, gid: gid_t = 0
-        guard getpeereid(c, &uid, &gid) == 0, uid == getuid() else { close(c); return }
+        var uid: uid_t = 0
+        var gid: gid_t = 0
+        guard getpeereid(c, &uid, &gid) == 0, uid == getuid() else {
+            close(c)
+            return
+        }
         var tv = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         var nosig: Int32 = 1
@@ -83,7 +87,8 @@ public final class IPCServer {
         DispatchQueue.global().async {
             defer { close(c) }
             guard let line = IPC.readLine(c, limit: 64 << 10),
-                  let req = try? JSONDecoder().decode(Request.self, from: line) else {
+                let req = try? JSONDecoder().decode(Request.self, from: line)
+            else {
                 IPC.write(c, Response(ok: false, text: "bad request"))
                 return
             }

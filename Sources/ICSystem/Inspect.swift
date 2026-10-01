@@ -32,9 +32,11 @@ public enum Inspector {
                 let lport = Int(UInt16(bigEndian: UInt16(truncatingIfNeeded: ini.insi_lport)))
                 let fport = Int(UInt16(bigEndian: UInt16(truncatingIfNeeded: ini.insi_fport)))
                 let state = tcp.tcpsi_state
-                out.append(SocketFact(kind: .tcp, listening: state == TSI_S_LISTEN, established: state == TSI_S_ESTABLISHED,
-                                      localPort: lport, remotePort: fport, remoteIsLoopback: isLoopback(ini),
-                                      queuedBytes: queued, key: "\(pid):\(fd.proc_fd):\(lport)-\(fport)"))
+                out.append(
+                    SocketFact(
+                        kind: .tcp, listening: state == TSI_S_LISTEN, established: state == TSI_S_ESTABLISHED,
+                        localPort: lport, remotePort: fport, remoteIsLoopback: isLoopback(ini),
+                        queuedBytes: queued, key: "\(pid):\(fd.proc_fd):\(lport)-\(fport)"))
             case Int32(SOCKINFO_IN):
                 out.append(SocketFact(kind: .udp, queuedBytes: queued, key: "\(pid):udp\(fd.proc_fd)"))
             default:
@@ -63,9 +65,11 @@ public enum Inspector {
             let mode = vi.pvip.vip_vi.vi_stat.vst_mode
             guard mode & S_IFMT == S_IFREG else { continue }
             let mtime = Double(vi.pvip.vip_vi.vi_stat.vst_mtime)
-            out.append(FileFact(name: (path as NSString).lastPathComponent,
-                                openForWriting: vi.pfi.fi_openflags & UInt32(FWRITE) != 0,
-                                secondsSinceModified: max(0, now - mtime)))
+            out.append(
+                FileFact(
+                    name: (path as NSString).lastPathComponent,
+                    openForWriting: vi.pfi.fi_openflags & UInt32(FWRITE) != 0,
+                    secondsSinceModified: max(0, now - mtime)))
         }
         return out
     }

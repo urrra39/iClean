@@ -4,7 +4,7 @@ import ICCore
 import ICSystem
 import UserNotifications
 
-func L(_ key: String) -> String { NSLocalizedString(key, bundle: .module, comment: "") }
+func localized(_ key: String) -> String { NSLocalizedString(key, bundle: .module, comment: "") }
 
 /// Talks to the daemon over IPC. The menu app never signals anything itself, except
 /// the emergency "thaw all" from the journal when the daemon is not running.
@@ -52,7 +52,8 @@ final class Model: ObservableObject {
         }
         status = try? JSONDecoder().decode(Status.self, from: d)
         if let e = send("events", value: "\(lastEvent)"), let data = e.data?.data(using: .utf8),
-           let events = try? JSONDecoder().decode([DaemonEvent].self, from: data) {
+            let events = try? JSONDecoder().decode([DaemonEvent].self, from: data)
+        {
             for ev in events { post(ev) }
             lastEvent = events.map(\.t).max() ?? lastEvent
         }
@@ -67,7 +68,7 @@ final class Model: ObservableObject {
     }
 
     private func run(_ cmd: String, app: String? = nil, value: String? = nil) {
-        if let r = send(cmd, app: app, value: value) { message = r.text } else { message = L("daemon.notRunning") }
+        if let r = send(cmd, app: app, value: value) { message = r.text } else { message = localized("daemon.notRunning") }
         refresh()
     }
 
@@ -77,7 +78,7 @@ final class Model: ObservableObject {
             message = r.text
         } else {
             let r = Signals.recover(journal: JournalStore(url: paths.journal))
-            message = String(format: L("thawAll.offline"), r.thawed)
+            message = String(format: localized("thawAll.offline"), r.thawed)
         }
         refresh()
     }
@@ -90,11 +91,11 @@ final class Model: ObservableObject {
 
     func show(_ cmd: String, title: String) {
         detailTitle = title
-        detail = send(cmd)?.text ?? L("daemon.notRunning")
+        detail = send(cmd)?.text ?? localized("daemon.notRunning")
     }
 
     func startDaemon() {
-        message = (try? Installer(paths: paths, daemonPath: daemonPath).install()) ?? L("daemon.installFailed")
+        message = (try? Installer(paths: paths, daemonPath: daemonPath).install()) ?? localized("daemon.installFailed")
         refresh()
     }
 

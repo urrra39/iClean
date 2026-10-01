@@ -223,8 +223,10 @@ extension Config {
         return (config, problems)
     }
 
-    private static func merge(_ base: [String: Any], _ over: [String: Any], path: String,
-                              issues: inout [ConfigIssue]) -> [String: Any] {
+    private static func merge(
+        _ base: [String: Any], _ over: [String: Any], path: String,
+        issues: inout [ConfigIssue]
+    ) -> [String: Any] {
         var out = base
         for (key, value) in over {
             let p = path.isEmpty ? key : "\(path).\(key)"
@@ -263,8 +265,9 @@ extension Config {
         check(thawAfterNormalMinutes > 0, "thawAfterNormalMinutes", "must be > 0")
         check((1...50).contains(maxFrozenApps), "maxFrozenApps", "must be 1...50")
         check((5...80).contains(maxFrozenPercentOfRAM), "maxFrozenPercentOfRAM", "must be 5...80")
-        check(reliefTargetWarningMB > 0 && reliefTargetCriticalMB >= reliefTargetWarningMB,
-              "reliefTargetCriticalMB", "targets must be > 0 and critical >= warning")
+        check(
+            reliefTargetWarningMB > 0 && reliefTargetCriticalMB >= reliefTargetWarningMB,
+            "reliefTargetCriticalMB", "targets must be > 0 and critical >= warning")
         check((1...50).contains(lowBatteryPercent), "lowBatteryPercent", "must be 1...50")
         check((1...120).contains(forecast.horizonMinutes), "forecast.horizonMinutes", "must be 1...120")
         check((0...1).contains(forecast.falseAlarmBudget), "forecast.falseAlarmBudget", "must be 0...1")
@@ -276,21 +279,24 @@ extension Config {
         check(guards.writeWindowSeconds > 0, "guards.writeWindowSeconds", "must be > 0")
         check(guards.benignRemotePorts.allSatisfy { (1...65535).contains($0) }, "guards.benignRemotePorts", "ports must be 1...65535")
         check(healthCheck.probeTimeoutMs > 0 && healthCheck.watchMinutes >= 0, "healthCheck", "timeouts must be positive")
-        check(runaway.cpuPercent > 0 && runaway.cpuMinutes > 0 && runaway.growthMBPerMinute > 0
-              && runaway.growthWindowMinutes > 0 && runaway.notifyEveryHours > 0, "runaway", "values must be positive")
+        check(
+            runaway.cpuPercent > 0 && runaway.cpuMinutes > 0 && runaway.growthMBPerMinute > 0
+                && runaway.growthWindowMinutes > 0 && runaway.notifyEveryHours > 0, "runaway", "values must be positive")
         check((1...500).contains(trace.maxMB), "trace.maxMB", "must be 1...500")
         check((1...365).contains(trace.retentionDays), "trace.retentionDays", "must be 1...365")
         check(notifications.maxPerHour >= 0, "notifications.maxPerHour", "must be >= 0")
 
         for (id, w) in wakeWindows {
-            check(w.thawSeconds >= 5 && w.thawSeconds <= 600 && w.everyMinutes >= 1 && w.everyMinutes <= 240
-                  && w.thawSeconds < w.everyMinutes * 60, "wakeWindows.\(id)",
-                  "thawSeconds 5...600, everyMinutes 1...240, thaw shorter than the period")
+            check(
+                w.thawSeconds >= 5 && w.thawSeconds <= 600 && w.everyMinutes >= 1 && w.everyMinutes <= 240
+                    && w.thawSeconds < w.everyMinutes * 60, "wakeWindows.\(id)",
+                "thawSeconds 5...600, everyMinutes 1...240, thaw shorter than the period")
         }
         for (i, r) in profiles.schedule.enumerated() {
-            check(!r.weekdays.isEmpty && r.weekdays.allSatisfy { (1...7).contains($0) }
-                  && (0...23).contains(r.startHour) && (1...24).contains(r.endHour) && r.startHour < r.endHour,
-                  "profiles.schedule[\(i)]", "weekdays 1...7, 0 <= startHour < endHour <= 24")
+            check(
+                !r.weekdays.isEmpty && r.weekdays.allSatisfy { (1...7).contains($0) }
+                    && (0...23).contains(r.startHour) && (1...24).contains(r.endHour) && r.startHour < r.endHour,
+                "profiles.schedule[\(i)]", "weekdays 1...7, 0 <= startHour < endHour <= 24")
         }
         let ids = allow + deny + quitAllowed + Array(tiers.keys) + Array(wakeWindows.keys) + workspaces.values.flatMap { $0 }
         for id in Set(ids) where id.isEmpty || id.contains(where: \.isWhitespace) {

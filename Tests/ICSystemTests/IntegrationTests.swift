@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import ICCore
 @testable import ICSystem
 
@@ -41,8 +42,10 @@ import Testing
     @Test func partialTreeFailureRollsBack() throws {
         let paths = tempHome()
         let journal = JournalStore(url: paths.journal)
-        let a = try hog(), b = try hog(), c = try hog()
-        defer { [a, b, c].forEach { $0.kill() } }
+        let a = try hog()
+        let b = try hog()
+        let c = try hog()
+        defer { for h in [a, b, c] { h.kill() } }
         // The third process refuses the signal (for example EPERM).
         let r = Signals.freezeTree([a.identity!, b.identity!, c.identity!], appID: "test.partial", at: 1, journal: journal) { sig, id in
             id.pid == c.pid ? .failed(EPERM) : Signals.send(sig, to: id)
@@ -57,10 +60,14 @@ import Testing
         let dir = "/tmp/ic-ro-\(UUID().uuidString.prefix(6))"
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         chmod(dir, 0o500)
-        defer { chmod(dir, 0o700); try? FileManager.default.removeItem(atPath: dir) }
+        defer {
+            chmod(dir, 0o700)
+            try? FileManager.default.removeItem(atPath: dir)
+        }
         let h = try hog()
         defer { h.kill() }
-        let r = Signals.freezeTree([h.identity!], appID: "test.ro", at: 1, journal: JournalStore(url: URL(fileURLWithPath: dir + "/journal.json")))
+        let r = Signals.freezeTree(
+            [h.identity!], appID: "test.ro", at: 1, journal: JournalStore(url: URL(fileURLWithPath: dir + "/journal.json")))
         #expect(!r.ok && r.error?.contains("journal") == true)
         #expect(!isStopped(h.pid))
     }
@@ -72,8 +79,10 @@ import Testing
         defer { h.kill() }
         kill(h.pid, SIGSTOP)
         try journal.update {
-            $0.add([JournalEntry(pid: h.pid, startTime: h.identity!.startTime, appID: "a", frozenAt: 1),
-                    JournalEntry(pid: 99_999_998, startTime: 5, appID: "b", frozenAt: 1)])
+            $0.add([
+                JournalEntry(pid: h.pid, startTime: h.identity!.startTime, appID: "a", frozenAt: 1),
+                JournalEntry(pid: 99_999_998, startTime: 5, appID: "b", frozenAt: 1),
+            ])
         }
         let r = Signals.recover(journal: journal)
         #expect(r.thawed == 1 && r.stale == 1 && !r.corrupt)
@@ -89,7 +98,10 @@ import Testing
         try FileManager.default.copyItem(atPath: hogPath, toPath: bundle.appendingPathComponent("ic-hog").path)
         let appHog = try SpawnedHog(path: bundle.appendingPathComponent("ic-hog").path, args: [])
         let plain = try hog()
-        defer { appHog.kill(); plain.kill() }
+        defer {
+            appHog.kill()
+            plain.kill()
+        }
         #expect(appHog.waitReady())
         kill(appHog.pid, SIGSTOP)
         kill(plain.pid, SIGSTOP)
@@ -139,7 +151,10 @@ import Testing
         let dir = tempHome().base.path
         let writer = try hog(["--write", dir + "/draft.txt"])
         let locker = try hog(["--lock", dir + "/index.lock"])
-        defer { writer.kill(); locker.kill() }
+        defer {
+            writer.kill()
+            locker.kill()
+        }
         #expect(eventually { Guards.writes(Inspector.files(writer.pid), settings: .init()).recentWrite })
         #expect(Guards.writes(Inspector.files(locker.pid), settings: .init()).lockHeld)
         let quiet = try hog()
@@ -156,9 +171,11 @@ import Testing
         let writer = try hog(["--write", tempHome().base.path + "/w.txt"])
         let idle = try hog()
         defer { for h in [server, client, writer, idle] { h.kill() } }
-        probe.apps = [hogApp("test.server", [server, client], inspected: false),
-                      hogApp("test.writer", [writer], inspected: false),
-                      hogApp("test.idle", [idle], inspected: false)]
+        probe.apps = [
+            hogApp("test.server", [server, client], inspected: false),
+            hogApp("test.writer", [writer], inspected: false),
+            hogApp("test.idle", [idle], inspected: false),
+        ]
         let d = try testDaemon(probe)
         defer { d.shutdown() }
         probe.level = .critical
@@ -173,8 +190,12 @@ import Testing
 @Suite(.serialized) struct DaemonTests {
     @Test func freezesUnderPressureAndThawsFirstOnActivation() throws {
         let probe = FakeProbe()
-        let a = try hog(["--mb", "64"]), b = try hog(["--mb", "32"])
-        defer { a.kill(); b.kill() }
+        let a = try hog(["--mb", "64"])
+        let b = try hog(["--mb", "32"])
+        defer {
+            a.kill()
+            b.kill()
+        }
         probe.apps = [hogApp("test.a", [a]), hogApp("test.b", [b])]
         let d = try testDaemon(probe)
         defer { d.shutdown() }
@@ -215,10 +236,17 @@ import Testing
 
     @Test func audioPowerAssertionAndFocusSafeModeBlockFreezing() throws {
         let probe = FakeProbe()
-        let a = try hog(), b = try hog(), c = try hog()
-        defer { a.kill(); b.kill(); c.kill() }
+        let a = try hog()
+        let b = try hog()
+        let c = try hog()
+        defer {
+            a.kill()
+            b.kill()
+            c.kill()
+        }
         let base = ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false)
-        var audio = base, power = base
+        var audio = base
+        var power = base
         audio.audioOutput = true
         power.powerAssertion = true
         probe.apps = [hogApp("test.audio", [a], signals: audio), hogApp("test.power", [b], signals: power), hogApp("test.c", [c])]
@@ -238,8 +266,12 @@ import Testing
 
     @Test func wakeAndShutdownThawEverything() throws {
         let probe = FakeProbe()
-        let a = try hog(), b = try hog()
-        defer { a.kill(); b.kill() }
+        let a = try hog()
+        let b = try hog()
+        defer {
+            a.kill()
+            b.kill()
+        }
         probe.apps = [hogApp("test.a", [a]), hogApp("test.b", [b])]
         let d = try testDaemon(probe)
         probe.level = .critical
@@ -263,13 +295,16 @@ import Testing
     @Test func rapidActivationStorm() throws {
         let probe = FakeProbe()
         let hogs = try (0..<3).map { _ in try hog() }
-        defer { hogs.forEach { $0.kill() } }
+        defer { for h in hogs { h.kill() } }
         probe.apps = hogs.enumerated().map { hogApp("test.\($0.offset)", [$0.element]) }
         let d = try testDaemon(probe) { $0.cooldownMinutes = 0 }
         defer { d.shutdown() }
         probe.level = .critical
         for i in 0..<200 {
-            if i % 20 == 0 { probe.now += 61; d.tick() }
+            if i % 20 == 0 {
+                probe.now += 61
+                d.tick()
+            }
             let h = hogs[i % 3]
             d.handleActivation(pid: h.pid, bundleID: "test.\(i % 3)", name: "x")
             #expect(!isStopped(h.pid))
@@ -389,7 +424,10 @@ import Testing
         daemon.executableURL = products.appendingPathComponent("icleand")
         daemon.environment = ProcessInfo.processInfo.environment.merging(["ICLEAN_HOME": paths.base.path]) { _, n in n }
         try daemon.run()
-        defer { daemon.terminate(); daemon.waitUntilExit() }
+        defer {
+            daemon.terminate()
+            daemon.waitUntilExit()
+        }
         #expect(eventually(10) { !isStopped(h.pid) })
     }
 
@@ -412,7 +450,8 @@ import Testing
         #expect(doctor.status == 0 && doctor.out.contains("SIGSTOP/SIGCONT freeze:        yes"))
         let report = run("iclean", ["doctor", "--report"], env: env).out
         #expect(report.contains("Model identifier"))
-        let user = NSUserName(), host = ProcessInfo.processInfo.hostName
+        let user = NSUserName()
+        let host = ProcessInfo.processInfo.hostName
         #expect(!report.contains(user) && !report.contains(host))
         #expect(run("iclean", ["completions", "zsh"]).out.contains("#compdef iclean"))
         #expect(run("iclean", ["completions", "bash"]).out.contains("complete -F"))
@@ -443,9 +482,11 @@ import Testing
     static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
     @Test func productCodeHasNoNetworkingOrPrivilegeEscalation() throws {
-        let forbidden = ["URLSession", "NWConnection", "NWListener", "AF_INET", "CFSocketCreate", "http://", "https://",
-                         "SMJobBless", "AuthorizationExecuteWithPrivileges", "setuid(", "seteuid(", "task_for_pid",
-                         "memorystatus_control", "pid_suspend"]
+        let forbidden = [
+            "URLSession", "NWConnection", "NWListener", "AF_INET", "CFSocketCreate", "http://", "https://",
+            "SMJobBless", "AuthorizationExecuteWithPrivileges", "setuid(", "seteuid(", "task_for_pid",
+            "memorystatus_control", "pid_suspend",
+        ]
         var hits: [String] = []
         for dir in ["ICCore", "ICSystem", "icleand", "iclean", "iCleanMenu"] {
             let url = Self.root.appendingPathComponent("Sources/\(dir)")

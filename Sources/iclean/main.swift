@@ -41,39 +41,44 @@ func duration(_ s: String) -> Double? {
     }
 }
 
-let installer = Installer(paths: paths, daemonPath: (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
-    .resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("icleand").path)
+let installer = Installer(
+    paths: paths,
+    daemonPath: (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
+        .resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("icleand").path)
 
 let usage = """
-iClean pauses idle background apps under memory pressure and resumes them the moment you
-switch back. It never deletes files.
+    iClean pauses idle background apps under memory pressure and resumes them the moment you
+    switch back. It never deletes files.
 
-Usage: iclean <command> [options]
+    Usage: iclean <command> [options]
 
-  status [--json]                  what iClean is doing now
-  why [--json]                     why is my Mac slow right now?
-  explain <app>                    why an app was or was not frozen
-  thaw [<app> | --all]             resume frozen apps (works even if the daemon is dead)
-  freeze <app>                     freeze one app now (safety checks still apply)
-  undo                             thaw the last round of freezes
-  mode [observe | active]          show or change the mode
-  profile [work | batterySaver | presentation | dev | auto]
-  stats [--days N] [--json]        digest of what iClean measured
-  advise                           RAM right-sizing estimate (needs 7 days of history)
-  quarantine [release <app>]       apps that misbehaved after a thaw
-  habits [show | reset | export]   local app-switch statistics
-  workspace [<name> freeze | thaw]
-  simulate [--config FILE] [--since 7d]    replay recorded traces with another config
-  trace export [--anonymize] [--since 7d] [--out FILE]
-  config [path | show | validate [FILE] | allow <app> | deny <app> | import FILE | export]
-  doctor [--report]                what works on this Mac
-  install | uninstall [--purge]    manage the per-user LaunchAgent
-  bench [--quick]                  run the benchmark scenarios (spawns test processes only)
-  completions [zsh | bash | fish]
-  version
-"""
+      status [--json]                  what iClean is doing now
+      why [--json]                     why is my Mac slow right now?
+      explain <app>                    why an app was or was not frozen
+      thaw [<app> | --all]             resume frozen apps (works even if the daemon is dead)
+      freeze <app>                     freeze one app now (safety checks still apply)
+      undo                             thaw the last round of freezes
+      mode [observe | active]          show or change the mode
+      profile [work | batterySaver | presentation | dev | auto]
+      stats [--days N] [--json]        digest of what iClean measured
+      advise                           RAM right-sizing estimate (needs 7 days of history)
+      quarantine [release <app>]       apps that misbehaved after a thaw
+      habits [show | reset | export]   local app-switch statistics
+      workspace [<name> freeze | thaw]
+      simulate [--config FILE] [--since 7d]    replay recorded traces with another config
+      trace export [--anonymize] [--since 7d] [--out FILE]
+      config [path | show | validate [FILE] | allow <app> | deny <app> | import FILE | export]
+      doctor [--report]                what works on this Mac
+      install | uninstall [--purge]    manage the per-user LaunchAgent
+      bench [--quick]                  run the benchmark scenarios (spawns test processes only)
+      completions [zsh | bash | fish]
+      version
+    """
 
-guard let cmd = args.first else { out(usage); exit(0) }
+guard let cmd = args.first else {
+    out(usage)
+    exit(0)
+}
 let rest = Array(args.dropFirst())
 
 switch cmd {
@@ -88,7 +93,9 @@ case "status":
         out(json ? (r.data ?? r.text) : r.text)
     } else {
         let j = JournalStore(url: paths.journal).read()
-        out("icleand is not running." + (j.entries.isEmpty ? "" : " The journal lists \(j.entries.count) frozen process(es): run `iclean thaw --all`."))
+        out(
+            "icleand is not running."
+                + (j.entries.isEmpty ? "" : " The journal lists \(j.entries.count) frozen process(es): run `iclean thaw --all`."))
         exit(3)
     }
 
@@ -102,8 +109,9 @@ case "why":
         Thread.sleep(forTimeInterval: 1)
         let now = Date().timeIntervalSince1970
         let r = c.collect(now: now)
-        let d = Why.diagnose(samples: [SystemSampler.sample(now: now)], apps: r.apps, runaway: [],
-                             forecast: Forecast(armed: false, stable: true), idleMinutes: { _ in 0 })
+        let d = Why.diagnose(
+            samples: [SystemSampler.sample(now: now)], apps: r.apps, runaway: [],
+            forecast: Forecast(armed: false, stable: true), idleMinutes: { _ in 0 })
         out("(icleand is not running: one snapshot, no history)\n" + d.text)
     }
 
@@ -117,8 +125,9 @@ case "thaw":
         out(r.text)
     } else if all {
         let r = Signals.recover(journal: JournalStore(url: paths.journal))
-        out("icleand is not running; thawed \(r.thawed) process(es) from the journal" + (r.stale > 0 ? ", \(r.stale) already gone" : "")
-            + (r.corrupt ? " (journal was corrupt: resumed every stopped app process)" : "") + ".")
+        out(
+            "icleand is not running; thawed \(r.thawed) process(es) from the journal" + (r.stale > 0 ? ", \(r.stale) already gone" : "")
+                + (r.corrupt ? " (journal was corrupt: resumed every stopped app process)" : "") + ".")
     } else {
         fail("icleand is not running. `iclean thaw --all` works without it.")
     }
@@ -213,21 +222,27 @@ case "config":
     case "import":
         // Rule packs: only rule keys are taken, and the result is validated before saving.
         guard rest.count > 1, let data = try? Data(contentsOf: URL(fileURLWithPath: rest[1])),
-              let pack = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { fail("usage: iclean config import FILE.json") }
+            let pack = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { fail("usage: iclean config import FILE.json") }
         let ruleKeys: Set<String> = ["allow", "deny", "tiers", "wakeWindows", "workspaces"]
         let unknown = Set(pack.keys).subtracting(ruleKeys)
         guard unknown.isEmpty else { fail("A rule pack may only contain \(ruleKeys.sorted()); found \(unknown.sorted()).") }
         var current = (try? JSONSerialization.jsonObject(with: Data(contentsOf: paths.config))) as? [String: Any] ?? [:]
         for (k, v) in pack {
-            if let list = v as? [String] { current[k] = Array(Set((current[k] as? [String] ?? []) + list)).sorted() }
-            else if let map = v as? [String: Any] { current[k] = (current[k] as? [String: Any] ?? [:]).merging(map) { _, new in new } }
+            if let list = v as? [String] {
+                current[k] = Array(Set((current[k] as? [String] ?? []) + list)).sorted()
+            } else if let map = v as? [String: Any] {
+                current[k] = (current[k] as? [String: Any] ?? [:]).merging(map) { _, new in new }
+            }
         }
         do {
             let merged = try JSONSerialization.data(withJSONObject: current, options: [.prettyPrinted, .sortedKeys])
             let (_, warnings) = try Config.load(json: merged)
             try paths.ensure()
             try Files.atomicWrite(merged, to: paths.config)
-            out("Imported \(pack.keys.sorted().joined(separator: ", ")).\(warnings.isEmpty ? "" : "\n" + warnings.map(\.description).joined(separator: "\n"))")
+            out(
+                "Imported \(pack.keys.sorted().joined(separator: ", ")).\(warnings.isEmpty ? "" : "\n" + warnings.map(\.description).joined(separator: "\n"))"
+            )
             _ = daemon(Request("reload"))
         } catch {
             fail("Rule pack rejected: \(error)")

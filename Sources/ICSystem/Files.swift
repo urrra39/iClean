@@ -28,8 +28,9 @@ public struct Paths: Sendable {
     public var hardware: URL { base.appendingPathComponent("hardware.json") }
 
     public func ensure() throws {
-        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
+        try FileManager.default.createDirectory(
+            at: base, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
     }
 }
 
@@ -96,7 +97,8 @@ public final class JournalStore: @unchecked Sendable {
     }
 
     public func load() -> LoadResult {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         guard let data = try? Data(contentsOf: url) else { return .ok(Journal()) }
         if let j = try? JSONDecoder().decode(Journal.self, from: data) { return .ok(j) }
         let aside = URL(fileURLWithPath: url.path + ".corrupt-\(Int(Date().timeIntervalSince1970))")
@@ -111,7 +113,8 @@ public final class JournalStore: @unchecked Sendable {
 
     /// Read-modify-write under the lock.
     public func update(_ body: (inout Journal) -> Void) throws {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         var j = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
         body(&j)
         if j.entries.isEmpty {
@@ -185,7 +188,8 @@ public final class TraceWriter: @unchecked Sendable {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         var total = files.compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }.reduce(0, +)
         for f in files {
-            let mtime = (try? f.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)?.timeIntervalSince1970 ?? now
+            let mtime =
+                (try? f.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)?.timeIntervalSince1970 ?? now
             let size = (try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             if now - mtime > Double(settings.retentionDays) * 86400 || Double(total) > settings.maxMB * 1_048_576 {
                 try? fm.removeItem(at: f)
