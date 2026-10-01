@@ -177,7 +177,7 @@ rm -rf /Applications/iClean.app
 
 [Architecture](docs/ARCHITECTURE.md) · [Safety](docs/SAFETY.md) ·
 [Feasibility study](docs/FEASIBILITY.md) · [Decisions](docs/DECISIONS.md) ·
-[Trace format](docs/TRACE_FORMAT.md) ·
+[Trace format](docs/TRACE_FORMAT.md) · [Quality](docs/QUALITY.md) ·
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 MIT License. Not affiliated with Apple Inc. macOS and MacBook are trademarks of Apple
