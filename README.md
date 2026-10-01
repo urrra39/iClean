@@ -109,6 +109,12 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   "flush" button: macOS offers no way to make another app free memory or collect
   garbage.
 
+Prior art for both ([NOVELTY.md](docs/NOVELTY.md#v11-re-audit-2026-10-02), searched
+2026-10-02): workspace tools open and close app groups by shortcut (Bunch, Commute,
+Ikuna, ShiftPlus) and autohide hides unused apps; the leak trend's statistics
+(Mann-Kendall with Sen's slope) are an established method, and other Mac tools already
+flag growing apps (RamRadar, Memory Monitor, Mac Performance Monitor).
+
 ## Known side effects
 
 What pausing does to an app, measured with simulators and Chrome on local pages
