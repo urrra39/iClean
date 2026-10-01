@@ -4,7 +4,7 @@ import Testing
 @testable import ICCore
 
 @Suite struct ContextTests {
-    let home = "/Users/dev"
+    let home = "/home/dev"
     var rules: [ContextRule] {
         [
             ContextRule(name: "web", path: "~/code/web", apps: ["com.google.Chrome", "Figma"]),
@@ -16,12 +16,12 @@ import Testing
     var settings: ContextSettings { ContextSettings() }
 
     @Test func resolveMostSpecificGlobAndBranch() {
-        #expect(ContextTracker.resolve(path: "/Users/dev/code/web/src/ui", branch: "main", rules: rules, home: home)?.name == "web")
-        #expect(ContextTracker.resolve(path: "/Users/dev/code/other", branch: nil, rules: rules, home: home)?.name == "any")
-        #expect(ContextTracker.resolve(path: "/Users/dev/code/web", branch: "release/1.0", rules: rules, home: home)?.name == "release")
-        #expect(ContextTracker.resolve(path: "/Users/dev/docs", branch: nil, rules: rules, home: home) == nil)
-        #expect(ContextTracker.ignored("/Users/dev", home: home) && ContextTracker.ignored("/tmp/x", home: home))
-        #expect(ContextTracker.ignored("/private/var/folders/ab/T", home: home) && !ContextTracker.ignored("/Users/dev/code", home: home))
+        #expect(ContextTracker.resolve(path: "/home/dev/code/web/src/ui", branch: "main", rules: rules, home: home)?.name == "web")
+        #expect(ContextTracker.resolve(path: "/home/dev/code/other", branch: nil, rules: rules, home: home)?.name == "any")
+        #expect(ContextTracker.resolve(path: "/home/dev/code/web", branch: "release/1.0", rules: rules, home: home)?.name == "release")
+        #expect(ContextTracker.resolve(path: "/home/dev/docs", branch: nil, rules: rules, home: home) == nil)
+        #expect(ContextTracker.ignored("/home/dev", home: home) && ContextTracker.ignored("/tmp/x", home: home))
+        #expect(ContextTracker.ignored("/private/var/folders/ab/T", home: home) && !ContextTracker.ignored("/home/dev/code", home: home))
     }
 
     func enter(_ s: inout ContextState, _ path: String, at t: Double, source: String = "tty1") {
@@ -32,13 +32,13 @@ import Testing
     @Test func dwellAndSubdirectories() {
         var s = ContextState()
         s.current = "web"
-        enter(&s, "/Users/dev/code/api", at: 0)
+        enter(&s, "/home/dev/code/api", at: 0)
         #expect(ContextTracker.decide(&s, now: 10, rules: rules, settings: settings, mode: .active) == .none)
-        enter(&s, "/Users/dev/code/api/Sources", at: 12)
+        enter(&s, "/home/dev/code/api/Sources", at: 12)
         #expect(ContextTracker.dueAt(s, settings: settings) == 20)
         #expect(ContextTracker.decide(&s, now: 20, rules: rules, settings: settings, mode: .active) == .suggest(from: "web", to: "api"))
         // The same suggestion is not repeated.
-        enter(&s, "/Users/dev/code/api", at: 30)
+        enter(&s, "/home/dev/code/api", at: 30)
         #expect(ContextTracker.decide(&s, now: 60, rules: rules, settings: settings, mode: .active) == .none)
     }
 
@@ -47,19 +47,19 @@ import Testing
         var s = ContextState()
         s.current = "web"
         // Back to the current context within the dwell time cancels.
-        enter(&s, "/Users/dev/code/api", at: 0)
-        enter(&s, "/Users/dev/code/web", at: 5)
+        enter(&s, "/home/dev/code/api", at: 0)
+        enter(&s, "/home/dev/code/web", at: 5)
         #expect(s.pending == nil)
         // Home and temporary folders do nothing, and do not cancel or start anything.
         enter(&s, "/tmp/build", at: 6)
-        enter(&s, "/Users/dev", at: 7)
+        enter(&s, "/home/dev", at: 7)
         #expect(s.pending == nil)
         // A different shell asking for a different context during the dwell time is a tie: keep the current one.
-        enter(&s, "/Users/dev/code/api", at: 10, source: "tty1")
-        enter(&s, "/Users/dev/code/other", at: 12, source: "tty2")
+        enter(&s, "/home/dev/code/api", at: 10, source: "tty1")
+        enter(&s, "/home/dev/code/other", at: 12, source: "tty2")
         #expect(s.pending == nil && s.current == "web")
         // Directories outside every context do nothing.
-        enter(&s, "/Users/dev/docs", at: 20)
+        enter(&s, "/home/dev/docs", at: 20)
         #expect(s.pending == nil)
     }
 
@@ -68,7 +68,7 @@ import Testing
         var s = ContextState()
         s.current = "web"
         s.lastSwitch = ContextSwitchRecord(from: nil, to: "web", at: 0, stashed: [], popped: [])
-        enter(&s, "/Users/dev/code/api", at: 30)
+        enter(&s, "/home/dev/code/api", at: 30)
         #expect(ContextTracker.decide(&s, now: 100, rules: rules, settings: settings, mode: .active) == .none)
         #expect(ContextTracker.dueAt(s, settings: settings) == 300)
         #expect(ContextTracker.decide(&s, now: 300, rules: rules, settings: settings, mode: .active) == .suggest(from: "web", to: "api"))
@@ -81,14 +81,14 @@ import Testing
         auto[1].auto = true
         var s = ContextState()
         s.current = "web"
-        ContextTracker.enter(&s, path: "/Users/dev/code/api", branch: nil, source: "t", now: 0, rules: auto, settings: settings, home: home)
+        ContextTracker.enter(&s, path: "/home/dev/code/api", branch: nil, source: "t", now: 0, rules: auto, settings: settings, home: home)
         var o = s
         #expect(ContextTracker.decide(&s, now: 20, rules: auto, settings: settings, mode: .active) == .switchNow(from: "web", to: "api"))
         #expect(ContextTracker.decide(&o, now: 20, rules: auto, settings: settings, mode: .observe) == .wouldSwitch(from: "web", to: "api"))
         #expect(o.current == "api" && o.suggested == nil && o.lastSwitch?.stashed == [] && o.lastSwitch?.popped == [])
         var paused = ContextState()
         paused.paused = true
-        enter(&paused, "/Users/dev/code/api", at: 0)
+        enter(&paused, "/home/dev/code/api", at: 0)
         #expect(ContextTracker.decide(&paused, now: 100, rules: rules, settings: settings, mode: .active) == .none)
     }
 
@@ -111,12 +111,12 @@ import Testing
 
     @Test func suggestionsFromActivity() {
         var s = ContextState()
-        s.lastRoot = "/Users/dev/code/web"
+        s.lastRoot = "/home/dev/code/web"
         for _ in 0..<5 { ContextTracker.noteActivation(&s, appID: "com.figma.Desktop") }
         for _ in 0..<3 { ContextTracker.noteActivation(&s, appID: "com.google.Chrome") }
         ContextTracker.noteActivation(&s, appID: "com.apple.Notes")
-        #expect(ContextTracker.suggestApps(s, root: "/Users/dev/code/web") == ["com.figma.Desktop", "com.google.Chrome"])
-        #expect(ContextTracker.suggestApps(s, root: "/Users/dev/elsewhere").isEmpty)
+        #expect(ContextTracker.suggestApps(s, root: "/home/dev/code/web") == ["com.figma.Desktop", "com.google.Chrome"])
+        #expect(ContextTracker.suggestApps(s, root: "/home/dev/elsewhere").isEmpty)
     }
 
     @Test func configAndDecoding() throws {

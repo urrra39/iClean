@@ -82,13 +82,13 @@ import Testing
         defer { for f in fx { f.kill() } }
         // Absolute project paths: the test's home is under /var/folders, which Auto-Context ignores as temporary.
         let rules = [
-            ContextRule(name: "one", path: "/Users/iclear-ctx-test/one", apps: [fx[0].id]),
-            ContextRule(name: "two", path: "/Users/iclear-ctx-test/two", apps: [fx[1].id]),
+            ContextRule(name: "one", path: "/opt/iclear-ctx-test/one", apps: [fx[0].id]),
+            ContextRule(name: "two", path: "/opt/iclear-ctx-test/two", apps: [fx[1].id]),
         ]
         let (d, _) = try daemon(fx, paths, mode: .observe, rules: rules)
         defer { d.shutdown() }
         d.contextState.current = "one"
-        let enter = #"{"path":"/Users/iclear-ctx-test/two/src","source":"t"}"#
+        let enter = #"{"path":"/opt/iclear-ctx-test/two/src","source":"t"}"#
         #expect(d.handle(Request("context", app: "enter", value: enter)).ok)
         d.contextCheck()
         #expect(d.contextState.current == "two" && d.contextState.suggested == nil)
