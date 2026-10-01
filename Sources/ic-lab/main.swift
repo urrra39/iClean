@@ -286,12 +286,22 @@ case "validate":
         print(lab.pairedShield(name: "Call Mode", pairs: opt("--pairs", 20), probe: sim, seconds: 20, tools: products))
         sim.kill()
     case "sideeffects": lab.sideEffects(tools: products)
+    case "context":
+        lab.contextLab(
+            switches: opt("--switches", 200), falseEvents: opt("--false", 250), undos: opt("--undos", 50), crashes: opt("--crashes", 50),
+            tools: products)
+    case "leaks": lab.leakLab(growing: opt("--growing", 15), flat: opt("--flat", 15), hours: Double(opt("--hours", 5)), tools: products)
+    case "leak-retro":
+        let dir = args.firstIndex(of: "--trace").map { args[$0 + 1] } ?? ""
+        lab.leakRetro(traceDir: URL(fileURLWithPath: dir))
     case "beachball":
         let probe = spawn(tool("ic-ui-probe"), ["--frame", "80,80,300,200", "--title", "ic-lab beachball", "--heartbeat"])
         print(lab.pairedShield(name: "Anti-Beachball", pairs: opt("--pairs", 30), probe: probe, seconds: 20, tools: products))
         probe.kill()
     default:
-        print("phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects")
+        print(
+            "phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects context leaks leak-retro"
+        )
     }
     lab.cleanup()
     activeLab = nil

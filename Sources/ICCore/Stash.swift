@@ -25,16 +25,32 @@ public struct StashOptions: Codable, Equatable, Sendable {
     /// Stash apps that report unsaved changes.
     public var forceUnsaved = false
     public var dryRun = false
+    /// Stash only these apps (a context switch stashes exactly the leaving group).
+    public var only: [String] = []
 
     public init(
         keep: [String] = [], include: [String] = [], includeHeavy: Bool = false, forceUnsaved: Bool = false,
-        dryRun: Bool = false
+        dryRun: Bool = false, only: [String] = []
     ) {
         self.keep = keep
         self.include = include
         self.includeHeavy = includeHeavy
         self.forceUnsaved = forceUnsaved
         self.dryRun = dryRun
+        self.only = only
+    }
+
+    enum CodingKeys: String, CodingKey { case keep, include, includeHeavy, forceUnsaved, dryRun, only }
+
+    /// Missing keys take their defaults, so older clients' options still decode.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        keep = try c.decodeIfPresent([String].self, forKey: .keep) ?? []
+        include = try c.decodeIfPresent([String].self, forKey: .include) ?? []
+        includeHeavy = try c.decodeIfPresent(Bool.self, forKey: .includeHeavy) ?? false
+        forceUnsaved = try c.decodeIfPresent(Bool.self, forKey: .forceUnsaved) ?? false
+        dryRun = try c.decodeIfPresent(Bool.self, forKey: .dryRun) ?? false
+        only = try c.decodeIfPresent([String].self, forKey: .only) ?? []
     }
 }
 
@@ -114,6 +130,9 @@ public enum StashPlanner {
             if Protection.isProtected(a) {
                 decision = .keep
                 notes.append("protected")
+            } else if !options.only.isEmpty && !matches(options.only, a) {
+                decision = .keep
+                notes.append("not in this group")
             } else if s.audioOutput || s.audioInput || s.powerAssertion
                 || (session.cameraInUse && callApps.contains(a.id))
             {

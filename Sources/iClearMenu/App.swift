@@ -55,7 +55,7 @@ struct MenuView: View {
                 Divider()
                 frozen(s)
                 Divider()
-                stashSection
+                stashSection(s)
             } else {
                 Text(localized("daemon.notRunning")).font(.headline)
                 Button(localized("daemon.start")) { model.startDaemon() }
@@ -155,13 +155,22 @@ struct MenuView: View {
         }
     }
 
-    var stashSection: some View {
+    func stashSection(_ s: Status) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 TextField(localized("stash.name"), text: $model.stashName).textFieldStyle(.roundedBorder)
                     .onSubmit { model.stash(model.stashName) }
                 Button(localized("stash")) { model.stash(model.stashName) }
                     .accessibilityLabel(Text(localized("a11y.stash")))
+            }
+            if let to = s.contextSuggested {
+                HStack {
+                    Image(systemName: "folder").accessibilityHidden(true)
+                    Text(String(format: localized("context.suggest"), to)).lineLimit(2)
+                    Spacer()
+                    Button(localized("context.accept")) { model.acceptContext() }
+                    Button(localized("context.dismiss")) { model.dismissContext() }
+                }
             }
             ForEach(model.stashes, id: \.name) { st in
                 HStack {
@@ -191,6 +200,7 @@ struct MenuView: View {
                 Button(localized("battery")) { model.show("battery", title: localized("battery")) }
                 Button(localized("stalls")) { model.show("beachball", title: localized("stalls")) }
                 Button(localized("calls")) { model.show("shield", title: localized("calls")) }
+                Button(localized("leaks")) { model.show("leaks", title: localized("leaks")) }
             }
         }
     }

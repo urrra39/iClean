@@ -91,6 +91,10 @@ public struct Config: Codable, Equatable, Sendable {
     public var trace = TraceSettings()
     public var notifications = NotificationSettings()
     public var stash = StashSettings()
+    /// Auto-Context Stash rules and timing.
+    public var contexts: [ContextRule] = []
+    public var context = ContextSettings()
+    public var leaks = LeakSettings()
     public var callMode = ShieldSettings()
     public var thermalShield = ShieldSettings()
     public var antiBeachball = BeachballSettings()
@@ -323,6 +327,17 @@ extension Config {
         check((1...365).contains(trace.retentionDays), "trace.retentionDays", "must be 1...365")
         check(notifications.maxPerHour >= 0, "notifications.maxPerHour", "must be >= 0")
         check((0.1...168).contains(stash.maxAgeHours), "stash.maxAgeHours", "must be 0.1...168")
+        check((0...600).contains(context.dwellSeconds), "context.dwellSeconds", "must be 0...600")
+        check((0...120).contains(context.cooldownMinutes), "context.cooldownMinutes", "must be 0...120")
+        check(Set(contexts.map(\.name)).count == contexts.count, "contexts", "context names must be unique")
+        for (i, r) in contexts.enumerated() {
+            check(
+                !r.name.isEmpty && !r.name.contains(where: \.isWhitespace) && !r.path.isEmpty && !r.apps.isEmpty, "contexts[\(i)]",
+                "a context needs a name without spaces, a path and at least one app")
+        }
+        check(
+            leaks.minHours >= 1 && leaks.minSamples >= 6 && leaks.minRateMBPerHour > 0, "leaks",
+            "minHours >= 1, minSamples >= 6, minRateMBPerHour > 0")
         for (name, sh) in [
             ("callMode", callMode), ("thermalShield", thermalShield), ("antiBeachball.mitigation", antiBeachball.mitigation),
         ] {

@@ -107,6 +107,54 @@ As of 2026-10-02, we did not find a pressure ETA forecast, regret-aware freezing
 connection/write guards before pausing, a post-resume quarantine or trace replay in the
 projects above. Not found is not proof of absence.
 
+## v1.1 re-audit (2026-10-02)
+
+Queries run on 2026-10-02 (web search, then each result's page read): "macOS hide apps
+automatically when changing project directory terminal cd hook"; "per-project app
+workspace switcher macOS shell hook directory open close apps"; "zsh chpwd hook
+Hammerspoon hide show applications per directory"; "git branch checkout switch apps
+workspace context macOS automatically pause suspend apps"; "automatically switch macOS
+workspace apps based on current terminal directory project detection"; "Bunch app macOS
+open close apps context shell command trigger directory"; "macOS app memory growth trend
+detection background apps leak warning utility"; "\"memory leak\" detector macOS menu
+bar app growth rate MB per hour notify"; "Theil-Sen Mann-Kendall memory leak detection
+process footprint trend"; "software aging detection Mann-Kendall Sen slope memory leak
+online monitoring time to exhaustion".
+
+### Auto-Context Stash
+
+| Project | What it does (from its README, store page or site) | Difference |
+|---|---|---|
+| [autohide](https://github.com/shadowfax92/autohide) | Hides (Cmd-H semantics) apps not used for a set time, per-app timers, a focus mode; MIT. No directory or project integration mentioned. | Inactivity-driven hiding; no pause, no project trigger. |
+| [Ikuna](https://www.brnsft.com/blog/best-mac-apps-for-project-switching-save-browser-tabs-apps-and-files-instantly-in-2026) | Closes the current workspace and restores another (apps, browser tabs, window positions) by keyboard shortcut, "in under three seconds" (the publisher's own claim). | Quit and relaunch by shortcut; no directory trigger. |
+| [Commute](https://apps.apple.com/app/id1564572231) | Profiles open chosen apps and "ensure selected apps are closed"; manual activation. | Open/close by hand. |
+| [Bunch](https://bunchapp.co/docs/integration/applescript/) | Plain-text "Bunches" open and close apps (toggle), run scripts; can be driven by AppleScript, an `x-bunch://` URL handler and a command-line tool, so a shell hook could call it. | Opens and quits; a directory trigger would be the user's own script. |
+| [Project Switcher](https://github.com/jeroenvisser101/project-switcher) | Jumps to configured project directories with `before_switch`/`after_switch` commands; archived 2019-01-18. | Directory switch with user hooks; manages no apps itself. |
+| ShiftPlus, ContextResume, direnv | See the prior-art update above. | |
+
+As of 2026-10-02 we did not find, in these projects or in the searches above, a tool that
+pauses and hides an app group in place when the shell's project changes, with a dwell
+time, a cooldown, Observe-first defaults and crash recovery from a journal. The pieces
+exist separately (shell hooks in direnv and ContextResume; open/close groups in Bunch,
+Commute, Ikuna and ShiftPlus; hiding in autohide). Not found is not proof of absence.
+
+### Leak trend
+
+| Source | What it does | Difference |
+|---|---|---|
+| [Memory Monitor - RAM Usage](https://apps.apple.com/tt/app/memory-monitor-ram-usage/id6756789414?mt=12) (App Store, version 2.0) | "Runs background diagnostics to spot apps with abnormal, rapid RAM growth (memory leaks) and alerts you"; the method is not described. | Same goal; iClear's method, thresholds and limits are published. |
+| [RamRadar](https://github.com/gemscng/RamRadar) | Flags a program that "grew by at least 1 GB and 50%" since a check at least 10 minutes earlier; suggests stopping it (app Quit, SIGTERM, force after 5 s), always after confirmation; MIT. | Threshold on two readings; can force-terminate. iClear uses a trend over ≥ 2 h of idle samples and does not force. |
+| [Mac Performance Monitor](https://github.com/Zesty0wl/mac-performance-monitor) | Process-growth checks that "reject stale readings and growth that has settled"; "modest findings stay as quiet observations, not a diagnosis of a memory leak"; a fast-growth check for runaways; MIT. | Close in spirit (not a diagnosis); thresholds not published in the README. |
+| [ProcXray](https://procxray.com/blog/debug-memory-leaks-mac/) | A history chart per process; the user watches for "a steady upward slope that never flattens". No automatic detection described. | Manual. |
+| [RAMKeeper](https://ramkeeper.reelary.app/) | Threshold rules, a focus mode that suspends background apps, gentle restarts; a guide describes leaks as "growth that survives idling". No leak detector claimed. | Thresholds, not a trend test. |
+| Software-aging research: [Garg et al., "A Methodology for Detection and Estimation of Software Aging"](https://repository.lib.ncsu.edu/bitstreams/bfaeb92a-1172-4fe9-84df-ac723f44b63e/download) (the PDF was behind a bot check today; its search excerpt describes an "estimated time to exhaustion" from slope estimation), ["On the effectiveness of Mann-Kendall test for detection of software aging"](https://www.researchgate.net/publication/261348149_On_the_effectiveness_of_Mann-Kendall_test_for_detection_of_software_aging), [Santos et al. 2026](https://arxiv.org/html/2608.26391v2) (Mann-Kendall at p < 0.05 with Sen's slope) | Mann-Kendall with Sen's (Theil-Sen) slope and a time-to-exhaustion estimate is an established way to detect resource growth in long-running software. | iClear applies this known method to idle desktop apps; the statistics are not new. |
+
+As of 2026-10-02, the method is established and several Mac tools already flag growing
+apps. What we did not find in the tools above: a published trend rule restricted to
+samples when the app is not in use, with step and sawtooth rejection, an interval on the
+rate, and notifications that ship only after a pre-registered false-alarm check. Not
+found is not proof of absence.
+
 ## What the README may say
 
 Only dated, evidence-backed statements of the form "as of 2026-09-30, we did not find

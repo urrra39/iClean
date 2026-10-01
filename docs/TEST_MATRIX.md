@@ -33,6 +33,9 @@ automated test that exercises it and is listed in the README's "Not validated" l
 | `migrate`, `migrate --remove-old` | `MigrationTests` (7 tests); C14 checks it from the release artifact |
 | `selftest`, `selftest --quick` | C13 (full run on the reference machine); release workflow runs `--quick` from the artifact |
 | `bench` | used to produce [BENCHMARKS.md](BENCHMARKS.md); **NOT TESTED** in the suite |
+| `hook zsh\|bash\|fish\|git` (v1.1) | `hooksAndCommands` (snippets print, `context enter` is silent and quick without a daemon); zsh and bash overhead and delivery: spike [`hook_overhead.py`](../spikes/hook_overhead.py), gate X1 after the soak; fish and the git hook running in a real shell or repository **NOT TESTED** |
+| `context add/list/remove/status/pause/resume/accept/dismiss/switch/undo/suggest/enter` (v1.1) | `ContextTests` (9 tests: resolve, dwell, false triggers, cooldown, modes, plan, suggestions, decoding, stash `only`), `ContextIntegrationTests` (switch with a shared app and undo, hard block stops the switch, crash after a switch, Observe records and Active suggests, branch detection), `everyCommandRunsThroughTheCLI`; lab X2-X6 after the soak |
+| `leaks`, `leaks quit <app> [--yes]` (v1.1) | `LeakTests` (5 tests: Theil-Sen and Mann-Kendall, growth found, flat/step/sawtooth/in-use/too-little-data/stopped/slow not found, history bounds, in use), `leakQuitNeedsPreviewAndConfirmation`, `leakNotificationsOncePerDay`, `everyCommandRunsThroughTheCLI`; lab L1-L4 with `ic-hog --profile` after the soak |
 
 ## Menu actions
 
@@ -46,6 +49,8 @@ render used for the screenshots.
 | Resume (per app), Never freeze, Resume all (⌘T), Undo (⌘Z) | `thaw`, `deny`, `thaw all`, `undo` | manual M4 |
 | Stash, Pop | `stash`, `pop` | manual M5 |
 | Why, Digest, Battery, Stalls, Calls | `why`, `stats`, `battery`, `beachball`, `shield` | manual M4 |
+| Growth (v1.1) | `leaks` | **NOT TESTED** by hand yet |
+| Context suggestion: Switch, Not now (v1.1) | `context accept`, `context dismiss` | **NOT TESTED** by hand yet |
 | Start daemon | `launchctl` | manual M1 |
 | Open Accessibility settings | system URL | manual M6 |
 | Global hotkeys ⌃⌥⌘T (always), ⌃⌥⌘S / ⌃⌥⌘P (`stash.hotkeys`) | `thaw all`, `stash`, `pop` | manual M5; **NOT TESTED** automatically |
@@ -81,10 +86,14 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | `guards.*` | `newRemoteConnectionIsActiveUntilQuiet`, `loopbackAndBenignPortsAreIgnored`, `servingListener`, `writes`, `recentWriteAndLockFile` |
 | `healthCheck.*` | `unhealthyThawQuarantines`, `crashAfterThawIsQuarantined` |
 | `runaway.*` | `runawayNotifiesOnceAndFeedsHealth`, `sustainedCPUInBackground`, `steadyGrowthButNotNoise` |
-| `trace.*` | `TraceWriter` tests (`recordsAreCapped`) |
+| `trace.*` | `limitsDeleteOldestAndKeepTheCurrentFile`, `readIsOldestFirst` (v1.1; before them no test covered the trace files) |
 | `notifications.*` | `notificationsAreRateLimitedAndProtectedIgnored` |
 | `stash.maxAgeHours` | `lifecycleRemindsThenExpires`, `expiryAfterSleepPopsWithoutLateReminder` |
 | `stash.hotkeys` | **NOT TESTED** (manual M5) |
+| `contexts` (v1.1) | `configAndDecoding` (names, paths, duplicates), `resolveMostSpecificGlobAndBranch`, `planKeepsSharedApps`, `switchSharedAppAndUndo` |
+| `context.dwellSeconds`, `context.cooldownMinutes` (v1.1) | `dwellAndSubdirectories`, `cooldown`, `falseTriggersAreIgnored` |
+| `leaks.minHours`, `leaks.minSamples`, `leaks.minRateMBPerHour` (v1.1) | `notTrends` (too little data, slow growth), `steadyGrowthIsFound` |
+| `leaks.notify` (v1.1) | off by default (`defaultsAreValidAndObserveFirst`); one notification per app per day (`leakNotificationsOncePerDay`) |
 | `callMode.*` | `callModeLowersOthersAndRestoresWithinTwoSeconds`, `ShieldTests`; lab `callmode` |
 | `thermalShield.*` | `ShieldTests` (ladder logic only); the thermal trigger on real heat is **NOT TESTED** |
 | `antiBeachball.forensics` | `explanations`, `stats`; lab `combined` (probe running) |
@@ -106,6 +115,8 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | F6 `before` | `launchAdvisor`, `featureCommandsAnswer` | **NOT TESTED** continuously (a one-shot estimate) |
 | F7 Unsaved guard | `keepListUnsavedAndSharedWindows` (planner) | lab `unsaved` (spike g) |
 | App classes (COMM, MEDIA, BROWSER) | `AppClassTests` (defaults, cooldown, browser caution, wake window never during a call, compat) | lab `sideeffects` |
+| Auto-Context Stash (v1.1) | `ContextTests`, `ContextIntegrationTests`; selftest `context switch (isolated)` | lab `context` (X2-X6) after the soak |
+| Leak trend (v1.1) | `LeakTests`, `leakQuitNeedsPreviewAndConfirmation`; selftest `leak trend (synthetic)` | lab `leaks` (L1-L4) after the soak; `leak-retro` (L5) on the soak's Observe trace |
 | Everything together | | lab `combined` (≥ 60 min) |
 
 ## Safety invariants
@@ -126,6 +137,10 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | 1.0 #4 Call apps never paused during a call | `hardBlocksCannotBeOverridden`, `callModeLowersOthersAndRestoresWithinTwoSeconds`, `microphoneAndFlickerKeepTheCooldown`; lab `sideeffects` (E2) |
 | 1.0 #6 Lab work stays in its lab | `scopeLockRefusesUnregisteredProcesses`, `everyCommandRunsThroughTheCLI` |
 | 1.0 #5 Estimates self-disarm | `receiptsDisarmUnreliableEstimates`, `disarmsWhenItDoesNotHelp` |
+| 1.1 A context switch is journaled first (it is a stash and a pop) | `switchSharedAppAndUndo` (journal ends empty), `crashAfterSwitchRecovers` (recovery after the daemon dies mid-switch) |
+| 1.1 A context switch is one transaction | `hardBlockStopsTheSwitch` |
+| 1.1 Auto-Context and the leak trend stay in the lab's scope | the switch and `leaks` work on the scope-filtered app list; `scopeLockRefusesUnregisteredProcesses`; selftest `context switch (isolated)` runs scope-locked |
+| 1.1 No quit without preview and confirmation, no force-quit (L6) | `leakQuitNeedsPreviewAndConfirmation`, `productCodeHasNoNetworkingOrPrivilegeEscalation` (no `forceTerminate`) |
 
 ## Red team (1.0)
 

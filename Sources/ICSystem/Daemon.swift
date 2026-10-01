@@ -76,6 +76,11 @@ public final class Daemon {
     var lastVM: (t: Double, pageins: UInt64, swapins: UInt64)?
     var lastDisk: [ProcessIdentity: (bytes: UInt64, t: Double)] = [:]
     public internal(set) var callDetections = 0
+    // Auto-Context Stash and the leak trend.
+    var contextState = ContextState()
+    var contextTimer: DispatchSourceTimer?
+    var footprints = FootprintHistory()
+    var lastLeakCheck = 0.0
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
     /// Test hook: called after every executed action.
@@ -96,6 +101,7 @@ public final class Daemon {
         try? Files.writeJSON(hardware, to: paths.hardware, pretty: true)
         battery =
             ((try? Files.readJSON(BatteryState.self, from: paths.base.appendingPathComponent("battery.json"))) ?? nil) ?? BatteryState()
+        contextState = ((try? Files.readJSON(ContextState.self, from: contextURL)) ?? nil) ?? ContextState()
     }
 
     /// Loads the config, creating the default (Observe mode) on first run. An invalid
@@ -157,6 +163,7 @@ public final class Daemon {
         installSignalHandlers()
         installObservers()
         startTimers()
+        scheduleContextCheck()
         startStallProbe()
     }
 
@@ -350,6 +357,7 @@ public final class Daemon {
         lastResult = result
         lastApps = r.apps
         batteryTick(r.apps, now: now)
+        leaksTick(now: now)
         execute(result.actions)
         if now - lastSave >= 60 { saveState() }
         tickTimer?.schedule(deadline: .now() + interval(for: sample.pressure))
@@ -398,6 +406,10 @@ public final class Daemon {
 
     /// Activation handler. SIGCONT goes out before any other work.
     public func handleActivation(pid: Int32, bundleID: String?, name: String) {
+        if let id = bundleID {
+            ContextTracker.noteActivation(&contextState, appID: id)
+            footprints.noteFront(id, at: clock())
+        }
         if popOnActivation(pid: pid, bundleID: bundleID) { return }
         let frozen = engine.state.frozen
         let appID =

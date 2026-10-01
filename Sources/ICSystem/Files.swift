@@ -189,14 +189,26 @@ public final class TraceWriter: @unchecked Sendable {
         }
     }
 
-    /// Deletes traces older than the retention and the oldest ones past the size cap.
+    /// Oldest first: by day, and a day's rotated `.1` file before the file still being written.
+    static func chronological(_ files: [URL]) -> [URL] {
+        files.sorted {
+            let a = $0.lastPathComponent
+            let b = $1.lastPathComponent
+            let da = a.prefix(10)
+            let db = b.prefix(10)
+            return da != db ? da < db : a.hasSuffix(".1") && !b.hasSuffix(".1")
+        }
+    }
+
+    /// Deletes traces older than the retention and the oldest ones past the size cap. The
+    /// newest file (the one being written) is kept.
     public func enforceLimits(now: Double) {
         let fm = FileManager.default
-        let files = ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? [])
-            .filter { $0.lastPathComponent.contains(".jsonl") }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let files = Self.chronological(
+            ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? [])
+                .filter { $0.lastPathComponent.contains(".jsonl") })
         var total = files.compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }.reduce(0, +)
-        for f in files {
+        for f in files.dropLast() {
             let mtime =
                 (try? f.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)?.timeIntervalSince1970 ?? now
             let size = (try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
@@ -208,9 +220,9 @@ public final class TraceWriter: @unchecked Sendable {
     }
 
     public static func read(dir: URL, since: Double) -> (records: [TraceRecord], skipped: Int) {
-        let files = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
-            .filter { $0.lastPathComponent.contains(".jsonl") }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let files = chronological(
+            ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+                .filter { $0.lastPathComponent.contains(".jsonl") })
         var recs: [TraceRecord] = []
         var skipped = 0
         for f in files {

@@ -16,6 +16,8 @@ import Testing
         #expect(c.habits.preThaw == false)
         #expect(c.forecast.enabled == false)
         #expect(c.stagedThaw == false)
+        // v1.1: leak notifications ship off; Auto-Context only suggests and has no contexts.
+        #expect(c.leaks.notify == false && c.contexts.isEmpty)
     }
 
     @Test func missingKeysTakeDefaults() throws {

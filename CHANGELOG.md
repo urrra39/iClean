@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased (v1.1, in development; not validated)
+
+- **Auto-Context Stash** (`iclear hook zsh|bash|fish|git`, `iclear context ...`): app
+  groups that follow the project your terminal is in. Suggests a switch after 20 s in
+  another project (automatic only for contexts that opt in, in Active mode; Observe mode
+  records "would switch"). A switch stashes the leaving group and pops the new one as one
+  transaction: apps both groups use and apps that cannot be paused stay running, and a
+  hard block stops the switch. Subdirectory moves, `cd ~` and `/tmp` do not switch; a
+  5-minute cooldown follows each switch; `iclear context undo` reverses it;
+  `iclear context suggest` proposes apps from what you brought to the front while
+  working in a project. Menu: a Switch / Not now row.
+- **Leak trend** (`iclear leaks`, menu: Growth): steady memory growth of apps that are
+  not in use, from Theil-Sen and Mann-Kendall over up to 3 hours, with an interval, a
+  confidence level and an ETA to the next whole gigabyte. A trend, not a diagnosis.
+  `iclear leaks quit <app>` previews, and with `--yes` asks the app to quit through its
+  own Quit. Notifications are off by default (`leaks.notify`).
+- New config keys: `contexts`, `context.dwellSeconds`, `context.cooldownMinutes`,
+  `leaks.notify`, `leaks.minHours`, `leaks.minSamples`, `leaks.minRateMBPerHour`.
+- `iclear selftest` adds a context switch between two probe apps in an isolated daemon
+  and the leak trend on synthetic series.
+- `ic-hog --profile` shapes a footprint over time (growth, noise, a step, a sawtooth
+  cache, a faster clock) for the leak-trend lab.
+- Fix: at the trace size cap, the file still being written could be deleted first (files
+  were deleted in name order, and `day.jsonl` sorts before its rotated `day.jsonl.1`), so
+  traces could be wiped; reading also returned a rotated file's older records last. The
+  oldest file now goes first and the current one is kept. Note: with many apps a day of
+  traces can exceed the 20 MB default (`trace.maxMB`), so `simulate --since 7d` and
+  `advise` see less than a week.
+- Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
+  (amendment 2).
+
 ## 1.0.0 (2026-10-02)
 
 - **Renamed from iClean to iClear.** CLI `iclear`, daemon `icleard`, app iClear, bundle

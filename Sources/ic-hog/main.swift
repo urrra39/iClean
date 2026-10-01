@@ -20,8 +20,53 @@ struct Options {
     var lockFile: String?  // hold an flock on this file
     var afterCont: String?  // crash | hang
     var gui = false  // show a small AppKit window
+    var app = false  // a regular (Dock) app without a window, for app-level tests
     var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
     var lifeline: Int32 = 0  // exit when this process ends instead of when the parent changes
+    var profile: Profile?  // footprint over time (leak-trend tests)
+}
+
+/// A footprint shape over time, on top of `--mb`: `rate=MB_PER_HOUR,noise=MB,step=HOURS:MB,
+/// saw=MINUTES:MB,speed=X`. Noise changes once a (profile) minute; the sawtooth fills
+/// over its period and then drops back; speed runs the profile's clock X times faster.
+struct Profile {
+    var rate = 0.0
+    var noise = 0.0
+    var stepAt = Double.infinity
+    var stepMB = 0.0
+    var sawMinutes = 0.0
+    var sawMB = 0.0
+    var speed = 1.0
+
+    init(_ spec: String) {
+        for term in spec.split(separator: ",") {
+            let kv = term.split(separator: "=", maxSplits: 1).map(String.init)
+            let parts = kv.count == 2 ? kv[1].split(separator: ":").compactMap { Double($0) } : []
+            switch (kv.first, parts.count) {
+            case ("rate", 1): rate = parts[0]
+            case ("noise", 1): noise = parts[0]
+            case ("step", 2): (stepAt, stepMB) = (parts[0], parts[1])
+            case ("saw", 2): (sawMinutes, sawMB) = (parts[0], parts[1])
+            case ("speed", 1): speed = parts[0]
+            default:
+                FileHandle.standardError.write("bad --profile term \(term)\n".data(using: .utf8)!)
+                exit(2)
+            }
+        }
+    }
+
+    /// Extra MB at `hours` of profile time.
+    func extraMB(hours h: Double) -> Double {
+        var mb = rate * h + (h >= stepAt ? stepMB : 0)
+        if sawMinutes > 0 { mb += sawMB * (h * 60 / sawMinutes).truncatingRemainder(dividingBy: 1) }
+        if noise > 0 {
+            // Deterministic per minute and per process, in -noise...noise.
+            var x = UInt64(h * 60) &* 0x9E37_79B9_7F4A_7C15 ^ UInt64(getpid())
+            x = (x ^ (x >> 31)) &* 0xBF58_476D_1CE4_E5B9
+            mb += noise * (Double(x % 2001) / 1000 - 1)
+        }
+        return max(0, mb)
+    }
 }
 
 func parse() -> Options {
@@ -47,8 +92,10 @@ func parse() -> Options {
         case "--lock": o.lockFile = v()
         case "--after-cont": o.afterCont = v()
         case "--gui": o.gui = true
+        case "--app": o.app = true
         case "--exit-after": o.exitAfter = Double(v())!
         case "--lifeline": o.lifeline = Int32(v())!
+        case "--profile": o.profile = Profile(v())
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -93,6 +140,18 @@ func fill(_ p: UnsafeMutableRawPointer, _ bytes: Int) {
     }
 }
 
+// Profile memory: 1 MB mappings, so a drop really returns memory to the system.
+var profileBlocks: [UnsafeMutableRawPointer] = []
+
+func adjustProfile(toMB target: Int) {
+    while profileBlocks.count < target {
+        guard let p = mmap(nil, 1 << 20, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0), p != MAP_FAILED else { return }
+        fill(p, 1 << 20)
+        profileBlocks.append(p)
+    }
+    while profileBlocks.count > target { munmap(profileBlocks.removeLast(), 1 << 20) }
+}
+
 func touchAll() {
     var sum: UInt64 = 0
     for (p, n) in zip(blocks, blockBytes) {
@@ -114,7 +173,7 @@ var kids: [Process] = []
 if opts.children > 0 {
     var args = Array(CommandLine.arguments.dropFirst())
     if let i = args.firstIndex(of: "--children") { args.removeSubrange(i...(i + 1)) }
-    args.removeAll { $0 == "--gui" }
+    args.removeAll { $0 == "--gui" || $0 == "--app" }
     for _ in 0..<opts.children {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
@@ -190,6 +249,7 @@ let parentPID = getppid()
 var lastTouch = start
 var lastHB = start
 var lastGrow = start
+var lastProfile: UInt64 = 0
 
 func tick() {
     let t = now()
@@ -223,6 +283,10 @@ func tick() {
         allocate(mb: max(1, Int(opts.growMBps)))
         lastGrow = t
     }
+    if let p = opts.profile, t - lastProfile >= 1_000_000_000 {
+        adjustProfile(toMB: Int(p.extraMB(hours: Double(t - start) / 3.6e12 * p.speed).rounded()))
+        lastProfile = t
+    }
     if let h = writeHandle {
         h.write("x".data(using: .utf8)!)
         try? h.synchronize()
@@ -237,14 +301,16 @@ if opts.cpu {
     }
 }
 
-if opts.gui {
+if opts.gui || opts.app {
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
-    let w = NSWindow(
-        contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
-        styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-    w.title = "ic-hog \(getpid())"
-    w.makeKeyAndOrderFront(nil)
+    if opts.gui {
+        let w = NSWindow(
+            contentRect: NSRect(x: 200, y: 200, width: 320, height: 120),
+            styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        w.title = "ic-hog \(getpid())"
+        w.makeKeyAndOrderFront(nil)
+    }
     Timer.scheduledTimer(withTimeInterval: 0.001, repeats: true) { _ in tick() }
     // SIGUSR1 asks the app to activate itself (used to time activation notifications).
     signal(SIGUSR1, SIG_IGN)

@@ -507,7 +507,8 @@ import Testing
             ["quarantine"], ["habits"], ["habits", "export"], ["workspace"], ["mode"], ["mode", "observe"], ["profile"],
             ["thaw", "--all"], ["stash"], ["stash", "list"], ["pop", "--all"], ["battery"], ["battery", "target", "off"],
             ["beachball"], ["beachball", "stats"], ["shield"], ["config", "path"], ["config", "show"],
-            ["trace", "export"], ["migrate", "--dry-run"],
+            ["trace", "export"], ["migrate", "--dry-run"], ["context"], ["context", "list"], ["context", "status"], ["context", "pause"],
+            ["context", "resume"], ["context", "dismiss"], ["context", "suggest", "/tmp"], ["leaks"], ["hook", "zsh"],
         ]
         for args in ok {
             let r = run("iclear", args, env: env)
@@ -517,7 +518,8 @@ import Testing
         let refused: [[String]] = [
             ["freeze", "com.example.none"], ["explain", "com.example.none"], ["before", "NoSuchApp"], ["stash", "show", "nope"],
             ["stash", "drop", "nope"], ["explain"], ["before"],
-            ["battery", "target"], ["config", "allow"], ["trace"], ["habits", "bogus"],
+            ["battery", "target"], ["config", "allow"], ["trace"], ["habits", "bogus"], ["context", "switch", "nope"], ["context", "undo"],
+            ["context", "accept"], ["context", "add", "~/x"], ["leaks", "quit", "nope"], ["hook"],
         ]
         for args in refused {
             let r = run("iclear", args, env: env)
@@ -572,6 +574,8 @@ import Testing
             "URLSession", "NWConnection", "NWListener", "AF_INET", "CFSocketCreate", "http://", "https://",
             "SMJobBless", "AuthorizationExecuteWithPrivileges", "setuid(", "seteuid(", "task_for_pid",
             "memorystatus_control", "pid_suspend",
+            // L6: a quit request is the app's own Quit; product code never force-quits an app.
+            "forceTerminate",
         ]
         var hits: [String] = []
         for dir in ["ICCore", "ICSystem", "icleard", "iclear", "iClearMenu"] {

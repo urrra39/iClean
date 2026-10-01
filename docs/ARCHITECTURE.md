@@ -55,6 +55,28 @@
   priority change and hide checks it (`ScopeLock`). `ICLEAR_OBSERVE_ONLY=1` forces
   Observe mode; `ICLEAR_INSTANCE` names a separate instance.
 
+## 1.1 components (in development)
+
+- **Auto-Context** (`ICCore.ContextTracker`, `ContextPlanner`; `ICSystem` `ContextOps`,
+  `ShellHook`): the shell hook runs `iclear context enter "$PWD"` in the background;
+  the CLI sends it with a 1 s timeout and exits silently. The daemon resolves the most
+  specific rule (deeper path first, then a branch-bound rule; the branch is read from
+  `.git/HEAD`, following a `.git` file in worktrees), keeps one pending switch with its
+  start time, and arms a timer for the end of the dwell time or cooldown. Then: Observe
+  mode records "would switch", Active mode suggests (a menu row and a notification), and
+  a context with `auto` switches. A switch is a stash of the leaving group, limited to
+  that group (`StashOptions.only`), then a pop of the new group's `context:<name>` stash;
+  both are journaled like any stash, so crash recovery is the stash's. A refused stash
+  stops the switch. `context.json` keeps the state (current, pending, last switch for
+  undo, activity counts per project for `suggest`).
+- **Leak trend** (`ICCore.LeakTrend`, `FootprintHistory`): one footprint sample a minute
+  per regular, unprotected app, 3 hours kept in memory, each marked in use when the app
+  was frontmost in the last 10 minutes. Samples in use are left out. A finding needs at
+  least 2 h and 12 samples, Mann-Kendall z ≥ 2.33, a Theil-Sen slope ≥ 10 MB/h with the
+  lower 95% bound above zero, both halves growing at a third of the overall rate or
+  more (a single step fails this), no sawtooth (two drops of over 20%), and growth in
+  the last hour. Notifications (off by default) are limited to one per app per day.
+
 Floor: macOS 13 for everything (see [DECISIONS.md](DECISIONS.md) #19). Older MacBooks
 are limited to the macOS versions they can run; a MacBook that cannot run macOS 13
 cannot run iClear.
@@ -143,7 +165,7 @@ Everything lives in `~/Library/Application Support/iClear/` (mode 0700), or in
 habits, regret records, daily totals), `journal.json` (only while something is
 frozen or stashed), `actions.jsonl` (+ `.1`, 5 MB rotation), `traces/` (daily JSON
 Lines, 7 days, 20 MB), `hardware.json`, `battery.json` (calibration and receipts),
-`icleard.sock`, `icleard.lock`, `icleard.log`. `ICLEAR_HOME` is a home directory
+`icleard.sock`, `icleard.lock`, `icleard.log`, `context.json` (v1.1, Auto-Context state). `ICLEAR_HOME` is a home directory
 (`Library/Application Support/iClear` under it); `ICLEAR_INSTANCE=name` uses
 `iClear-name`. The
 LaunchAgent is `~/Library/LaunchAgents/io.github.urrra39.iclear.plist`.

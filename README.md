@@ -76,6 +76,45 @@ waking up in the background.
 
 Status and evidence for each: [SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md).
 
+## In development for v1.1 (not released, not validated)
+
+These are on the `v1.1` branch. Their lab runs ([RELEASE_CRITERIA.md](docs/RELEASE_CRITERIA.md),
+stage 4) start after the 7-day soak ends; until then, only the spikes in
+[FEASIBILITY.md](docs/FEASIBILITY.md#11-spikes-2026-10-02) are measured.
+
+- **Auto-Context Stash** (`iclear hook zsh|bash|fish`, `iclear context add | list |
+  remove | status | pause | resume | undo | suggest`). A small shell hook tells iClear
+  which directory your terminal is in. After 20 s in another project, iClear *suggests*
+  one switch: stash the apps of the project you left (as `context:<name>`) and pop the
+  apps of the new one. Apps both projects use stay running, and so do apps that cannot
+  be paused (audio, microphone, calls); a hard block, such as too little disk, stops the
+  whole switch. Automatic switching is opt-in per context and works only in Active mode;
+  Observe mode only records "would switch". Moves inside a project, `cd ~` and `/tmp`
+  do not switch; a 5-minute cooldown follows each switch; `iclear context undo` reverses
+  the last one. A switch is not instant: it takes about as long as a pop (p50 1.34 s in
+  the 1.0 lab). Limits: it sees terminals only, so work done only in an IDE is not seen;
+  when terminals in different projects report within the dwell time, the current context
+  stays; fish, tmux and other multiplexers are not tested. In the spike the hook added
+  about 1-2 ms per directory change (zsh and bash).
+- **Leak trend** (`iclear leaks`; menu: Growth). Samples each app's memory footprint
+  once a minute and reports steady growth while the app is not in use (not frontmost in
+  the last 10 minutes), after at least 2 hours and 12 samples: "growth of X MB/h
+  (interval), at this rate Y GB around HH:MM", with a confidence level. It is a trend,
+  not a leak diagnosis: caches and logs grow too. A single step (a document opened) and
+  caches that fill and empty are not reported. It relates to memory pressure only
+  through the system forecast, labelled an estimate. The history is kept in memory and
+  starts again when the daemon restarts. Notifications are off, and stay off unless the
+  false-alarm check (L5) passes. `iclear leaks quit <app>` shows a preview; with `--yes`
+  it asks the app to quit through its own Quit and does not force it. There is no
+  "flush" button: macOS offers no way to make another app free memory or collect
+  garbage.
+
+Prior art for both ([NOVELTY.md](docs/NOVELTY.md#v11-re-audit-2026-10-02), searched
+2026-10-02): workspace tools open and close app groups by shortcut (Bunch, Commute,
+Ikuna, ShiftPlus) and autohide hides unused apps; the leak trend's statistics
+(Mann-Kendall with Sen's slope) are an established method, and other Mac tools already
+flag growing apps (RamRadar, Memory Monitor, Mac Performance Monitor).
+
 ## Known side effects
 
 What pausing does to an app, measured with simulators and Chrome on local pages

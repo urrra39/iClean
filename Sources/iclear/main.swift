@@ -80,6 +80,11 @@ let usage = """
       before <app>                     will launching this app push memory pressure up?
       compat <app>                     app class, tier and what pausing does to it
       shield                           Call Mode, thermal and stall shield status
+      hook zsh|bash|fish|git           print a shell (or git) snippet for Auto-Context; nothing is installed
+      context add <path-or-glob> --stash <name> --apps A,B [--keep X,Y] [--branch GLOB] [--auto]
+      context list | status | remove <name> | switch <name> | undo | pause | resume
+      context suggest [<path>] | accept | dismiss | enter <path> [branch]
+      leaks [quit <app> [--yes]]       apps whose memory keeps growing while not in use (a trend, not a diagnosis)
       bench [--quick]                  run the benchmark scenarios (spawns test processes only)
       completions [zsh | bash | fish]
       version
@@ -330,6 +335,61 @@ case "compat":
 
 case "shield":
     ask("shield")
+
+case "hook":
+    guard let shell = rest.first, let text = ShellHook.snippet(shell) else { fail("usage: iclear hook zsh|bash|fish|git") }
+    out(text)
+
+case "context":
+    func list(_ flag: String) -> [String] { option(flag)?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } ?? [] }
+    func send(_ sub: String, _ a: [String: Any]) {
+        let data = (try? JSONSerialization.data(withJSONObject: a)) ?? Data()
+        if sub == "enter" {
+            // From the shell hook: silent, never waits, never fails loudly.
+            _ = IPC.send(Request("context", app: sub, value: String(decoding: data, as: UTF8.self)), path: paths.socket.path, timeout: 1)
+            exit(0)
+        }
+        ask("context", app: sub, value: String(decoding: data, as: UTF8.self))
+    }
+    let sub = rest.first ?? "status"
+    let positional = rest.dropFirst().filter { !$0.hasPrefix("--") }
+    switch sub {
+    case "enter":
+        guard let path = positional.first else { exit(0) }
+        var a: [String: Any] = [
+            "path": path,
+            "source": ProcessInfo.processInfo.environment["TERM_SESSION_ID"] ?? ttyname(0).map { String(cString: $0) } ?? "shell",
+        ]
+        if positional.count > 1 { a["branch"] = positional[positional.index(after: positional.startIndex)] }
+        send(sub, a)
+    case "add":
+        guard let path = positional.first, let name = option("--stash") else {
+            fail("usage: iclear context add <path-or-glob> --stash <name> --apps A,B,C [--keep X,Y] [--branch GLOB] [--auto]")
+        }
+        var a: [String: Any] = [
+            "path": path, "name": name, "apps": list("--apps"), "keep": list("--keep"), "auto": rest.contains("--auto"),
+        ]
+        if let b = option("--branch") { a["branch"] = b }
+        send(sub, a)
+    case "remove", "switch":
+        guard let name = positional.first else { fail("usage: iclear context \(sub) <name>") }
+        send(sub, ["name": name])
+    case "suggest":
+        send(sub, positional.first.map { ["path": URL(fileURLWithPath: $0).standardizedFileURL.path] } ?? [:])
+    case "list", "status", "pause", "resume", "undo", "accept", "dismiss":
+        send(sub, [:])
+    default:
+        fail("usage: iclear context add|list|status|remove|switch|undo|pause|resume|suggest|accept|dismiss|enter")
+    }
+
+case "leaks":
+    if rest.first == "quit" {
+        guard rest.count > 1 else { fail("usage: iclear leaks quit <app> [--yes]") }
+        let a: [String: Any] = ["quit": rest[1], "yes": rest.contains("--yes")]
+        ask("leaks", value: String(decoding: (try? JSONSerialization.data(withJSONObject: a)) ?? Data(), as: UTF8.self))
+    } else {
+        ask("leaks")
+    }
 
 case "migrate":
     let m = Migration.run(paths, removeOld: rest.contains("--remove-old"), dryRun: rest.contains("--dry-run"))
