@@ -54,6 +54,8 @@ struct MenuView: View {
                 controls(s)
                 Divider()
                 frozen(s)
+                Divider()
+                stashSection
             } else {
                 Text(localized("daemon.notRunning")).font(.headline)
                 Button(localized("daemon.start")) { model.startDaemon() }
@@ -86,7 +88,7 @@ struct MenuView: View {
                 Text(localized("pressure." + s.pressure)).foregroundStyle(s.pressure == "normal" ? Color.secondary : .orange)
             }
             .accessibilityElement(children: .combine)
-            if !s.recentPressure.isEmpty {
+            if s.recentSwapMB.count >= 2 {
                 Chart(Array(s.recentSwapMB.enumerated()), id: \.offset) { i, mb in
                     LineMark(x: .value("t", i), y: .value("MB", mb))
                 }
@@ -95,7 +97,10 @@ struct MenuView: View {
                 .frame(height: 40)
                 .accessibilityLabel(Text(String(format: localized("a11y.swap"), Int(s.swapUsedMB))))
             }
-            Text(String(format: localized("forecast"), s.forecast)).font(.caption)
+            Text(String(format: localized("forecast"), localizedForecast(s.forecast))).font(.caption)
+            if let b = model.batteryLine {
+                Text(b).font(.caption).foregroundStyle(.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
             if !s.focusSafe.isEmpty {
                 Text(String(format: localized("focusSafe"), s.focusSafe.joined(separator: ", "))).font(.caption).foregroundStyle(.blue)
             }
@@ -141,6 +146,36 @@ struct MenuView: View {
         }
     }
 
+    /// The daemon reports the forecast in English; the fixed phrases are translated here.
+    func localizedForecast(_ f: String) -> String {
+        switch f {
+        case "stable": return localized("forecast.stable")
+        case "no trend yet": return localized("forecast.noTrend")
+        default: return f
+        }
+    }
+
+    var stashSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                TextField(localized("stash.name"), text: $model.stashName).textFieldStyle(.roundedBorder)
+                    .onSubmit { model.stash(model.stashName) }
+                Button(localized("stash")) { model.stash(model.stashName) }
+                    .accessibilityLabel(Text(localized("a11y.stash")))
+            }
+            ForEach(model.stashes, id: \.name) { st in
+                HStack {
+                    Image(systemName: "tray.full").accessibilityHidden(true)
+                    Text(String(format: localized("stash.row"), st.name, st.apps.filter { !$0.popped }.count)).lineLimit(1)
+                    Spacer()
+                    Button(localized("pop")) { model.pop(st.name) }
+                        .accessibilityLabel(Text(String(format: localized("a11y.pop"), st.name)))
+                }
+            }
+            Text(localized("stash.note")).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     var actions: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -151,6 +186,11 @@ struct MenuView: View {
             HStack {
                 Button(localized("why")) { model.show("why", title: localized("why")) }
                 Button(localized("digest")) { model.show("stats", title: localized("digest")) }
+            }
+            HStack {
+                Button(localized("battery")) { model.show("battery", title: localized("battery")) }
+                Button(localized("stalls")) { model.show("beachball", title: localized("stalls")) }
+                Button(localized("calls")) { model.show("shield", title: localized("calls")) }
             }
         }
     }

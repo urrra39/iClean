@@ -39,6 +39,16 @@ public final class JitterProbe {
     deinit { timer.cancel() }
 }
 
+/// Battery numbers for the menu, which formats them in the user's language.
+public struct BatterySummary: Codable, Sendable {
+    public var percent: Double
+    public var remainingWh: Double
+    public var watts: Double
+    public var minutes: Double?
+    public var reliable: Bool
+    public var calibrated: Bool
+}
+
 extension Daemon {
     var batteryURL: URL { paths.base.appendingPathComponent("battery.json") }
     var stallsURL: URL { paths.base.appendingPathComponent("stalls.jsonl") }
@@ -149,7 +159,11 @@ extension Daemon {
                 : String(
                     format: "Receipts: %d checked, median error %@.", closed.count,
                     battery.medianError.map { String(format: "%.0f%%", $0 * 100) } ?? "needs 3"))
-        return Response(ok: true, text: l.joined(separator: "\n"), data: encode(appPowers))
+        let summary = BatterySummary(
+            percent: r.percent, remainingWh: r.remainingWh, watts: w,
+            minutes: BatteryPlanner.minutes(remainingWh: r.remainingWh, watts: w),
+            reliable: battery.reliable, calibrated: cal.fit.n >= 3)
+        return Response(ok: true, text: l.joined(separator: "\n"), data: encode(summary))
     }
 
     public func setBatteryTarget(_ value: String) -> Response {

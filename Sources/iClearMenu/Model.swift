@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Foundation
 import ICCore
 import ICSystem
@@ -15,11 +16,14 @@ final class Model: ObservableObject {
     @Published var detailTitle = ""
     @Published var message: String?
     @Published var accessibility = false
+    @Published var stashes: [StashRecord] = []
+    @Published var batteryLine: String?
+    @Published var stashName = ""
 
     let paths = Paths()
     private var timer: Timer?
     private var lastEvent = Date().timeIntervalSince1970
-    private var hotKey: HotKey?
+    private var hotKeys: [HotKey] = []
 
     /// Inside iClear.app the daemon lives in Contents/Helpers; in a build folder, next to us.
     var daemonPath: String {
@@ -33,7 +37,12 @@ final class Model: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
-        hotKey = HotKey { [weak self] in Task { @MainActor in self?.thawAll() } }
+        hotKeys = [HotKey(key: kVK_ANSI_T, id: 1) { [weak self] in Task { @MainActor in self?.thawAll() } }]
+        let config = (try? Data(contentsOf: paths.config)).flatMap { try? Config.load(json: $0).0 }
+        if config?.stash.hotkeys == true {
+            hotKeys.append(HotKey(key: kVK_ANSI_S, id: 2) { [weak self] in Task { @MainActor in self?.stash("quick") } })
+            hotKeys.append(HotKey(key: kVK_ANSI_P, id: 3) { [weak self] in Task { @MainActor in self?.pop("quick") } })
+        }
         // Notifications need a real app bundle.
         if Bundle.main.bundleIdentifier != nil {
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
@@ -51,6 +60,13 @@ final class Model: ObservableObject {
             return
         }
         status = try? JSONDecoder().decode(Status.self, from: d)
+        stashes = send("stashes")?.data.flatMap { try? JSONDecoder().decode([StashRecord].self, from: Data($0.utf8)) } ?? []
+        if let d = send("battery")?.data, let b = try? JSONDecoder().decode(BatterySummary.self, from: Data(d.utf8)), let m = b.minutes {
+            let label = localized(!b.reliable ? "battery.unreliable" : b.calibrated ? "battery.estimate" : "battery.uncalibrated")
+            batteryLine = String(format: localized("battery.line"), Int(b.percent), b.watts, Int(m)) + " " + label
+        } else {
+            batteryLine = nil
+        }
         if let e = send("events", value: "\(lastEvent)"), let data = e.data?.data(using: .utf8),
             let events = try? JSONDecoder().decode([DaemonEvent].self, from: data)
         {
@@ -84,6 +100,12 @@ final class Model: ObservableObject {
     }
 
     func thaw(_ id: String) { run("thaw", app: id) }
+    func stash(_ name: String) {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        run("stash", app: n.isEmpty ? "quick" : n, value: "{}")
+        stashName = ""
+    }
+    func pop(_ name: String) { run("pop", app: name) }
     func neverFreeze(_ id: String) { run("deny", app: id) }
     func undo() { run("undo") }
     func setMode(_ m: Mode) { run("mode", value: m.rawValue) }
