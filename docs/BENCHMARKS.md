@@ -80,9 +80,9 @@ benchmark estimate (tick CPU ÷ 15 s = 0.47%) is also listed above for the old i
 
 ```sh
 scripts/build-release.sh
-dist/iclean-1.0.0/iclean bench            # markdown table
-dist/iclean-1.0.0/iclean bench --json     # machine-readable
-dist/iclean-1.0.0/iclean bench --quick    # smaller, lower pressure cap (25%)
+dist/iclean-0.1.0/iclean bench            # markdown table
+dist/iclean-0.1.0/iclean bench --json     # machine-readable
+dist/iclean-0.1.0/iclean bench --quick    # smaller, lower pressure cap (25%)
 ```
 
 The pressure scenario uses real memory. Close unsaved work first.

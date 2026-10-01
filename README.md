@@ -1,5 +1,9 @@
 # iClean
 
+> **Beta (0.1.0).** Tested with synthetic test processes and on one Mac (Apple M3 Pro,
+> macOS 27.0.1). Active mode on real apps is not yet validated. It starts in Observe
+> mode, which only records what it would do.
+
 iClean pauses idle background apps on a Mac that is running out of memory, and resumes
 each one the moment you switch back to it. A paused app keeps its windows, tabs and
 unsaved state. It just stops running, so macOS can compress or swap its memory instead
@@ -46,8 +50,9 @@ waking up in the background.
 - **Focus Safe Mode**: no automatic action during calls, screen sharing, mirroring or
   fullscreen use.
 - **Observe mode first**: it records what it *would* do until you switch it to Active.
-- **Undo, Resume all, and an emergency hotkey** (Control-Option-Command-T). These work
-  even if the daemon has crashed.
+- **Undo, Resume all, and an emergency hotkey** (Control-Option-Command-T, while the
+  menu app runs). Resume all (menu or `iclean thaw --all`) works even if the daemon
+  has crashed; it replays the freeze journal.
 - **Daily/weekly digest** with measured numbers only, and suggestions such as "this app
   was idle 92% of the time, add it?" or "you reopened this one within a minute three
   times, exclude it?".
@@ -91,7 +96,10 @@ No root, no kernel extension, no SIP changes, no network access, no telemetry.
 
 ## Install
 
-Requires macOS 13 or later, Apple Silicon or Intel.
+Built for macOS 13 and later, Apple Silicon and Intel (universal binary). Verified so
+far: the build and full test suite on macOS 15.7 (Apple Silicon and Intel) and macOS
+26.6 in CI, and on macOS 27.0.1 (Apple M3 Pro) locally. macOS 13 and 14 are not
+verified.
 
 **From source** (the only install path today):
 
@@ -103,7 +111,7 @@ cp -R dist/iClean.app /Applications/
 
 The build is ad-hoc signed, not notarized. If macOS blocks the first launch,
 right-click the app, choose Open, then confirm. The command-line tools are in
-`dist/iclean-1.0.0/` and inside the app at `iClean.app/Contents/Helpers/`.
+`dist/iclean-0.1.0/` and inside the app at `iClean.app/Contents/Helpers/`.
 
 Prebuilt release downloads and a Homebrew tap are planned but not published yet.
 Formula and cask templates are in [`packaging/homebrew/`](packaging/homebrew/).
@@ -160,7 +168,9 @@ something is not proof that it does not exist.
 
 ## Tested on
 
-Only one Mac so far: Apple M3 Pro, 18 GB, macOS 27.0.1. iClean adapts its thresholds to
+Real use, benchmarks and install/uninstall: one Mac so far (Apple M3 Pro, 18 GB, macOS
+27.0.1). The automated test suite also passes on GitHub's macOS 15.7 (Apple Silicon and
+Intel) and macOS 26.6 runners. iClean adapts its thresholds to
 RAM size, disk type and battery, but "adapts to any MacBook" is not "tested on every
 MacBook". Run `iclean doctor --report` and add your Mac to
 [COMPATIBILITY.md](docs/COMPATIBILITY.md).

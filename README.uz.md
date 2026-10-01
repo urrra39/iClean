@@ -1,5 +1,9 @@
 # iClean
 
+> **Beta (0.1.0).** Sintetik sinov jarayonlari bilan va bitta Mac'da (Apple M3 Pro,
+> macOS 27.0.1) sinalgan. Haqiqiy ilovalarda Faol rejim hali tasdiqlanmagan. Dastur
+> Kuzatish rejimida boshlanadi, u faqat nima qilgan bo'lardi, shuni yozib boradi.
+
 iClean xotirasi tugayotgan Mac'da fonda bo'sh turgan ilovalarni pauza qiladi va siz
 qaysi biriga qaytsangiz, uni o'sha zahoti davom ettiradi. Pauza qilingan ilova
 oynalari, tablari va saqlanmagan holatini saqlab qoladi. U shunchaki ishlashdan
@@ -53,7 +57,9 @@ fonda tez-tez uyg'onib turadi.
 - **Avval Kuzatish rejimi**: uni Faol rejimga o'tkazmaguningizcha, iClean faqat nima
   qilgan bo'lardi, shuni yozib boradi.
 - **Bekor qilish, Hammasini davom ettirish va favqulodda tugmalar**
-  (Control-Option-Command-T). Ular xizmat (daemon) ishdan chiqqan bo'lsa ham ishlaydi.
+  (Control-Option-Command-T, menyu ilovasi ishlab turganda). Hammasini davom ettirish
+  (menyu yoki `iclean thaw --all`) xizmat ishdan chiqqan bo'lsa ham ishlaydi; u
+  muzlatish jurnalini qayta o'qiydi.
 - **Kunlik/haftalik hisobot**: faqat o'lchangan raqamlar, va "bu ilova vaqtning 92%
   ida bo'sh turdi, qo'shamizmi?" yoki "buni bir daqiqa ichida uch marta qayta
   ochdingiz, chiqarib tashlaymizmi?" kabi takliflar.
@@ -100,7 +106,10 @@ telemetriya yo'q.
 
 ## O'rnatish
 
-macOS 13 yoki undan yangisi, Apple Silicon yoki Intel kerak.
+macOS 13 va undan yangilari, Apple Silicon va Intel uchun qurilgan (universal ikkilik
+fayl). Hozircha tasdiqlangani: build va to'liq testlar CI da macOS 15.7 (Apple Silicon va
+Intel) va macOS 26.6 da, mahalliy ravishda macOS 27.0.1 (Apple M3 Pro) da. macOS 13 va
+14 tasdiqlanmagan.
 
 **Manba koddan** (hozircha yagona yo'l):
 
@@ -112,7 +121,7 @@ cp -R dist/iClean.app /Applications/
 
 Build ad-hoc imzolangan, notarizatsiyadan o'tmagan. Agar macOS birinchi ishga
 tushirishni to'xtatsa, ilovani o'ng tugma bilan bosing, Open ni tanlang va
-tasdiqlang. Buyruq qatori vositalari `dist/iclean-1.0.0/` da va ilova ichida
+tasdiqlang. Buyruq qatori vositalari `dist/iclean-0.1.0/` da va ilova ichida
 `iClean.app/Contents/Helpers/` da.
 
 Tayyor relizlar va Homebrew rejalashtirilgan, lekin hali chiqarilmagan.
@@ -172,7 +181,9 @@ topmadik ([NOVELTY.md](docs/NOVELTY.md)). Topilmagani mavjud emasligini isbotlam
 
 ## Qayerda sinalgan
 
-Hozircha faqat bitta Mac'da: Apple M3 Pro, 18 GB, macOS 27.0.1. iClean chegaralarini
+Haqiqiy foydalanish, o'lchovlar va o'rnatish/o'chirish: hozircha bitta Mac (Apple M3 Pro,
+18 GB, macOS 27.0.1). Avtomatik testlar GitHub'ning macOS 15.7 (Apple Silicon va Intel)
+va macOS 26.6 runnerlarida ham o'tadi. iClean chegaralarini
 RAM hajmi, disk turi va batareyaga moslaydi, lekin "har qanday MacBook'ga moslashadi"
 degani "har bir MacBook'da sinalgan" degani emas. `iclean doctor --report` ni ishga
 tushiring va Mac'ingizni [COMPATIBILITY.md](docs/COMPATIBILITY.md) ga qo'shing.

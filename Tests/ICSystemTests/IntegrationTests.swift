@@ -406,7 +406,7 @@ import Testing
 
     @Test func cliOfflineCommands() throws {
         let env = ["ICLEAN_HOME": tempHome().base.path]
-        #expect(run("iclean", ["version"]).out.contains("1.0.0"))
+        #expect(run("iclean", ["version"]).out.contains(icleanVersion))
         #expect(run("iclean", ["help"]).out.contains("never deletes files"))
         let doctor = run("iclean", ["doctor"], env: env)
         #expect(doctor.status == 0 && doctor.out.contains("SIGSTOP/SIGCONT freeze:        yes"))

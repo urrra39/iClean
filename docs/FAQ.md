@@ -50,8 +50,9 @@ No. iClean has no network code at all (a test enforces this). Everything it lear
 stays in `~/Library/Application Support/iClean/`, in readable JSON you can delete.
 
 **Something looks frozen. What do I do?**
-Press Control-Option-Command-T, click "Resume all" in the menu, or run
-`iclean thaw --all`. All three work even if the daemon has crashed.
+Press Control-Option-Command-T (while the menu app runs), click "Resume all" in the
+menu, or run `iclean thaw --all`. All three work even if the daemon has crashed,
+because they replay the freeze journal.
 
 **How do I see why an app was or was not paused?**
 `iclean explain <app name>`.

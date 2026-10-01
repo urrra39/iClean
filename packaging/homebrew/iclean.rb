@@ -3,7 +3,7 @@
 class Iclean < Formula
   desc "Pauses idle background apps under memory pressure, resumes them on switch"
   homepage "https://github.com/urrra39/iClean"
-  url "https://github.com/urrra39/iClean/archive/refs/tags/v1.0.0.tar.gz"
+  url "https://github.com/urrra39/iClean/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "REPLACE_WITH_SHA256_OF_THE_TAG_TARBALL"
   license "MIT"
 

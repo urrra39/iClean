@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import ICCore
 
-public let icleanVersion = "1.0.0"
+public let icleanVersion = "0.1.0"
 
 /// `iclean doctor`: what this Mac is, which mechanisms work here, and daemon health.
 /// Mechanism checks only ever touch a child process the doctor starts itself.
