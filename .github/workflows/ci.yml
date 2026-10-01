@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel, macos-26]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version && sw_vers && uname -m
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: Lint (report only)
+        run: swift format lint --recursive Sources Tests || true
+      - name: Universal release build
+        if: matrix.runner == 'macos-15'
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+          lipo -info .build/apple/Products/Release/icleand

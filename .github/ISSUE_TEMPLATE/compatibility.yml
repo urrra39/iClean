@@ -1,0 +1,21 @@
+name: Compatibility report
+description: Add your Mac to docs/COMPATIBILITY.md.
+labels: [compatibility]
+body:
+  - type: textarea
+    id: report
+    attributes:
+      label: iclean doctor --report
+      description: Paste the output here. Read it first; it should contain only hardware and macOS facts.
+      render: markdown
+    validations:
+      required: true
+  - type: dropdown
+    id: tests
+    attributes:
+      label: Did `scripts/test.sh` pass on this Mac?
+      options: ["Yes", "No (details below)", "Did not run"]
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
