@@ -17,9 +17,15 @@ extension Daemon {
     static func gitBranch(_ path: String) -> String? {
         var dir = URL(fileURLWithPath: path)
         for _ in 0..<40 {
-            let head = dir.appendingPathComponent(".git/HEAD")
-            if let s = try? String(contentsOf: head, encoding: .utf8) {
-                let line = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            let git = dir.appendingPathComponent(".git")
+            if FileManager.default.fileExists(atPath: git.path) {
+                var head = git.appendingPathComponent("HEAD")
+                // Worktrees and submodules: `.git` is a file that points to the real directory.
+                if let link = try? String(contentsOf: git, encoding: .utf8), link.hasPrefix("gitdir: ") {
+                    let target = link.dropFirst("gitdir: ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                    head = URL(fileURLWithPath: target, relativeTo: dir).appendingPathComponent("HEAD")
+                }
+                let line = (try? String(contentsOf: head, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 return line.hasPrefix("ref: refs/heads/") ? String(line.dropFirst("ref: refs/heads/".count)) : nil
             }
             if dir.path == "/" { return nil }

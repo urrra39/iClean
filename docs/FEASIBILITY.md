@@ -259,3 +259,18 @@ during these runs.
 | f | Observing UI stalls | **Heartbeat works; libproc does not** | `ic-ui-probe`'s 5 ms main-thread timer gives a lateness histogram. 22 spinning processes at normal priority did not stall it (p99 0.62 ms, 0 stalls of ≥ 50 ms): the scheduler favours UI threads, so CPU contention alone is not a beachball cause on this Mac. libproc thread states saw the main thread RUNNING in 1 of 100 samples and cannot distinguish blocked from idle. Accessibility round-trip latency: moved to the validation lab (needs the permission). |
 | g | Unsaved-work signal | **Pending Accessibility** | `kAXEditedAttribute` ("AXEdited") and `kAXDocumentAttribute` exist in the SDK; whether apps report them is tested in the lab once Accessibility is granted. |
 | h | Power-off, sleep, session notifications | **Register; delivery needs real events** | Observers for `willPowerOff`, `willSleep`, `didWake`, `sessionDidResignActive` and `sessionDidBecomeActive` register from a background process. Delivery requires a real shutdown, sleep or user switch: see [MANUAL_TESTS.md](MANUAL_TESTS.md). |
+
+# 1.1 spikes (2026-10-02)
+
+Same machine (Apple M3 Pro, 18 GB, macOS 27.0.1), on the v1.1 branch's release build.
+These are spikes, not gate measurements: the stage 4 runs ([RELEASE_CRITERIA.md](RELEASE_CRITERIA.md))
+happen after the 7-day soak's wrap-up, on the build that is tagged. The daemon in these
+runs was an isolated, observe-only instance in a temporary home, scope-locked to an empty
+lab registry, so it could signal nothing.
+
+| # | Question | Verdict | Evidence |
+|---|---|---|---|
+| i | Time the Auto-Context shell hook adds | **About 1.0-1.5 ms per directory change** | [`hook_overhead.py`](../spikes/hook_overhead.py) drives interactive `zsh -f` and `bash --norc` (3.2.57) through a pseudo-terminal and times 1,000 `cd`s per run from Enter to the next prompt, without and with the hook. Added time (hook minus no hook), p50 / p95: zsh 1.40 / 1.81 ms with the daemon down, 1.53 / 2.03 ms up; bash 1.02 / 1.42 ms down, 1.13 / 1.65 ms up. With the hook, the whole command took at most 2.08 ms at p95 in every run. The cost is the fork of a background `iclear` process; the shell never waits for the daemon. |
+| j | Do hook events reach the daemon? | **All of them in this run** | The same runs, commands sent back to back (much faster than a person types): zsh 1,040 of 1,040 events and bash 1,041 of 1,041 reached the daemon (the daemon's event counter in `iclear context status`). Not tested: a busy or sleeping Mac, and slower pacing. |
+| k | Finding the branch without running `git` | **Works; tens of microseconds** | [`branch_spike.swift`](../spikes/branch_spike.swift) reads `.git/HEAD` of the nearest repository (following a `.git` file in worktrees and submodules), 10,000 calls each: inside this repository p50 30.0 µs, p95 46.2 µs (max 484 µs); a deep directory outside a repository 14.0 / 15.7 µs; `/tmp` 6.0 / 6.4 µs. A detached HEAD gives no branch. |
+| l | fish, tmux and other multiplexers | **Not tested** | Neither is installed on this Mac. The fish snippet is printed by `iclear hook fish` but has not run here. Under a multiplexer every pane reports with its own terminal device as the source; whether that matches the pane in front was not tested. |

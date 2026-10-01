@@ -32,7 +32,9 @@ import Testing
         #expect(f?.confidence == .high)
         // 980 MB now: the next whole GB (2 GB) at about 60 MB/h is about 17.8 h away.
         #expect(f?.targetGB == 2)
-        #expect(abs(((f?.reachesAt ?? 0) - 3 * 3600) / 3600 - (2048 - (f?.currentMB ?? 0)) / 60) < 2)
+        let hoursLeft: Double = ((f?.reachesAt ?? 0) - 3 * 3600) / 3600
+        let expected: Double = (2048 - (f?.currentMB ?? 0)) / 60
+        #expect(abs(hoursLeft - expected) < 2)
     }
 
     @Test func notTrends() {
@@ -75,7 +77,8 @@ import Testing
         }
         let s = h.samples["com.example.grower"] ?? []
         #expect(s.count <= 200 && s.count >= 170)
-        #expect((s.first?.t ?? 0) >= 5 * 3600 - 3 * 3600 - 600)
+        let oldest: Double = s.first?.t ?? 0
+        #expect(oldest >= 2 * 3600 - 600)
         #expect(h.samples["com.apple.Terminal"] == nil)  // protected apps are not tracked
         #expect(h.findings(now: 5 * 3600, settings: LeakSettings()).first?.appID == "com.example.grower")
     }

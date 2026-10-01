@@ -106,6 +106,26 @@ import Testing
         #expect(eventually { fx.allSatisfy(running) })
     }
 
+    /// The branch comes from `.git/HEAD` of the nearest repository, also when `.git` is
+    /// a file (worktrees, submodules); a detached HEAD has no branch.
+    @Test func branchDetection() throws {
+        let root = tempHome().home
+        let fm = FileManager.default
+        func write(_ rel: String, _ text: String) throws {
+            let u = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: u, atomically: true, encoding: .utf8)
+        }
+        try write("repo/.git/HEAD", "ref: refs/heads/feature/x\n")
+        try write("repo/src/deep/file", "")
+        try write("repo/wt/.git", "gitdir: ../../gd\n")
+        try write("gd/HEAD", "ref: refs/heads/wt-branch\n")
+        try write("repo/detached/.git/HEAD", "0123456789abcdef0123456789abcdef01234567\n")
+        #expect(Daemon.gitBranch(root.appendingPathComponent("repo/src/deep").path) == "feature/x")
+        #expect(Daemon.gitBranch(root.appendingPathComponent("repo/wt").path) == "wt-branch")
+        #expect(Daemon.gitBranch(root.appendingPathComponent("repo/detached").path) == nil)
+    }
+
     @Test func hooksAndCommands() throws {
         for shell in ["zsh", "bash", "fish", "git"] {
             let r = run("iclear", ["hook", shell])
