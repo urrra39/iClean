@@ -106,6 +106,7 @@ right-click the app, choose Open, then confirm. The command-line tools are in
 `dist/iclean-1.0.0/` and inside the app at `iClean.app/Contents/Helpers/`.
 
 Prebuilt release downloads and a Homebrew tap are planned but not published yet.
+Formula and cask templates are in [`packaging/homebrew/`](packaging/homebrew/).
 
 ## Quickstart (60 seconds)
 

@@ -116,6 +116,7 @@ tasdiqlang. Buyruq qatori vositalari `dist/iclean-1.0.0/` da va ilova ichida
 `iClean.app/Contents/Helpers/` da.
 
 Tayyor relizlar va Homebrew rejalashtirilgan, lekin hali chiqarilmagan.
+Formula va cask shablonlari [`packaging/homebrew/`](packaging/homebrew/) da.
 
 ## Tez boshlash (60 soniya)
 
