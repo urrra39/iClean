@@ -82,4 +82,17 @@ import Testing
         #expect(h.samples["com.apple.Terminal"] == nil)  // protected apps are not tracked
         #expect(h.findings(now: 5 * 3600, settings: LeakSettings()).first?.appID == "com.example.grower")
     }
+
+    /// In use means frontmost now or in the last 10 minutes; a visible window alone is not use.
+    @Test func inUseIsFrontmostRecently() {
+        var h = FootprintHistory()
+        var a = app("com.example.editor", mb: 500)
+        a.hasVisibleWindow = true
+        h.add([a], now: 0)
+        h.noteFront(a.id, at: 100)
+        h.add([a], now: 120)
+        h.add([a], now: 100 + 600)
+        let active = (h.samples[a.id] ?? []).map(\.active)
+        #expect(active == [false, true, false])
+    }
 }

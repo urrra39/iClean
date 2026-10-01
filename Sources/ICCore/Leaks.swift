@@ -7,7 +7,7 @@ import Foundation
 public struct FootprintSample: Codable, Equatable, Sendable {
     public var t: Double
     public var mb: Double
-    /// The app was frontmost or had a visible window: growth then is expected.
+    /// The app was in use (frontmost now or in the last 10 minutes): growth then is expected.
     public var active: Bool
 
     public init(t: Double, mb: Double, active: Bool) {
@@ -132,18 +132,28 @@ public struct FootprintHistory: Codable, Equatable, Sendable {
     public var names: [String: String] = [:]
     /// Last notification per app (one per day at most).
     public var notifiedAt: [String: Double] = [:]
+    /// When each app was last frontmost. A visible window alone is not use.
+    public var lastFront: [String: Double] = [:]
+    /// How long after being frontmost an app still counts as in use.
+    public static let inUseSeconds = 600.0
     public init() {}
+
+    /// An activation between samples (the app came to the front).
+    public mutating func noteFront(_ id: String, at now: Double) { lastFront[id] = now }
 
     public mutating func add(_ apps: [AppSnapshot], now: Double) {
         for a in apps where a.isRegularApp && !Protection.isProtected(a) {
+            if a.isFrontmost { lastFront[a.id] = now }
             // One sample a minute is enough for an hourly trend and bounds the pairwise slopes.
             if let last = samples[a.id]?.last, now - last.t < 55 { continue }
-            samples[a.id, default: []].append(FootprintSample(t: now, mb: a.footprintMB, active: a.isFrontmost || a.hasVisibleWindow))
+            let inUse = now - (lastFront[a.id] ?? -.infinity) < Self.inUseSeconds
+            samples[a.id, default: []].append(FootprintSample(t: now, mb: a.footprintMB, active: inUse))
             names[a.id] = a.name
         }
         for (id, s) in samples {
             let kept = s.filter { now - $0.t <= 3 * 3600 + 600 }
             samples[id] = kept.isEmpty ? nil : kept
+            if kept.isEmpty { lastFront[id] = nil }
         }
     }
 

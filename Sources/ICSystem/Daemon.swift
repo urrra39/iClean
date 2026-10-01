@@ -406,7 +406,10 @@ public final class Daemon {
 
     /// Activation handler. SIGCONT goes out before any other work.
     public func handleActivation(pid: Int32, bundleID: String?, name: String) {
-        if let id = bundleID { ContextTracker.noteActivation(&contextState, appID: id) }
+        if let id = bundleID {
+            ContextTracker.noteActivation(&contextState, appID: id)
+            footprints.noteFront(id, at: clock())
+        }
         if popOnActivation(pid: pid, bundleID: bundleID) { return }
         let frozen = engine.state.frozen
         let appID =

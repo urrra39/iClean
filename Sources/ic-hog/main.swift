@@ -22,6 +22,50 @@ struct Options {
     var gui = false  // show a small AppKit window
     var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
     var lifeline: Int32 = 0  // exit when this process ends instead of when the parent changes
+    var profile: Profile?  // footprint over time (leak-trend tests)
+}
+
+/// A footprint shape over time, on top of `--mb`: `rate=MB_PER_HOUR,noise=MB,step=HOURS:MB,
+/// saw=MINUTES:MB,speed=X`. Noise changes once a (profile) minute; the sawtooth fills
+/// over its period and then drops back; speed runs the profile's clock X times faster.
+struct Profile {
+    var rate = 0.0
+    var noise = 0.0
+    var stepAt = Double.infinity
+    var stepMB = 0.0
+    var sawMinutes = 0.0
+    var sawMB = 0.0
+    var speed = 1.0
+
+    init(_ spec: String) {
+        for term in spec.split(separator: ",") {
+            let kv = term.split(separator: "=", maxSplits: 1).map(String.init)
+            let parts = kv.count == 2 ? kv[1].split(separator: ":").compactMap { Double($0) } : []
+            switch (kv.first, parts.count) {
+            case ("rate", 1): rate = parts[0]
+            case ("noise", 1): noise = parts[0]
+            case ("step", 2): (stepAt, stepMB) = (parts[0], parts[1])
+            case ("saw", 2): (sawMinutes, sawMB) = (parts[0], parts[1])
+            case ("speed", 1): speed = parts[0]
+            default:
+                FileHandle.standardError.write("bad --profile term \(term)\n".data(using: .utf8)!)
+                exit(2)
+            }
+        }
+    }
+
+    /// Extra MB at `hours` of profile time.
+    func extraMB(hours h: Double) -> Double {
+        var mb = rate * h + (h >= stepAt ? stepMB : 0)
+        if sawMinutes > 0 { mb += sawMB * (h * 60 / sawMinutes).truncatingRemainder(dividingBy: 1) }
+        if noise > 0 {
+            // Deterministic per minute and per process, in -noise...noise.
+            var x = UInt64(h * 60) &* 0x9E37_79B9_7F4A_7C15 ^ UInt64(getpid())
+            x = (x ^ (x >> 31)) &* 0xBF58_476D_1CE4_E5B9
+            mb += noise * (Double(x % 2001) / 1000 - 1)
+        }
+        return max(0, mb)
+    }
 }
 
 func parse() -> Options {
@@ -49,6 +93,7 @@ func parse() -> Options {
         case "--gui": o.gui = true
         case "--exit-after": o.exitAfter = Double(v())!
         case "--lifeline": o.lifeline = Int32(v())!
+        case "--profile": o.profile = Profile(v())
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -91,6 +136,18 @@ func fill(_ p: UnsafeMutableRawPointer, _ bytes: Int) {
         // Text-like repeating pattern: compresses well, but is not all zeros.
         for i in 0..<(bytes / 8) { words[i] = UInt64(i % 512) &* 0x0101_0101_0101_0101 }
     }
+}
+
+// Profile memory: 1 MB mappings, so a drop really returns memory to the system.
+var profileBlocks: [UnsafeMutableRawPointer] = []
+
+func adjustProfile(toMB target: Int) {
+    while profileBlocks.count < target {
+        guard let p = mmap(nil, 1 << 20, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0), p != MAP_FAILED else { return }
+        fill(p, 1 << 20)
+        profileBlocks.append(p)
+    }
+    while profileBlocks.count > target { munmap(profileBlocks.removeLast(), 1 << 20) }
 }
 
 func touchAll() {
@@ -190,6 +247,7 @@ let parentPID = getppid()
 var lastTouch = start
 var lastHB = start
 var lastGrow = start
+var lastProfile: UInt64 = 0
 
 func tick() {
     let t = now()
@@ -222,6 +280,10 @@ func tick() {
     if opts.growMBps > 0, Double(t - lastGrow) / 1e9 >= 1 {
         allocate(mb: max(1, Int(opts.growMBps)))
         lastGrow = t
+    }
+    if let p = opts.profile, t - lastProfile >= 1_000_000_000 {
+        adjustProfile(toMB: Int(p.extraMB(hours: Double(t - start) / 3.6e12 * p.speed).rounded()))
+        lastProfile = t
     }
     if let h = writeHandle {
         h.write("x".data(using: .utf8)!)
