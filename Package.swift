@@ -17,6 +17,9 @@ let package = Package(
         .executableTarget(name: "iclear", dependencies: ["ICCore", "ICSystem"]),
         .executableTarget(name: "iClearMenu", dependencies: ["ICCore", "ICSystem"], resources: [.process("Resources")]),
         .executableTarget(name: "ic-hog"),
+        .executableTarget(name: "ic-ui-probe"),
+        .executableTarget(name: "ic-call-sim"),
+        .executableTarget(name: "ic-lab", dependencies: ["ICCore", "ICSystem"]),
         .testTarget(name: "ICCoreTests", dependencies: ["ICCore"], exclude: ["Fixtures"]),
         .testTarget(name: "ICSystemTests", dependencies: ["ICCore", "ICSystem", "ic-hog", "icleard", "iclear"]),
     ]
