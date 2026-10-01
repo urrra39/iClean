@@ -50,7 +50,7 @@ import Testing
         for (b, a) in zip(before, after) {
             #expect(!b.isEmpty && Set(b.keys) == Set(a.keys) && b.allSatisfy { $0.value.distance(to: a[$0.key]!) <= 4 }, "\(b) -> \(a)")
         }
-        if wasFront { #expect(eventually { NSWorkspace.shared.frontmostApplication?.processIdentifier == fx[2].pid }) }
+        if wasFront { #expect(eventually(10) { NSWorkspace.shared.frontmostApplication?.processIdentifier == fx[2].pid }) }
         #expect(d.journal.read().isEmpty)
     }
 

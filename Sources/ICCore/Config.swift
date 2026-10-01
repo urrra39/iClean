@@ -48,6 +48,10 @@ public struct Config: Codable, Equatable, Sendable {
 
     // Thresholds
     public var idleMinutes = 15.0
+    /// An app stays running this long after it last played audio (players between tracks).
+    public var audioCooldownMinutes = 10.0
+    /// Browsers wait this many times longer than `idleMinutes` (and any learned threshold).
+    public var browserIdleFactor = 2.0
     public var idleCPUPercent = 2.0
     public var minFrozenMinutes = 5.0
     public var maxFrozenMinutes = 240.0
@@ -288,6 +292,8 @@ extension Config {
         }
         check(version == 1, "version", "only version 1 is supported")
         check((1...1440).contains(idleMinutes), "idleMinutes", "must be 1...1440")
+        check((0...240).contains(audioCooldownMinutes), "audioCooldownMinutes", "must be 0...240")
+        check((1...10).contains(browserIdleFactor), "browserIdleFactor", "must be 1...10")
         check((0...100).contains(idleCPUPercent), "idleCPUPercent", "must be 0...100")
         check(minFrozenMinutes >= 0 && minFrozenMinutes < maxFrozenMinutes, "minFrozenMinutes", "must be >= 0 and < maxFrozenMinutes")
         check((1...1440).contains(maxFrozenMinutes), "maxFrozenMinutes", "must be 1...1440 (freezes are always bounded)")
@@ -329,6 +335,9 @@ extension Config {
                 w.thawSeconds >= 5 && w.thawSeconds <= 600 && w.everyMinutes >= 1 && w.everyMinutes <= 240
                     && w.thawSeconds < w.everyMinutes * 60, "wakeWindows.\(id)",
                 "thawSeconds 5...600, everyMinutes 1...240, thaw shorter than the period")
+            check(
+                AppClass.of(id) != .browser || w.thawSeconds >= AppClass.browserMinThawSeconds, "wakeWindows.\(id)",
+                "browsers need thawSeconds >= 30 to reconnect their tabs")
         }
         for (i, r) in profiles.schedule.enumerated() {
             check(

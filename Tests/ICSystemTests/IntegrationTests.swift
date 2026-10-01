@@ -461,6 +461,14 @@ import Testing
         #expect(why.status == 0 && why.out.contains("Mac Health"))
     }
 
+    /// A test process that exited must not leave its output handler running: it would
+    /// spin a CPU core and distort every measurement taken afterwards.
+    @Test func exitedTestProcessStopsReading() throws {
+        let h = try hog(["--exit-after", "0.2"])
+        #expect(eventually { !h.isReading })
+        h.kill()
+    }
+
     /// Every daemon-backed command, through the real CLI and a real daemon, in an
     /// isolated, scope-locked home with nothing registered (nothing can be touched).
     @Test func everyCommandRunsThroughTheCLI() throws {
@@ -503,6 +511,24 @@ import Testing
         let s = run("iclear", ["stash", "work"], env: env)
         #expect(s.status != 0 && !s.out.isEmpty, "\(s.out)")
         #expect(JournalStore(url: paths.journal).read().isEmpty)
+    }
+
+    /// The shipped rule packs import cleanly, and `compat` explains an app's class.
+    @Test func shippedRulePacksAndCompat() throws {
+        let packs = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("packaging/rules")
+        let files = try FileManager.default.contentsOfDirectory(at: packs, includingPropertiesForKeys: nil).filter {
+            $0.pathExtension == "json"
+        }
+        #expect(files.count >= 2)
+        for f in files {
+            let env = ["ICLEAR_HOME": tempHome().home.path]
+            let r = run("iclear", ["config", "import", f.path], env: env)
+            #expect(r.status == 0 && !r.out.contains("error"), "\(f.lastPathComponent): \(r.out)")
+        }
+        let spotify = run("iclear", ["compat", "com.spotify.client"], env: ["ICLEAR_HOME": tempHome().home.path])
+        #expect(spotify.status == 0 && spotify.out.contains("MEDIA") && spotify.out.contains("Tier: S"))
+        #expect(run("iclear", ["compat"]).status != 0)
     }
 
     @Test func ruleImportIsValidated() throws {

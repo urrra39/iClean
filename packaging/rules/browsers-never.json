@@ -1,0 +1,12 @@
+{
+  "deny": [
+    "com.google.Chrome",
+    "org.chromium.Chromium",
+    "com.brave.Browser",
+    "com.microsoft.edgemac",
+    "com.vivaldi.Vivaldi",
+    "com.operasoftware.Opera",
+    "company.thebrowser.Browser",
+    "org.mozilla.firefox"
+  ]
+}

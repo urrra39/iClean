@@ -6,6 +6,9 @@ import ICCore
 /// only processes that tests and benchmarks ever signal.
 public final class SpawnedHog {
     public let process = Process()
+    private let pipe = Pipe()
+    /// False once the output reached end of file and its handler was removed.
+    public var isReading: Bool { pipe.fileHandleForReading.readabilityHandler != nil }
     private let lock = NSLock()
     private var lines: [String] = []
     private var buffer = ""
@@ -13,12 +16,16 @@ public final class SpawnedHog {
     public init(path: String, args: [String]) throws {
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = args
-        let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         pipe.fileHandleForReading.readabilityHandler = { [weak self] h in
-            guard let self else { return }
-            let s = String(decoding: h.availableData, as: UTF8.self)
+            let data = h.availableData
+            // End of file: without clearing the handler it is called again at once, forever.
+            guard !data.isEmpty, let self else {
+                h.readabilityHandler = nil
+                return
+            }
+            let s = String(decoding: data, as: UTF8.self)
             self.lock.lock()
             self.buffer += s
             var parts = self.buffer.components(separatedBy: "\n")

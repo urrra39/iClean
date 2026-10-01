@@ -188,6 +188,8 @@ public final class Engine {
     public private(set) var lastForecast = Forecast(armed: true, stable: true)
     public private(set) var lastProfile: ProfileName = .work
     public private(set) var lastFocusSafe: [String] = []
+    /// When each app last played audio, for the audio cooldown.
+    public private(set) var lastAudioAt: [String: Double] = [:]
     public private(set) var lastRunaway: [RunawayFinding] = []
 
     /// Minimum spacing between freeze rounds, so the kernel has time to compress.
@@ -206,7 +208,7 @@ public final class Engine {
             now: now, config: cfg, profile: profile, lastActiveAt: state.lastActiveAt,
             learnedIdleMinutes: state.learnedIdleMinutes, lastThawAt: state.lastThawAt,
             quarantined: Set(state.quarantine.keys), demoted: Set(state.demoted.keys),
-            frozen: Set(state.frozen.keys), wakeRefreeze: wake)
+            frozen: Set(state.frozen.keys), wakeRefreeze: wake, lastAudioAt: lastAudioAt)
     }
 
     public func activationsPerHour(_ id: String, now: Double) -> Double {
@@ -244,6 +246,7 @@ public final class Engine {
             if app.isFrontmost || app.hasVisibleWindow || state.lastActiveAt[app.id] == nil {
                 state.lastActiveAt[app.id] = now
             }
+            if app.signals.audioOutput { lastAudioAt[app.id] = now }
         }
         Usage.update(&state.usage, apps: input.apps, now: now)
         if let front = input.apps.first(where: \.isFrontmost), front.id != state.lastFrontmost {

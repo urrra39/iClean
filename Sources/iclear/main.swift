@@ -78,6 +78,7 @@ let usage = """
       battery [target <2h30m | off>]   battery minutes per app (estimates)
       beachball [stats | log]          recorded stalls of the frontmost app and their causes
       before <app>                     will launching this app push memory pressure up?
+      compat <app>                     app class, tier and what pausing does to it
       shield                           Call Mode, thermal and stall shield status
       bench [--quick]                  run the benchmark scenarios (spawns test processes only)
       completions [zsh | bash | fish]
@@ -320,6 +321,12 @@ case "beachball":
 case "before":
     guard let app = rest.first else { fail("usage: iclear before <app>") }
     ask("before", app: app)
+
+case "compat":
+    guard let query = rest.first else { fail("usage: iclear compat <app name or bundle ID>") }
+    guard let app = AppLookup.resolve(query) else { fail("No app named '\(query)' found. Try its bundle ID.") }
+    let config = (try? Data(contentsOf: paths.config)).flatMap { try? Config.load(json: $0).0 } ?? Config()
+    out(Compat.report(id: app.id, name: app.name, config: config))
 
 case "shield":
     ask("shield")

@@ -138,3 +138,24 @@ public final class AppCollector {
         }
     }
 }
+
+/// Finds an app by bundle ID or name: running apps first, then the Applications folders.
+public enum AppLookup {
+    public static func resolve(_ query: String) -> (id: String, name: String)? {
+        let q = query.lowercased()
+        if let a = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier?.lowercased() == q || $0.localizedName?.lowercased() == q
+        }), let id = a.bundleIdentifier {
+            return (id, a.localizedName ?? id)
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: query), let b = Bundle(url: url) {
+            return (query, b.object(forInfoDictionaryKey: "CFBundleName") as? String ?? url.deletingPathExtension().lastPathComponent)
+        }
+        for dir in ["/Applications", "/System/Applications", NSHomeDirectory() + "/Applications"] {
+            let url = URL(fileURLWithPath: dir).appendingPathComponent(query + ".app")
+            if let id = Bundle(url: url)?.bundleIdentifier { return (id, query) }
+        }
+        // An unknown bundle ID is still classified by its ID.
+        return query.contains(".") && !query.contains(" ") ? (query, query) : nil
+    }
+}

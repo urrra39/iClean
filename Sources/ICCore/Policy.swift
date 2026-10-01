@@ -13,12 +13,14 @@ public struct PolicyContext: Sendable {
     public var frozen: Set<String>
     /// Apps inside a wake window's refreeze slot skip the idle and cooldown checks.
     public var wakeRefreeze: Set<String>
+    /// When each app last played audio (in memory; starts empty after a restart).
+    public var lastAudioAt: [String: Double]
 
     public init(
         now: Double, config: Config, profile: ProfileName = .work, lastActiveAt: [String: Double] = [:],
         learnedIdleMinutes: [String: Double] = [:], lastThawAt: [String: Double] = [:],
         quarantined: Set<String> = [], demoted: Set<String> = [], frozen: Set<String> = [],
-        wakeRefreeze: Set<String> = []
+        wakeRefreeze: Set<String> = [], lastAudioAt: [String: Double] = [:]
     ) {
         self.now = now
         self.config = config
@@ -30,6 +32,7 @@ public struct PolicyContext: Sendable {
         self.demoted = demoted
         self.frozen = frozen
         self.wakeRefreeze = wakeRefreeze
+        self.lastAudioAt = lastAudioAt
     }
 
     public func idleMinutes(_ app: AppSnapshot) -> Double {
@@ -38,7 +41,7 @@ public struct PolicyContext: Sendable {
     }
 
     public func idleThreshold(_ id: String) -> Double {
-        max(config.idleMinutes, learnedIdleMinutes[id] ?? 0)
+        max(config.idleMinutes, learnedIdleMinutes[id] ?? 0) * (AppClass.of(id) == .browser ? config.browserIdleFactor : 1)
     }
 
     /// Explicitly allowed by the user (allow list or wake window), never overriding deny or protection.
@@ -97,7 +100,11 @@ public enum Policy {
         }
         let s = app.signals
         if s.powerAssertion { r.append(Reason(Code.powerAssertion)) }
-        if s.audioOutput { r.append(Reason(Code.audio)) }
+        if s.audioOutput {
+            r.append(Reason(Code.audio))
+        } else if let t = ctx.lastAudioAt[app.id], ctx.now - t < c.audioCooldownMinutes * 60 {
+            r.append(Reason(Code.audioRecent, String(format: "played audio %.0f min ago", (ctx.now - t) / 60)))
+        }
         if s.audioInput { r.append(Reason(Code.microphone)) }
         if s.busyChildren { r.append(Reason(Code.childBusy)) }
         if s.activeConnection == true { r.append(Reason(Code.connActive)) }

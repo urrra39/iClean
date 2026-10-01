@@ -1,0 +1,16 @@
+{
+  "tiers": {
+    "com.tinyspeck.slackmacgap": "A",
+    "com.hnc.Discord": "A",
+    "ru.keepcoder.Telegram": "A",
+    "net.whatsapp.WhatsApp": "A",
+    "com.microsoft.teams2": "A"
+  },
+  "wakeWindows": {
+    "com.tinyspeck.slackmacgap": { "thawSeconds": 20, "everyMinutes": 5 },
+    "com.hnc.Discord": { "thawSeconds": 20, "everyMinutes": 5 },
+    "ru.keepcoder.Telegram": { "thawSeconds": 20, "everyMinutes": 5 },
+    "net.whatsapp.WhatsApp": { "thawSeconds": 20, "everyMinutes": 5 },
+    "com.microsoft.teams2": { "thawSeconds": 20, "everyMinutes": 5 }
+  }
+}

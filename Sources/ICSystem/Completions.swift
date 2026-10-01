@@ -3,7 +3,8 @@ public enum Completions {
     static let commands = [
         "status", "why", "explain", "thaw", "freeze", "undo", "mode", "profile", "stats", "advise",
         "quarantine", "habits", "workspace", "simulate", "trace", "config", "doctor", "install",
-        "uninstall", "migrate", "stash", "pop", "selftest", "battery", "beachball", "before", "shield", "bench", "completions", "version",
+        "uninstall", "migrate", "stash", "pop", "selftest", "battery", "beachball", "before", "compat", "shield", "bench", "completions",
+        "version",
         "help",
     ]
     static let sub: [String: [String]] = [

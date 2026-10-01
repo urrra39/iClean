@@ -45,6 +45,7 @@ public enum Code {
     public static let cpuActive = "SKIP_CPU_ACTIVE"
     public static let powerAssertion = "SKIP_POWER_ASSERTION"
     public static let audio = "SKIP_AUDIO_ACTIVE"
+    public static let audioRecent = "SKIP_AUDIO_RECENT"
     public static let microphone = "SKIP_MIC_ACTIVE"
     public static let childBusy = "SKIP_CHILD_BUSY"
     public static let connActive = "SKIP_CONN_ACTIVE"
