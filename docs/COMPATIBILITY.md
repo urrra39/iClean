@@ -7,11 +7,16 @@ every MacBook". This table lists only what was actually tested.
 
 | Model identifier | Chip | RAM | macOS | Disk | SIGSTOP freeze | BG priority | Per-app audio | Tested by | Date |
 |---|---|---|---|---|---|---|---|---|---|
-| Mac15,6 | Apple M3 Pro | 18 GB | 27.0.1 | SSD | yes | yes | yes | maintainer (full test suite, benchmarks, install/uninstall) | 2026-09-30 |
+| Mac15,6 | Apple M3 Pro | 18 GB | 27.0.1 | SSD | yes | yes | yes | maintainer (full test suite, benchmarks, install/uninstall, release artifacts) | 2026-10-01 |
+| GitHub runner `macos-15` | Apple Silicon | runner | 15.7.9 | SSD | yes (tests) | yes (tests) | n/a | CI: build + 131 tests | 2026-10-01 |
+| GitHub runner `macos-15-intel` | Intel x86_64 | runner | 15.7.9 | SSD | yes (tests) | yes (tests) | n/a | CI: build + 131 tests | 2026-10-01 |
+| GitHub runner `macos-26` | Apple Silicon | runner | 26.6.2 | SSD | yes (tests) | yes (tests) | n/a | CI: build + 131 tests | 2026-10-01 |
 
-Untested so far: Intel Macs (the universal binary builds, but has not run on Intel
-hardware), Macs with 8 GB or less, spinning or Fusion disks, macOS 13-26, and
-Rosetta.
+CI rows mean the automated test suite passed there, including real SIGSTOP/SIGCONT
+against spawned test processes. They are not real-use reports.
+
+Untested so far: real use on Intel Macs (only the CI test suite has run on Intel), Macs
+with 8 GB or less, spinning or Fusion disks, macOS 13 and 14, and Rosetta.
 
 ## Add your Mac
 
