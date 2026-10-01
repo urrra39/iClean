@@ -114,7 +114,40 @@ fayl). Hozircha tasdiqlangani: build va to'liq testlar CI da macOS 15.7 (Apple S
 Intel) va macOS 26.6 da, mahalliy ravishda macOS 27.0.1 (Apple M3 Pro) da. macOS 13 va
 14 tasdiqlanmagan.
 
-**Manba koddan** (hozircha yagona yo'l):
+**1. v0.1.0 sinov relizini yuklab oling**
+[Releases sahifasidan](https://github.com/urrra39/iClean/releases/tag/v0.1.0):
+
+- `iClean-0.1.0.zip`: menyu paneli ilovasi (buyruq qatori vositalari
+  `iClean.app/Contents/Helpers/` ichida)
+- `iclean-0.1.0-macos.tar.gz`: `iclean`, `icleand` va `ic-hog` (`iclean bench` uchun)
+- `SHA256SUMS.txt`: ikkalasining nazorat yig'indilari
+
+Biror narsani ochishdan oldin, yuklab olingan papkada nazorat yig'indisini tekshiring:
+
+```sh
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # har bir yuklangan fayl uchun "OK" chiqishi kerak
+```
+
+Buildlar ad-hoc imzolangan va **notarizatsiyadan o'tmagan**, shuning uchun macOS birinchi
+ishga tushirishni to'xtatadi:
+
+- **Ilova:** arxivni oching, `iClean.app` ni Applications ga ko'chiring, keyin uni o'ng
+  tugma bilan bosing, Open ni tanlang va tasdiqlang. macOS ning yangi versiyalarida
+  buning o'rniga bir marta System Settings > Privacy & Security da ruxsat berish
+  kerak bo'lishi mumkin.
+- **Buyruq qatori vositalari:** arxivni oching, yuklab olish karantin belgisini olib
+  tashlang va xizmatni ishga tushiring:
+
+  ```sh
+  tar xzf iclean-0.1.0-macos.tar.gz && cd iclean-0.1.0
+  xattr -d com.apple.quarantine iclean icleand ic-hog
+  ./iclean install
+  ```
+
+  Agar `xattr` "No such xattr" desa, fayllar karantinga tushmagan (masalan, `curl`
+  bilan yuklanganda); davom etavering.
+
+**2. Manba koddan:**
 
 ```sh
 git clone https://github.com/urrra39/iClean.git && cd iClean
@@ -122,13 +155,12 @@ scripts/build-release.sh           # universal ikkilik fayllar, dist/iClean.app
 cp -R dist/iClean.app /Applications/
 ```
 
-Build ad-hoc imzolangan, notarizatsiyadan o'tmagan. Agar macOS birinchi ishga
-tushirishni to'xtatsa, ilovani o'ng tugma bilan bosing, Open ni tanlang va
-tasdiqlang. Buyruq qatori vositalari `dist/iclean-0.1.0/` da va ilova ichida
+Mahalliy build ham ad-hoc imzolangan; birinchi ishga tushirish qadamlari xuddi shunday.
+Buyruq qatori vositalari `dist/iclean-0.1.0/` da va ilova ichida
 `iClean.app/Contents/Helpers/` da.
 
-Tayyor relizlar va Homebrew rejalashtirilgan, lekin hali chiqarilmagan.
-Formula va cask shablonlari [`packaging/homebrew/`](packaging/homebrew/) da.
+Homebrew tap rejalashtirilgan, lekin hali chiqarilmagan. Formula va cask shablonlari
+[`packaging/homebrew/`](packaging/homebrew/) da.
 
 ## Tez boshlash (60 soniya)
 

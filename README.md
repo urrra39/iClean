@@ -104,7 +104,38 @@ far: the build and full test suite on macOS 15.7 (Apple Silicon and Intel) and m
 26.6 in CI, and on macOS 27.0.1 (Apple M3 Pro) locally. macOS 13 and 14 are not
 verified.
 
-**From source** (the only install path today):
+**1. Download the v0.1.0 pre-release** from the
+[Releases page](https://github.com/urrra39/iClean/releases/tag/v0.1.0):
+
+- `iClean-0.1.0.zip`: the menu-bar app (command-line tools inside
+  `iClean.app/Contents/Helpers/`)
+- `iclean-0.1.0-macos.tar.gz`: `iclean`, `icleand` and `ic-hog` (used by `iclean bench`)
+- `SHA256SUMS.txt`: checksums for both
+
+Verify the checksum before opening anything, from the folder you downloaded to:
+
+```sh
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # expect "OK" for each file you downloaded
+```
+
+The builds are ad-hoc signed and **not notarized**, so macOS blocks the first launch:
+
+- **App:** unzip, move `iClean.app` to Applications, then right-click it, choose Open,
+  and confirm. On newer macOS versions you may have to allow it once in System
+  Settings > Privacy & Security instead.
+- **Command-line tools:** unpack, then remove the download quarantine flag and start
+  the daemon:
+
+  ```sh
+  tar xzf iclean-0.1.0-macos.tar.gz && cd iclean-0.1.0
+  xattr -d com.apple.quarantine iclean icleand ic-hog
+  ./iclean install
+  ```
+
+  If `xattr` says "No such xattr", the files were not quarantined (for example when
+  downloaded with `curl`); just continue.
+
+**2. From source:**
 
 ```sh
 git clone https://github.com/urrra39/iClean.git && cd iClean
@@ -112,12 +143,11 @@ scripts/build-release.sh           # universal binaries, dist/iClean.app
 cp -R dist/iClean.app /Applications/
 ```
 
-The build is ad-hoc signed, not notarized. If macOS blocks the first launch,
-right-click the app, choose Open, then confirm. The command-line tools are in
-`dist/iclean-0.1.0/` and inside the app at `iClean.app/Contents/Helpers/`.
+A local build is ad-hoc signed too; the same first-launch steps apply. The command-line
+tools are in `dist/iclean-0.1.0/` and inside the app at `iClean.app/Contents/Helpers/`.
 
-Prebuilt release downloads and a Homebrew tap are planned but not published yet.
-Formula and cask templates are in [`packaging/homebrew/`](packaging/homebrew/).
+A Homebrew tap is planned but not published yet. Formula and cask templates are in
+[`packaging/homebrew/`](packaging/homebrew/).
 
 ## Quickstart (60 seconds)
 
