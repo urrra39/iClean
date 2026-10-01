@@ -13,7 +13,7 @@ the result written down here. "Synthetic" means the golden traces in
 | S4 | Connection and Write Guard | **on** | Safety feature; measured cost 1.0 ms p50 for every regular app |
 | S5 | Post-thaw health check and quarantine | **on** | Safety feature; crash-after-thaw quarantine covered by an integration test |
 | S6 | Traces and `iclean simulate` | **on** (local, 7 days, 20 MB cap) | Needed for S1-S3 evaluation; nothing leaves the Mac |
-| S7 | Workspaces and staged thaw | **on** | First app usable 16.7 ms vs 37.7 ms; last app later (71.9 vs 40.1 ms) |
+| S7 | Workspaces and staged thaw | workspaces **on**; staged thaw **off** (opt-in `stagedThaw`) | One run, mixed result: first app usable 16.7 ms vs 37.7 ms, but all four 71.9 ms vs 40.1 ms |
 | S8 | RAM right-sizing advisor | command available; refuses under 7 days of data | Not evaluated: less than 7 days of history exist |
 
 ## S1 Pressure Forecast
@@ -120,11 +120,21 @@ future-version lines are skipped (`corruptInputIsSkipped`).
 `workspaces` in the config names groups of apps. `iclean workspace <name> freeze`
 freezes all running members or none (any member failing a safety check refuses the
 whole group). When several apps thaw at once (wake, unlock, "thaw all", workspace),
-they go in order of most recent use, each delayed by the previous app's reclaimed
-memory divided by the measured fault-in speed, capped at 10 s in total.
+they go in order of most recent use. With `"stagedThaw": true` each one is also
+delayed by the previous app's reclaimed memory divided by the measured fault-in
+speed, capped at 10 s in total. By default they all resume at once.
 
-**Results.** One pressure run, 4 × 128 MB: staged made the first app usable in 16.7 ms
-instead of 37.7 ms and all four in 71.9 ms instead of 40.1 ms. Focus-mode binding is not
+**Results.** One pressure run, 4 × 128 MB, comparing one-after-another with all at once:
+
+| | first app usable | all four usable |
+|---|---|---|
+| one after another | 16.7 ms | 71.9 ms |
+| all at once | 37.7 ms | 40.1 ms |
+
+The first app gained 21 ms and the whole set lost 32 ms. That is one run with no
+spread, the benchmark staged by waiting for each app rather than with the engine's
+timed delays, and the app being activated is always resumed first anyway. That does
+not show a net benefit, so staged thaw ships **off**. Focus-mode binding is not
 implemented (no verified public mechanism was tested). Workspaces use manual and
 profile triggers only.
 

@@ -51,7 +51,7 @@ welcome by pull request.
 |---|---|---|
 | `kill -9` the daemon mid-freeze | watchdog thawed the victim within the 5 s window | `watchdogThawsAfterDaemonIsKilled` |
 | Kill daemon and watchdog | next daemon start, `iclean thaw --all`, or the menu's Resume all thaws from the journal | `daemonStartRecoversJournal`, `cliThawAllWorksWithoutDaemon` |
-| Sleep/wake and unlock during a freeze | everything thawed (staged) | `wakeAndShutdownThawEverything`, `eventsThawEverything` |
+| Sleep/wake and unlock during a freeze | everything thawed | `wakeAndShutdownThawEverything`, `eventsThawEverything` |
 | Cmd+Tab storm (200 alternating activations) | nothing left stopped, journal empty | `rapidActivationStorm` |
 | App launches new helpers while frozen | helpers join the freeze | `newProcessesJoinAFrozenTree` |
 | PID reuse | identity mismatch, no signal | `pidReuseGuardNeverSignalsAnotherProcess` |

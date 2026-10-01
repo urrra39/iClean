@@ -73,8 +73,8 @@ Asosiy imkoniyatlar, har biri uchun nima o'lchangani va nimasi yoqilgan yoki
 o'chirilgan holda chiqishi [SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md) da:
 bosim prognozi, afsusni hisobga oluvchi qarorlar, odat statistikasi, ulanish va yozish
 himoyalari, davom ettirishdan keyingi salomatlik tekshiruvi va karantin, iz (trace)
-qayta ijrosi (`iclean simulate`), ish to'plamlari bilan bosqichma-bosqich davom
-ettirish, va RAM hajmi bo'yicha taxmin.
+qayta ijrosi (`iclean simulate`), ish to'plamlari (ixtiyoriy bosqichma-bosqich davom
+ettirish bilan), va RAM hajmi bo'yicha taxmin.
 
 ## O'lchangan natijalar
 
@@ -88,7 +88,7 @@ qatorlar yagona kuzatuvlar.
 | Xuddi shunday, lekin ishlashda davom etgan jarayon, bir xil bosim | 519 MB → 518 MB (1 marta) |
 | Davom ettirish signalidan jarayon ishlashigacha, 1 GB jarayon (p50 / p95) | 0.03 / 0.05 ms |
 | Bosim ostida 512 MB xotirani qaytarib yuklash bilan davom ettirish | 80 ms (1 marta) |
-| 4 ilovani ketma-ket davom ettirish: birinchi ilova tayyor | 16.7 ms, hammasi birdan bo'lsa 37.7 ms (1 marta) |
+| 4 × 128 MB ilovani ketma-ket va hammasini birdan davom ettirish: birinchi ilova tayyor / to'rttasi ham tayyor | 16.7 / 71.9 ms va 37.7 / 40.1 ms (1 marta; shuning uchun bosqichma-bosqich davom ettirish ixtiyoriy) |
 | Xizmatning bo'sh holdagi protsessor sarfi (o'rnatilgan, 120 s oyna) | 0.35% |
 | Xizmatning rezident xotirasi | 40 MB |
 

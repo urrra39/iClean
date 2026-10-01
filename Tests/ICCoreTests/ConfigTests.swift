@@ -15,6 +15,7 @@ import Testing
         #expect(c.predictiveThaw == false)
         #expect(c.habits.preThaw == false)
         #expect(c.forecast.enabled == false)
+        #expect(c.stagedThaw == false)
     }
 
     @Test func missingKeysTakeDefaults() throws {

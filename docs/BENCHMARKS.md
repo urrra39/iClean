@@ -67,9 +67,10 @@ benchmark estimate (tick CPU ÷ 15 s = 0.47%) is also listed above for the old i
 - **Pre-thaw (S3) showed no benefit** (35.9 ms vs 35.0 ms). Resuming early does not
   bring pages back until the app touches them. Pre-thaw ships **off**, and habit
   statistics are only used to estimate "will the user come back soon" for S2.
-- **Staged thaw (S7) is a trade-off.** The first app was usable 2.3× sooner, but the
-  last one 1.8× later. iClean stages thaws because people use one app at a time, and
-  the app being activated always goes first. The last-app cost is documented here.
+- **Staged thaw (S7) is a trade-off, not a win.** The first app was usable 2.3× sooner
+  (16.7 vs 37.7 ms), but all four were usable 1.8× later (71.9 vs 40.1 ms). One run is
+  not enough to call that a benefit, so staged thaw ships off (opt-in `stagedThaw`).
+  The app being activated is resumed first either way.
 - **Not yet measured:** memory reclaimed from real apps (browsers, Electron) as opposed
   to `ic-hog`; thaw latency of real GUI apps (needs Accessibility, see
   [FEASIBILITY §6](FEASIBILITY.md)); energy savings; behaviour on Intel Macs, 8 GB

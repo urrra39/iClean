@@ -12,7 +12,7 @@ First version.
 - `why`, `explain`, `stats`, `doctor`, `simulate`, `trace export`, `advise`,
   workspaces, profiles, Focus Safe Mode, runaway guard, Mac Health score.
 - Connection and write guards, post-resume health check with quarantine, regret
-  tracking, habit statistics, staged resume.
-- Forecast-driven actions and pre-resume ship off (see
+  tracking, habit statistics, workspaces.
+- Forecast-driven actions, pre-resume and staged resume ship off (see
   [docs/SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md)).
 - English and Uzbek menu.

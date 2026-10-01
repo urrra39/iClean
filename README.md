@@ -65,7 +65,7 @@ waking up in the background.
 The signature features, with what was measured for each and what ships on or off, are
 in [SIGNATURE_FEATURES.md](docs/SIGNATURE_FEATURES.md): pressure forecast, regret-aware
 decisions, habit statistics, connection and write guards, post-resume health check
-with quarantine, trace replay (`iclean simulate`), workspaces with staged resume, and a
+with quarantine, trace replay (`iclean simulate`), workspaces (with an opt-in staged resume), and a
 RAM right-sizing estimate.
 
 ## Measured results
@@ -79,7 +79,7 @@ Synthetic test processes, not real apps. Rows marked (1 run) are single observat
 | Identical process that kept running, same pressure | 519 MB → 518 MB (1 run) |
 | Resume signal to process running, 1 GB process (p50 / p95) | 0.03 / 0.05 ms |
 | Resume with 512 MB to fault back in, under pressure | 80 ms (1 run) |
-| Resuming 4 apps one after another: first app usable | 16.7 ms vs 37.7 ms all at once (1 run) |
+| Resuming 4 × 128 MB apps one after another vs all at once: first app usable / all four usable | 16.7 / 71.9 ms vs 37.7 / 40.1 ms (1 run; staged resume is therefore opt-in) |
 | Daemon idle CPU (installed, 120 s window) | 0.35% |
 | Daemon resident memory | 40 MB |
 

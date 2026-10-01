@@ -72,6 +72,9 @@ public struct Config: Codable, Equatable, Sendable {
     public var lowBatteryPercent = 10
     /// Experimental and off: see docs/FEASIBILITY.md §8.
     public var predictiveThaw = false
+    /// S7: space multi-app thaws by measured fault-in speed. Off: one benchmark run
+    /// made the first app usable sooner but all apps later (docs/BENCHMARKS.md).
+    public var stagedThaw = false
 
     public var profiles = ProfileSettings()
     public var forecast = ForecastSettings()

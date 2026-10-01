@@ -603,7 +603,8 @@ public final class Engine {
         return out
     }
 
-    /// Thaws everything, staged by priority and measured fault-in speed (S7).
+    /// Thaws everything, most recently used first. With `stagedThaw` (S7, opt-in) each
+    /// app also waits for the previous one's memory to fault back in.
     public func thawAll(reason: String, at now: Double) -> [Action] {
         let ids = state.frozen.keys.sorted()
         let plan = StagedThaw.schedule(
@@ -616,7 +617,7 @@ public final class Engine {
         var out: [Action] = []
         for step in plan {
             for var a in thaw(step.appID, reason: reason, at: now) {
-                a.delaySeconds = step.delay
+                a.delaySeconds = config.stagedThaw ? step.delay : 0
                 out.append(a)
             }
         }
@@ -681,7 +682,7 @@ public final class Engine {
         return plan.flatMap { step in
             thaw(step.appID, reason: Code.thawUser, at: now).map {
                 var a = $0
-                a.delaySeconds = step.delay
+                a.delaySeconds = config.stagedThaw ? step.delay : 0
                 return a
             }
         }

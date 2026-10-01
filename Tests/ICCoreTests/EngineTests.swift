@@ -129,6 +129,14 @@ import Testing
         let r = e.tick(TickInput(sample: sample(10, .critical), apps: [a, b], events: [event]))
         #expect(Set(r.actions.of(.thaw).ids) == [a.id, b.id])
         #expect(r.actions.of(.thaw).allSatisfy { $0.reasons.first?.code == code })
+        // Default: everything at once, most recently used first.
+        #expect(r.actions.of(.thaw).allSatisfy { $0.delaySeconds == 0 })
+    }
+
+    @Test func stagedThawIsOptIn() {
+        let e = engine(activeConfig { $0.stagedThaw = true }, apps: [a, b])
+        _ = e.tick(TickInput(sample: sample(0, .critical), apps: [a, b]))
+        let r = e.tick(TickInput(sample: sample(10, .critical), apps: [a, b], events: [.wake]))
         // Staged: the first thaw is immediate, the next waits for the first to fault in.
         let delays = r.actions.of(.thaw).map(\.delaySeconds)
         #expect(delays.first == 0)
@@ -267,7 +275,7 @@ import Testing
         let (acts, ok) = e.freezeWorkspace("Client A", apps: [a, b], at: 1)
         #expect(ok.isEmpty && Set(acts.ids) == [a.id, b.id])
         let thaw = e.thawWorkspace("Client A", at: 2)
-        #expect(thaw.count == 2 && thaw[0].delaySeconds == 0 && thaw[1].delaySeconds > 0)
+        #expect(thaw.count == 2 && thaw.allSatisfy { $0.delaySeconds == 0 })
         #expect(e.freezeWorkspace("nope", apps: [a], at: 3).refused["nope"] != nil)
     }
 
