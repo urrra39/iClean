@@ -6,6 +6,13 @@ reported and the release stays a release candidate; the criterion is never lower
 Results are recorded in [VALIDATION.md](VALIDATION.md) and the verdict in
 [QUALITY.md](QUALITY.md).
 
+**Amendment (2026-10-01, owner decision, [DECISIONS.md](DECISIONS.md) #36).** Made
+before any soak data existed and before any side-effect test ran. It changes two
+things and nothing else: the 7-day soak (stage 2) moves from "required for v1.0.0" to
+"reported after release", and a side-effect gate (stage 3) is added. **Release rule:**
+v1.0.0 is tagged only when stage 1 and stage 3 both pass; if any must-pass criterion
+of either fails, the release is `v1.0.0-rc.N` and the failures are listed.
+
 Reference machine: Apple M3 Pro (Mac15,6), 18 GB, macOS 27.0.1. All lab work runs in
 isolated homes and acts only on processes the lab started and registered (scope lock).
 
@@ -34,7 +41,7 @@ off; they cannot fail the gate, but a feature whose rule is not met must ship of
 Statistical meaning: 0 failures in 300 trials bounds the true failure rate below about
 1% with 95% confidence (rule of three: 3/300). It does not show the rate is 0.
 
-## Stage 2: 7-day soak (decides `v1.0.0`, evaluated in a later session)
+## Stage 2: 7-day soak (reported after release; not required for `v1.0.0`)
 
 | # | Criterion | Threshold |
 |---|---|---|
@@ -46,4 +53,17 @@ Statistical meaning: 0 failures in 300 trials bounds the true failure rate below
 | W6 | Reporting | A daily report exists for every calendar day of the soak on which the Mac was awake. |
 | W7 | Real-use Observe trace | Reviewed and reported: would-be freezes, would-be regret rate, call detections, forecast hits/false alarms/misses. The optional real-app Active trial is proposed only if the would-be regret rate is ≤ 20%. |
 
-If any W criterion fails, `v1.0.0` is not tagged; a new `-rc` documents the failure.
+The soak results are published after the release as a follow-up. A failed W criterion
+is reported in the README and fixed in a later release; it is never hidden.
+
+## Stage 3: side-effect gate (added by the amendment; required for `v1.0.0`)
+
+Measured with simulators and lab fixtures only (no personal accounts): `ic-chat-sim`,
+`ic-media-sim`, and Chrome with a throwaway profile on local pages. All must pass.
+
+| # | Criterion | Threshold |
+|---|---|---|
+| E1 | Data loss | 0 data-loss events (documents, downloads, form input, delivered messages) across the side-effect tests. |
+| E2 | Guards | Guards block 100% of freeze attempts made during active audio output, a call (microphone or camera) and a running download in the tests. |
+| E3 | Connections | 0 connection states that stay broken after thaw in the Chrome and simulator tests; otherwise the app class affected ships protected by default. |
+| E4 | Disclosure | Every observed side effect is fixed, mitigated by a default, or documented in the README's "Known side effects"; anything that cannot be fixed becomes a class protected by default.
