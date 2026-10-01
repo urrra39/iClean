@@ -1,5 +1,8 @@
 # iClean
 
+[![CI](https://github.com/urrra39/iClean/actions/workflows/ci.yml/badge.svg)](https://github.com/urrra39/iClean/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 > **Beta (0.1.0).** Sintetik sinov jarayonlari bilan va bitta Mac'da (Apple M3 Pro,
 > macOS 27.0.1) sinalgan. Haqiqiy ilovalarda Faol rejim hali tasdiqlanmagan. Dastur
 > Kuzatish rejimida boshlanadi, u faqat nima qilgan bo'lardi, shuni yozib boradi.

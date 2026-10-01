@@ -1,5 +1,8 @@
 # iClean
 
+[![CI](https://github.com/urrra39/iClean/actions/workflows/ci.yml/badge.svg)](https://github.com/urrra39/iClean/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 > **Beta (0.1.0).** Tested with synthetic test processes and on one Mac (Apple M3 Pro,
 > macOS 27.0.1). Active mode on real apps is not yet validated. It starts in Observe
 > mode, which only records what it would do.
