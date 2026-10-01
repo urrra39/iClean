@@ -344,7 +344,7 @@ import Testing
         _ = e.tick(TickInput(sample: sample(120, .warning), apps: [a]))
         _ = e.tick(TickInput(sample: sample(10_000, .warning), apps: [a]))  // gap after sleep is capped
         let d = e.state.days["0"]!
-        #expect(d.pressureSeconds == ["active.warning": 60 + 60 + 120], "\(d.pressureSeconds)")
+        #expect(d.pressureSeconds == ["active.warning": 60.0 + 60 + 120], "\(d.pressureSeconds)")
         #expect(d.workingSetMB.count >= 2)
     }
 
