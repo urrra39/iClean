@@ -24,7 +24,7 @@ decision, DECISIONS.md #36). Results: [VALIDATION.md](VALIDATION.md).
 | C11 | Test depth | continuous ≥ 2 min: freeze/thaw (soak), stash (lab), shield ladder and Call Mode (paired runs), forecast, stall forensics and `before` (combined run), selftest; combined: 60 min, 0 failures; TEST_MATRIX lists every command, key and invariant, NOT TESTED items in the README | met |
 | C12 | Daemon overhead | 0.479% of one core, 40 MB over 10 min (limits 0.5%, 60 MB) | met |
 | C13 | Selftest | full `iclear selftest`: 13/13 PASS, no SKIP | met |
-| C14 | Release artifacts | checked on the published v1.0.0 assets: see "Release 1.0.0" below | see below |
+| C14 | Release artifacts | published v1.0.0 assets: checksums, universal binaries, signatures, version, selftest, doctor and migrate all checked ("Release 1.0.0" below) | met |
 | E1 | Data loss (side effects) | 0: download checksum matched, form values kept, every message delivered or still queued on the server | met |
 | E2 | Guards | 123/123 freeze attempts refused during audio, calls and downloads | met |
 | E3 | Connections | Chrome and the heartbeat chat client always recovered; a chat client without a heartbeat stayed offline, so the COMM class is protected by default | met (by the protected default) |
@@ -73,8 +73,14 @@ decision, DECISIONS.md #36). Results: [VALIDATION.md](VALIDATION.md).
 Before tagging, a local `scripts/build-release.sh` of the release commit: every binary in
 the app and the tarball universal (`x86_64 arm64`), `codesign --verify --deep --strict`
 passes on the app (ad-hoc signature), `iclear --version` prints 1.0.0, `iclear selftest
---quick` 13/13 PASS, `iclear doctor` runs. The published assets are checked after the
-release workflow builds them (results added below).
+--quick` 13/13 PASS, `iclear doctor` runs. Published assets ([release v1.0.0](https://github.com/urrra39/iClear/releases/tag/v1.0.0),
+built by the release workflow from tag `v1.0.0`), downloaded and checked on 2026-10-02:
+`shasum -a 256 -c SHA256SUMS.txt` OK for both archives; all 11 binaries universal
+(`x86_64 arm64`); `codesign -dv` reports an ad-hoc signature and `codesign --verify
+--deep --strict` passes on the app; `iclear --version` prints 1.0.0; `iclear selftest
+--quick` 13/13 PASS and `iclear doctor` run from the tarball; `iclear migrate` in an
+isolated home with a simulated iClean install copies the settings and keeps the old
+files. **C14 met.**
 
 ## Secret scanning
 
