@@ -14,6 +14,10 @@ final class Lab {
     var probes: [GUIFixture] = []
     let journal: JournalStore
     var markdown: [String] = []
+    /// Lab processes that are not app fixtures (simulator apps).
+    var extra: [ProcessIdentity] = []
+    /// Guards `fixtures`, `probes` and `extra` against the registry timer.
+    let regLock = NSLock()
     let condLock = NSLock()
     var conditions: [String: Int] = [:]
     var forecast = ForecastState()
@@ -65,12 +69,18 @@ final class Lab {
         condLock.unlock()
     }
 
-    /// Everything the lab registered: app fixture trees and probe fixtures.
+    /// Everything the lab registered: app fixture trees, probe fixtures and simulator apps.
     func registered() -> Set<ProcessIdentity> {
-        Set(fixtures.flatMap { $0.tree() } + probes.compactMap(\.identity))
+        regLock.lock()
+        let (f, p, e) = (fixtures, probes, extra)
+        regLock.unlock()
+        return Set(f.flatMap { $0.tree() } + p.compactMap(\.identity) + e)
     }
 
     func lockScope() { ScopeLock.set(registered()) }
+
+    /// A short home for a lab daemon: a Unix socket path must stay under 104 bytes.
+    func labHome(_ name: String) -> URL { out.deletingLastPathComponent().appendingPathComponent("h/\(name)") }
 
     func writeRegistry(_ url: URL) { try? JSONEncoder().encode(Array(registered())).write(to: url) }
 
@@ -411,7 +421,7 @@ extension Lab {
         let since = Date()
         for f in fixtures { f.app.unhide() }
         sleep(2)
-        let paths = Paths(environment: ["ICLEAR_HOME": out.appendingPathComponent("stash-home").path, "ICLEAR_INSTANCE": "lab"])
+        let paths = Paths(environment: ["ICLEAR_HOME": labHome("stash").path, "ICLEAR_INSTANCE": "lab"])
         guard let d = startDaemon(paths, tools: tools) else {
             log("stash: daemon did not start")
             return
@@ -521,7 +531,7 @@ extension Lab {
             var stashSeconds: [Double] = []
         }
         var r = Row()
-        let paths = Paths(environment: ["ICLEAR_HOME": out.appendingPathComponent("crash-home").path, "ICLEAR_INSTANCE": "lab"])
+        let paths = Paths(environment: ["ICLEAR_HOME": labHome("crash").path, "ICLEAR_INSTANCE": "lab"])
         for i in 0..<(freezeTrials + stashTrials) {
             powerGate()
             let stash = i >= freezeTrials

@@ -21,6 +21,7 @@ struct Options {
     var afterCont: String?  // crash | hang
     var gui = false  // show a small AppKit window
     var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
+    var lifeline: Int32 = 0  // exit when this process ends instead of when the parent changes
 }
 
 func parse() -> Options {
@@ -47,6 +48,7 @@ func parse() -> Options {
         case "--after-cont": o.afterCont = v()
         case "--gui": o.gui = true
         case "--exit-after": o.exitAfter = Double(v())!
+        case "--lifeline": o.lifeline = Int32(v())!
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -191,7 +193,7 @@ var lastGrow = start
 
 func tick() {
     let t = now()
-    if getppid() != parentPID { exit(0) }
+    if opts.lifeline > 0 ? kill(opts.lifeline, 0) != 0 : getppid() != parentPID { exit(0) }
     if contFlag != 0 {
         contFlag = 0
         switch opts.afterCont {

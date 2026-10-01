@@ -49,6 +49,13 @@ final class AppFixture {
     /// Documents unchanged since the fixture opened them.
     func docsIntact() -> Bool { docs.map(Self.sha256) == docSums }
 
+    static func sha256Data(_ d: Data) -> String {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("ic-lab-\(UUID().uuidString)")
+        try? d.write(to: tmp)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        return sha256(tmp)
+    }
+
     static func sha256(_ url: URL) -> String {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/shasum")

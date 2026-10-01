@@ -226,7 +226,7 @@ extension Lab {
 
     /// C12: an Observe-only instance on this Mac's real apps (it can never act), idle, sampled.
     func overhead(minutes: Double, tools: URL) {
-        let home = out.appendingPathComponent("overhead-home")
+        let home = labHome("over")
         let paths = Paths(environment: ["ICLEAR_HOME": home.path, "ICLEAR_INSTANCE": "overhead"])
         try? paths.ensure()
         let d = Process()
@@ -283,7 +283,7 @@ extension Lab {
         }
         var r = Row()
         let since = Date()
-        let home = out.appendingPathComponent("combined-home")
+        let home = labHome("comb")
         let paths = Paths(environment: ["ICLEAR_HOME": home.path, "ICLEAR_INSTANCE": "lab"])
         try? paths.ensure()
         var cfg = Config()

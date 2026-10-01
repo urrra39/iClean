@@ -54,6 +54,11 @@ public final class AppCollector {
         var claimed = Set<Int32>()
         var apps: [AppSnapshot] = []
 
+        // Fresh per-bundle query: the workspace list can lag behind a copy that just started.
+        var copies: [String: Int] = [:]
+        for id in Set(running.compactMap(\.bundleIdentifier)) {
+            for a in NSRunningApplication.runningApplications(withBundleIdentifier: id) { copies[a.bundleURL?.path ?? "", default: 0] += 1 }
+        }
         for app in running {
             let root = app.processIdentifier
             let bundlePath = app.bundleURL.map { $0.path + "/" } ?? "\u{0}"
@@ -65,8 +70,12 @@ public final class AppCollector {
                     queue.append(c)
                 }
             }
-            // Helpers launched by launchd but shipped inside the bundle belong to the app too.
-            for p in table.values where p.ppid == 1 && !roots.contains(p.pid) && p.path.hasPrefix(bundlePath) && !tree.contains(p.pid) {
+            // Helpers launched by launchd but shipped inside the bundle belong to the app too,
+            // when only one copy of the app runs; with two copies nobody can tell whose they are.
+            for p in table.values
+            where copies[app.bundleURL?.path ?? ""] == 1 && p.ppid == 1 && !roots.contains(p.pid) && p.path.hasPrefix(bundlePath)
+                && !tree.contains(p.pid)
+            {
                 tree.append(p.pid)
             }
             claimed.formUnion(tree)

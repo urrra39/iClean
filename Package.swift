@@ -19,6 +19,8 @@ let package = Package(
         .executableTarget(name: "ic-hog"),
         .executableTarget(name: "ic-ui-probe"),
         .executableTarget(name: "ic-call-sim"),
+        .executableTarget(name: "ic-chat-sim"),
+        .executableTarget(name: "ic-media-sim", linkerSettings: [.linkedFramework("MediaPlayer")]),
         .executableTarget(name: "ic-lab", dependencies: ["ICCore", "ICSystem"]),
         .testTarget(name: "ICCoreTests", dependencies: ["ICCore"], exclude: ["Fixtures"]),
         .testTarget(name: "ICSystemTests", dependencies: ["ICCore", "ICSystem", "ic-hog", "icleard", "iclear"]),

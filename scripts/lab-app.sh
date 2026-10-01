@@ -10,7 +10,7 @@ swift build -c release
 lab=.work/lab
 mkdir -p "$lab/bin" "$lab/results"
 # rm first: a running copy keeps its old file instead of being overwritten in place.
-for t in ic-lab icleard iclear ic-hog ic-ui-probe ic-call-sim; do rm -f "$lab/bin/$t"; cp ".build/release/$t" "$lab/bin/$t"; done
+for t in ic-lab icleard iclear ic-hog ic-ui-probe ic-call-sim ic-chat-sim ic-media-sim; do rm -f "$lab/bin/$t"; cp ".build/release/$t" "$lab/bin/$t"; done
 app="$lab/iClear Lab.app"
 if [ ! -d "$app" ]; then
     mkdir -p "$app/Contents/MacOS"

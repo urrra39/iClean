@@ -283,12 +283,13 @@ case "validate":
         let sim = spawn(tool("ic-call-sim"), [])
         print(lab.pairedShield(name: "Call Mode", pairs: opt("--pairs", 20), probe: sim, seconds: 20, tools: products))
         sim.kill()
+    case "sideeffects": lab.sideEffects(tools: products)
     case "beachball":
         let probe = spawn(tool("ic-ui-probe"), ["--frame", "80,80,300,200", "--title", "ic-lab beachball", "--heartbeat"])
         print(lab.pairedShield(name: "Anti-Beachball", pairs: opt("--pairs", 30), probe: probe, seconds: 20, tools: products))
         probe.kill()
     default:
-        print("phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball")
+        print("phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects")
     }
     lab.cleanup()
     activeLab = nil

@@ -27,6 +27,8 @@ automated test that exercises it and is listed in the README's "Not validated" l
 | `battery target <duration>` | `targetPlanPicksCheapestWattsFirstAndReportsUnreachable`, `targetNeverPausesAnAppTwice` (planner); setting a target through the CLI is **NOT TESTED** (experimental, off) |
 | `simulate` | `simulateDiffersByConfig` (simulator); CLI path **NOT TESTED** |
 | `config validate`, `config allow/deny`, `config import` | `ruleImportIsValidated`; `invalidConfigKeepsPreviousOne`; `config validate` and `allow/deny` through the CLI **NOT TESTED** |
+| `compat <app>` | `compatReport` (all classes, config overrides, protected), `shippedRulePacksAndCompat` (CLI) |
+| `config import` of the shipped rule packs | `shippedRulePacksAndCompat` |
 | `install`, `uninstall` | `launchAgentIsPerUserAndNotRoot` (plist content), `cliMigrateAndNoOldInstall`; running them is manual (M1, M9) |
 | `migrate`, `migrate --remove-old` | `MigrationTests` (7 tests); C14 checks it from the release artifact |
 | `selftest`, `selftest --quick` | C13 (full run on the reference machine); release workflow runs `--quick` from the artifact |
@@ -58,6 +60,8 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 |---|---|
 | `mode` | `observeModeOnlyRecords`, `observeModeNeverSignals` |
 | `idleMinutes`, `idleCPUPercent` | `idleBackgroundAppIsEligible`, `eachCheckProducesItsReason` |
+| `audioCooldownMinutes` | `audioCooldown`; lab `sideeffects` (player simulator) |
+| `browserIdleFactor`, browser wake-window floor | `browserCaution` |
 | `minFrozenMinutes`, `cooldownMinutes` | `cooldownQuarantineDemotionAlreadyFrozen` |
 | `maxFrozenMinutes` | `maxFrozenDurationThaws` |
 | `thawAfterNormalMinutes` | `relievedPressureThawsAfterDelay` |
@@ -101,6 +105,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | F5 Anti-Beachball forensics / mitigation | `ForensicsAndAdvisorTests`, `ShieldTests` | lab `beachball`, `combined` |
 | F6 `before` | `launchAdvisor`, `featureCommandsAnswer` | **NOT TESTED** continuously (a one-shot estimate) |
 | F7 Unsaved guard | `keepListUnsavedAndSharedWindows` (planner) | lab `unsaved` (spike g) |
+| App classes (COMM, MEDIA, BROWSER) | `AppClassTests` (defaults, cooldown, browser caution, wake window never during a call, compat) | lab `sideeffects` |
 | Everything together | | lab `combined` (≥ 60 min) |
 
 ## Safety invariants

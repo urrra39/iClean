@@ -2,6 +2,7 @@
 // high-priority queue (like an audio/video pipeline) and, with --audio, records from
 // the default microphone and counts late buffers. Nothing is stored; samples are
 // discarded. Prints "stats ..." on SIGUSR1 and every --report seconds.
+import AppKit
 import AudioToolbox
 import Foundation
 
@@ -103,4 +104,9 @@ if duration > 0 {
     }
 }
 print("ready pid=\(getpid())")
+// --app: a regular app (Dock icon, no window), so iClear sees it as a call app.
+if CommandLine.arguments.contains("--app") {
+    NSApplication.shared.setActivationPolicy(.regular)
+    NSApplication.shared.run()
+}
 dispatchMain()

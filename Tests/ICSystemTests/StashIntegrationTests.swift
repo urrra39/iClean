@@ -91,6 +91,39 @@ import Testing
         #expect(d.pop("w").ok && !isStopped(fx[1].pid))
     }
 
+    /// Helpers that launchd parents inside an app's bundle (such as Chrome's crash
+    /// handler) join the app only while one copy of it runs; with two copies they belong
+    /// to neither, so one copy never claims the other's processes.
+    @Test func launchdHelpersJoinOnlyASingleCopy() throws {
+        let paths = tempHome()
+        let a = try GUIFixture(probe: probePath, dir: paths.home, name: "Twin", frame: "120,120,300,200")
+        defer { a.kill() }
+        let helper = a.bundle.appendingPathComponent("Contents/MacOS/helper")
+        try FileManager.default.copyItem(atPath: hogPath, toPath: helper.path)
+        // Started in the background of a shell that exits, so launchd becomes its parent;
+        // it still ends with this test process.
+        let sh = Process()
+        sh.executableURL = URL(fileURLWithPath: "/bin/sh")
+        sh.arguments = ["-c", "'\(helper.path)' --lifeline \(getpid()) --exit-after 120 >/dev/null 2>&1 &"]
+        try sh.run()
+        sh.waitUntilExit()
+        var hpid: Int32 = 0
+        #expect(
+            eventually {
+                hpid = Proc.table().values.first { $0.path.hasSuffix("Twin.app/Contents/MacOS/helper") && $0.ppid == 1 }?.pid ?? 0
+                return hpid > 0
+            })
+        defer { if hpid > 0 { kill(hpid, SIGKILL) } }
+        let c = AppCollector()
+        func tree(_ f: GUIFixture) -> [Int32] { c.collect().apps.first { $0.processes.first?.pid == f.pid }?.processes.map(\.pid) ?? [] }
+        #expect(eventually { tree(a).contains(hpid) })
+        let b = try GUIFixture(probe: probePath, dir: paths.home, name: "Twin", frame: "460,120,300,200")
+        defer { b.kill() }
+        // Both copies must be visible to the collector (NSWorkspace updates on the main run loop).
+        let ok = eventually(20) { !tree(a).isEmpty && !tree(a).contains(hpid) && !tree(b).contains(hpid) }
+        #expect(ok, "a \(a.pid): \(tree(a)); b \(b.pid): \(tree(b)); helper \(hpid)")
+    }
+
     /// Red team: an app belongs to at most one stash.
     @Test func twoStashesNeverShareAnApp() throws {
         let paths = tempHome()
