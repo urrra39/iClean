@@ -328,7 +328,12 @@ case "soak-status":
     let awake = d.map(\.awakeSeconds).reduce(0, +) / 3600
     print(String(format: "Started %@ (%.2f days ago). Awake time %.1f h.", "\(Date(timeIntervalSince1970: st.startedAt))", elapsed, awake))
     print("W1 elapsed >= 7 d: \(elapsed >= 7 ? "met" : String(format: "%.1f of 7 days", elapsed))")
-    print("W2 awake >= 40 h: \(awake >= 40 ? "met" : String(format: "%.1f of 40 h", awake))")
+    print("W2 lab daemon running while awake >= 40 h: \(awake >= 40 ? "met" : String(format: "%.1f of 40 h", awake))")
+    let paused = d.compactMap(\.batteryPausedSeconds).reduce(0, +) / 3600
+    if let since = st.powerOnlySince {
+        let when = "\(Date(timeIntervalSince1970: since))"
+        print(String(format: "Lab part on power only since %@; awake on battery with it paused: %.1f h", when, paused))
+    }
     print(
         "W3 freeze/thaw >= 5000: \(sum(\.freezeCycles)) (failed \(sum(\.freezeFailures))); stash/pop >= 300: \(sum(\.stashCycles)) (failed \(sum(\.stashFailures)))"
     )
