@@ -291,6 +291,15 @@ case "validate":
             switches: opt("--switches", 200), falseEvents: opt("--false", 250), undos: opt("--undos", 50), crashes: opt("--crashes", 50),
             tools: products)
     case "leaks": lab.leakLab(growing: opt("--growing", 15), flat: opt("--flat", 15), hours: Double(opt("--hours", 5)), tools: products)
+    case "brake": lab.brakeLab(runs: opt("--runs", 20), untouchable: opt("--untouchable", 10), tools: products)
+    case "brake-fp":
+        let repo =
+            args.firstIndex(of: "--repo").map { URL(fileURLWithPath: args[$0 + 1]) }
+            ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        lab.brakeFalsePositives(runs: opt("--runs", 10), repo: repo, tools: products)
+    case "brake-replay":
+        lab.brakeReplay(traceDir: URL(fileURLWithPath: args.firstIndex(of: "--trace").map { args[$0 + 1] } ?? ""))
+    case "blackbox": lab.blackBoxLab(idleMinutes: Double(opt("--idle-minutes", 60)), kills: opt("--kills", 20), tools: products)
     case "leak-retro":
         let dir = args.firstIndex(of: "--trace").map { args[$0 + 1] } ?? ""
         lab.leakRetro(traceDir: URL(fileURLWithPath: dir))
@@ -300,7 +309,7 @@ case "validate":
         probe.kill()
     default:
         print(
-            "phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects context leaks leak-retro"
+            "phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects context leaks leak-retro brake brake-fp brake-replay blackbox"
         )
     }
     lab.cleanup()

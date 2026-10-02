@@ -17,14 +17,6 @@ public final class LiveProbe: Probe {
     public func collect(now: Double) -> AppCollector.Result { collector.collect(now: now) }
 }
 
-/// A user-visible event for the menu app (notifications are posted there).
-public struct DaemonEvent: Codable, Sendable {
-    public var t: Double
-    public var title: String
-    public var body: String
-    public var appID: String?
-}
-
 /// The daemon runtime. Everything runs on the main queue; the engine is not thread-safe.
 public final class Daemon {
     public let paths: Paths
@@ -406,6 +398,9 @@ public final class Daemon {
 
     /// Activation handler. SIGCONT goes out before any other work.
     public func handleActivation(pid: Int32, bundleID: String?, name: String) {
+        // The Panic Brake (no AppKit of its own) learns the front app and releases its pauses on activation.
+        let brakeSocket = paths.brakeSocket.path
+        DispatchQueue.global(qos: .utility).async { _ = IPC.send(Request("activated", value: "\(pid)"), path: brakeSocket, timeout: 1) }
         if let id = bundleID {
             ContextTracker.noteActivation(&contextState, appID: id)
             footprints.noteFront(id, at: clock())
@@ -558,27 +553,9 @@ public final class Daemon {
     }
 }
 
-/// The watchdog: a separate process that thaws everything in the journal if the
-/// daemon disappears for any reason, including SIGKILL.
-public enum Watchdog {
-    public static func run(parent: pid_t, paths: Paths) -> Never { run(parent: parent, journal: JournalStore(url: paths.journal)) }
-
-    /// Waits for `parent` to exit, then resumes everything in `journal`.
-    public static func run(parent: pid_t, journal: JournalStore) -> Never {
-        setsid()  // own process group, so killing the daemon's group does not take it down
-        let kq = kqueue()
-        var ev = kevent(
-            ident: UInt(parent), filter: Int16(EVFILT_PROC), flags: UInt16(EV_ADD | EV_ONESHOT),
-            fflags: NOTE_EXIT, data: 0, udata: nil)
-        if kevent(kq, &ev, 1, nil, 0, nil) == 0 {
-            var out = kevent()
-            // Also wake every 5 s in case the parent vanished before registration.
-            var ts = timespec(tv_sec: 5, tv_nsec: 0)
-            while kill(parent, 0) == 0 || errno == EPERM {
-                if kevent(kq, nil, 0, &out, 1, &ts) > 0 { break }
-            }
-        }
-        _ = Signals.recover(journal: journal)
-        exit(0)
+extension Watchdog {
+    /// The daemon's watchdog: also shows apps a stash hid.
+    public static func run(parent: pid_t, paths: Paths) -> Never {
+        run(parent: parent, journal: JournalStore(url: paths.journal), unhide: Signals.appKitUnhide)
     }
 }

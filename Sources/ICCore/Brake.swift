@@ -395,7 +395,9 @@ public struct BlackBoxRing: Codable, Equatable, Sendable {
         if !samples.isEmpty { samples[samples.count - 1].top = top }
     }
 
-    public var healthy: Bool { samples.allSatisfy { $0.state == .healthy } }
+    /// Healthy: pressure normal and no stall. Memory evidence alone (a busy compressor) does
+    /// not count, so a healthy Mac never makes the Black Box write.
+    public var healthy: Bool { samples.allSatisfy { $0.state != .stalled && $0.pressure < 2 } }
 }
 
 /// What survives a restart: the boot it was written in, and whether that boot ended

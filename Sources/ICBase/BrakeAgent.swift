@@ -1,6 +1,79 @@
-import AppKit
 import Foundation
 import ICCore
+
+/// Where the brake gets its process trees. The live one reads the process table without
+/// AppKit (the watchdog stays small: AppKit alone adds about 29 MB of resident memory);
+/// tests supply snapshots of processes they spawned.
+public protocol BrakeTreeSource: AnyObject {
+    func collect(now: Double, frontPID: Int32?) -> (apps: [AppSnapshot], table: [Int32: ProcInfo])
+}
+
+/// App trees from libproc: every process belongs to its nearest ancestor that is an app
+/// bundle's executable started by launchd; other processes of 100 MB or more stand alone.
+public final class LibprocTrees: BrakeTreeSource {
+    private var bundles: [String: (id: String, name: String, regular: Bool)] = [:]
+    private var lastCPU: [String: (t: Double, nanos: UInt64)] = [:]
+    public init() {}
+
+    func bundle(_ path: String) -> (root: String, id: String, name: String, regular: Bool)? {
+        guard let r = path.range(of: ".app/Contents/MacOS/") else { return nil }
+        let root = String(path[..<r.lowerBound]) + ".app"
+        if let b = bundles[root] { return (root, b.id, b.name, b.regular) }
+        let info = NSDictionary(contentsOfFile: root + "/Contents/Info.plist") as? [String: Any] ?? [:]
+        let id = info["CFBundleIdentifier"] as? String ?? "exe:" + (path as NSString).lastPathComponent
+        let name = info["CFBundleName"] as? String ?? ((root as NSString).lastPathComponent as NSString).deletingPathExtension
+        let regular = !((info["LSUIElement"] as? Bool) ?? false) && !((info["LSBackgroundOnly"] as? Bool) ?? false)
+        bundles[root] = (id, name, regular)
+        return (root, id, name, regular)
+    }
+
+    public func collect(now: Double, frontPID: Int32?) -> (apps: [AppSnapshot], table: [Int32: ProcInfo]) {
+        let table = Proc.table()
+        var owner: [Int32: Int32] = [:]  // pid -> app root pid
+        func rootOf(_ pid: Int32, depth: Int = 0) -> Int32? {
+            if let o = owner[pid] { return o }
+            guard depth < 64, let p = table[pid] else { return nil }
+            if p.ppid == 1, bundle(p.path) != nil {
+                owner[pid] = pid
+                return pid
+            }
+            guard p.ppid > 1, let r = rootOf(p.ppid, depth: depth + 1) else { return nil }
+            owner[pid] = r
+            return r
+        }
+        var groups: [Int32: [Int32]] = [:]
+        for pid in table.keys {
+            if let r = rootOf(pid) { groups[r, default: []].append(pid) }
+        }
+        var apps: [AppSnapshot] = []
+        func cpu(_ id: String, _ pids: [Int32]) -> Double {
+            let nanos = pids.compactMap { table[$0]?.cpuNanos }.reduce(0, +)
+            defer { lastCPU[id] = (now, nanos) }
+            guard let l = lastCPU[id], now > l.t, nanos >= l.nanos else { return 0 }
+            return Double(nanos - l.nanos) / 1e9 / (now - l.t) * 100
+        }
+        for (root, members) in groups {
+            guard let p = table[root], let b = bundle(p.path) else { continue }
+            let ordered = [root] + members.filter { $0 != root }.sorted()
+            let ids = ordered.compactMap { table[$0]?.identity }
+            apps.append(
+                AppSnapshot(
+                    id: b.id, name: b.name, processes: ids, residentMB: ordered.compactMap { table[$0]?.residentMB }.reduce(0, +),
+                    footprintMB: ordered.compactMap { table[$0]?.footprintMB }.reduce(0, +), cpuPercent: cpu(b.id, ordered),
+                    isFrontmost: frontPID.map(ordered.contains) ?? false, isRegularApp: b.regular,
+                    origin: p.path.hasPrefix("/System/") ? .system : b.id.hasPrefix("com.apple.") ? .apple : .thirdParty))
+        }
+        for (pid, p) in table where owner[pid] == nil && p.footprintMB >= 100 {
+            let id = "exe:\(p.name)"
+            apps.append(
+                AppSnapshot(
+                    id: id, name: p.name, processes: [p.identity], residentMB: p.residentMB, footprintMB: p.footprintMB,
+                    cpuPercent: cpu(id + "\(pid)", [pid]), isRegularApp: false,
+                    origin: p.path.hasPrefix("/System/") || p.path.hasPrefix("/usr/") ? .system : .thirdParty))
+        }
+        return (apps, table)
+    }
+}
 
 extension Paths {
     /// The brake's own journal: it runs in a separate process and never shares the daemon's.
@@ -88,7 +161,9 @@ public struct BrakeStatus: Codable, Sendable {
 /// Black Box file, IPC) runs on the main queue once a second.
 public final class BrakeAgent {
     public let paths: Paths
-    let probe: Probe
+    let source: BrakeTreeSource
+    /// The frontmost app's PID, as the daemon reports activations (the brake does not load AppKit).
+    var frontPID: Int32?
     public let journal: JournalStore
     public var settings: BrakeSettings
     public var clock: () -> Double = { Date().timeIntervalSince1970 }
@@ -124,9 +199,9 @@ public final class BrakeAgent {
     var timer: DispatchSourceTimer?
     var unclean = false
 
-    public init(paths: Paths = Paths(), probe: Probe = LiveProbe()) {
+    public init(paths: Paths = Paths(), source: BrakeTreeSource = LibprocTrees()) {
         self.paths = paths
-        self.probe = probe
+        self.source = source
         journal = JournalStore(url: paths.brakeJournal)
         let config = (try? Data(contentsOf: paths.config)).flatMap { try? Config.load(json: $0).0 } ?? Config()
         settings = config.brake
@@ -141,7 +216,7 @@ public final class BrakeAgent {
     public func start(watchdogExecutable: URL?) throws {
         try paths.ensure()
         // Anything a previous brake process left paused is resumed first.
-        _ = Signals.recover(journal: journal)
+        _ = Signals.recover(journal: journal, unhide: { _ in false })
         checkUncleanRestart()
         if let exe = watchdogExecutable {
             let w = Process()
@@ -276,7 +351,7 @@ public final class BrakeAgent {
             } else if p.pause.quitRequestDue(now: now, settings: settings) {
                 pauses[id]?.pause.quitRequested = true
                 release(id, reason: Code.panicReleased, note: "resumed to ask it to quit")
-                let asked = p.processes.first.flatMap { NSRunningApplication(processIdentifier: $0.pid) }?.terminate() ?? false
+                let asked = Self.requestQuit(id)
                 record(id, p.pause.name, kind: .requestQuit, code: Code.panicReleased, "asked to quit (\(asked ? "accepted" : "refused"))")
             }
         }
@@ -301,7 +376,7 @@ public final class BrakeAgent {
     func sampleTrees(now: Double) {
         lastTreeSample = now
         if labMode { ScopeLock.load(paths.labRegistry) }
-        let r = probe.collect(now: now)
+        let r = source.collect(now: now, frontPID: frontPID)
         let me = getuid()
         // The brake's own ancestors and children are never candidates.
         var lineage: Set<Int32> = [getpid()]
@@ -393,11 +468,26 @@ public final class BrakeAgent {
     public func resumeAll(reason: String) {
         for id in Array(pauses.keys) { release(id, reason: reason, note: "resumed") }
         if let c = ladder.current, let t = trees[c] { Signals.thawTree(t.processes, journal: journal) }
-        _ = Signals.recover(journal: journal)
+        _ = Signals.recover(journal: journal, unhide: { _ in false })
     }
 
-    /// An activation of a paused app (from the menu, the Dock or app switching) resumes it.
+    /// The app's own Quit, as an Apple event (like Command-Q): the app may ask to save.
+    /// Only apps with a bundle ID can be asked; nothing is ever force-quit.
+    static func requestQuit(_ appID: String) -> Bool {
+        guard !appID.hasPrefix("exe:"), !appID.hasPrefix("proc:"), !appID.contains("\"") else { return false }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        p.arguments = ["-e", "tell application id \"\(appID)\" to quit"]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return false }
+        p.waitUntilExit()
+        return p.terminationStatus == 0
+    }
+
+    /// An activation of a paused app (reported by the daemon) resumes it.
     public func handleActivation(pid: Int32) {
+        frontPID = pid
         if let id = pauses.first(where: { $0.value.processes.contains { $0.pid == pid } })?.key {
             release(id, reason: Code.thawActivated, note: "resumed on activation")
         }
@@ -480,10 +570,13 @@ public final class BrakeAgent {
                 return Response(ok: false, text: "The Panic Brake has not paused \(req.app ?? "that app").")
             }
             release(id, reason: Code.thawUser, note: "resumed to ask it to quit")
-            let asked = p.processes.first.flatMap { NSRunningApplication(processIdentifier: $0.pid) }?.terminate() ?? false
+            let asked = Self.requestQuit(id)
             return Response(
                 ok: asked,
                 text: asked ? "Asked \(p.pause.name) to quit (its own Quit)." : "\(p.pause.name) did not accept the quit request.")
+        case "activated":
+            if let pid = Int32(req.value ?? "") { handleActivation(pid: pid) }
+            return Response(ok: true, text: "")
         case "trees":
             let t = trees.values.sorted { $0.culpritScore > $1.culpritScore }
             return Response(ok: true, text: "", data: String(decoding: (try? JSONEncoder().encode(t)) ?? Data(), as: UTF8.self))

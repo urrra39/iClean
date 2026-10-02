@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 
+@testable import ICBase
 @testable import ICCore
 @testable import ICSystem
 
@@ -22,8 +23,17 @@ import Testing
         }
     }
 
+    /// The brake's tree source, fed from the fake probe's snapshots.
+    final class ProbeTrees: BrakeTreeSource {
+        let probe: FakeProbe
+        init(_ p: FakeProbe) { probe = p }
+        func collect(now: Double, frontPID: Int32?) -> (apps: [AppSnapshot], table: [Int32: ProcInfo]) {
+            (probe.collect(now: now).apps, [:])
+        }
+    }
+
     func agent(_ probe: FakeProbe, mode: BrakeMode) -> BrakeAgent {
-        let a = BrakeAgent(paths: tempHome(), probe: probe)
+        let a = BrakeAgent(paths: tempHome(), source: ProbeTrees(probe))
         a.settings.mode = mode
         a.ladder.settings = a.settings
         return a
@@ -137,7 +147,10 @@ import Testing
         }
         let pausedAfter = Date().timeIntervalSince(t0)
         #expect(pausedAfter < 8 && !isStopped(calm.pid))
-        #expect(eventually(8) { FileManager.default.fileExists(atPath: paths.blackBox.path) })
+        #expect(
+            eventually(12) {
+                ((try? Files.readJSON([BlackBoxSample].self, from: paths.blackBox)) ?? nil)?.contains { $0.state == .stalled } == true
+            })
         kill(p.processIdentifier, SIGKILL)
         p.waitUntilExit()
         #expect(eventually(2) { !isStopped(runaway.pid) })
