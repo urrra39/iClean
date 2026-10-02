@@ -459,6 +459,7 @@ case "brake":
                     "Mode %@; now %@ (stall score %.2f); watchdog loop late by p50 %.2f ms, p95 %.2f ms, max %.1f ms; Black Box %d samples.",
                 s.mode.rawValue, s.state.rawValue, s.score, s.loopLatencyMs[0], s.loopLatencyMs[1], s.loopLatencyMs[2], s.blackBoxSamples))
         out(s.pauses.isEmpty ? "Paused by the brake: none." : "Paused by the brake: " + s.pauses.map(\.name).joined(separator: ", "))
+        for line in s.plans { out("  " + line) }
         if s.unclean { out("The Mac restarted uncleanly: see `iclear blackbox`.") }
     case "report":
         let entries = ActionLog.read(paths: paths, last: 10_000).filter { $0.action.reasons.contains { $0.code.hasPrefix("PANIC_") } }

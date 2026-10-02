@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 
@@ -114,6 +115,79 @@ import Testing
         #expect(!isStopped(a1.pid) && a.journal.read().isEmpty)
         let would = ActionLog.read(paths: a.paths).filter { $0.action.reasons.contains { $0.code == Code.panicWould } }
         #expect(would.count == 1 && would.first?.action.dryRun == true)
+    }
+
+    /// Auto graceful quit on probe apps that quit cleanly, ignore the request or crash,
+    /// and one that reports unsaved work. The quit request is the app's own Quit.
+    func autoQuitRun(onQuit: String, unsaved: Bool? = nil) throws -> (fx: GUIFixture, agent: BrakeAgent, feed: Feed) {
+        let dir = tempHome().home
+        let fx = try GUIFixture(
+            probe: products.appendingPathComponent("ic-ui-probe").path, dir: dir, name: "Quit\(onQuit)", frame: "200,200,300,200",
+            extraArgs: onQuit == "quit" ? [] : ["--on-quit", onQuit])
+        let probe = FakeProbe()
+        func snap(_ mb: Double) -> AppSnapshot { AppSnapshot(id: fx.id, name: "Quit\(onQuit)", processes: [fx.identity!], footprintMB: mb) }
+        probe.apps = [snap(300)]
+        let a = agent(probe, mode: .on)
+        a.settings.autoQuitApps = [fx.id]
+        a.settings.autoQuitSeconds = 5
+        a.ladder.settings = a.settings
+        a.quitApp = { NSRunningApplication(processIdentifier: $0)?.terminate() ?? false }
+        a.unsavedWork = { _ in unsaved }
+        let f = Feed()
+        a.clock = { f.t }
+        f.next(a, storm: false)
+        f.next(a, storm: true)
+        f.next(a, storm: true)
+        probe.apps = [snap(900)]
+        f.next(a, storm: true)
+        for _ in 0..<4 { f.next(a, storm: false) }  // the stall clears: confirmed, kept paused
+        #expect(a.pauses[fx.id] != nil && isStopped(fx.pid))
+        #expect(a.status().plans.first?.contains("will be asked to quit") == true)
+        for _ in 0..<5 { f.next(a, storm: false) }  // 5 s after confirmation: the auto quit
+        return (fx, a, f)
+    }
+
+    func codes(_ a: BrakeAgent) -> [String] { ActionLog.read(paths: a.paths).flatMap { $0.action.message.map { [$0] } ?? [] } }
+
+    @Test func autoQuitQuitsCleanly() throws {
+        let (fx, a, f) = try autoQuitRun(onQuit: "quit")
+        defer { fx.kill() }
+        #expect(eventually(10) { kill(fx.pid, 0) != 0 })
+        f.next(a, storm: false)
+        #expect(a.pauses.isEmpty && a.journal.read().isEmpty)
+        #expect(codes(a).contains { $0.contains("exited after the quit request") })
+    }
+
+    @Test func autoQuitIgnoredLeavesItPaused() throws {
+        let (fx, a, f) = try autoQuitRun(onQuit: "ignore")
+        defer { fx.kill() }
+        #expect(!isStopped(fx.pid))  // resumed to answer the request
+        usleep(1_000_000)
+        for _ in 0..<11 { f.next(a, storm: false) }
+        #expect(kill(fx.pid, 0) == 0 && isStopped(fx.pid) && a.pauses[fx.id] != nil)
+        #expect(a.journal.read().entries.contains { $0.pid == fx.pid })
+        #expect(codes(a).contains { $0.contains("ignored the quit request; paused again") })
+        #expect(a.status().plans.first?.contains("already tried") == true)  // asked once only
+        _ = a.handle(Request("resume", app: "all"))
+    }
+
+    @Test func autoQuitCrashIsRecordedAsExited() throws {
+        let (fx, a, f) = try autoQuitRun(onQuit: "crash")
+        defer { fx.kill() }
+        #expect(eventually(10) { kill(fx.pid, 0) != 0 })
+        f.next(a, storm: false)
+        #expect(a.pauses.isEmpty && a.journal.read().isEmpty)
+        #expect(codes(a).contains { $0.contains("exited after the quit request") })
+    }
+
+    @Test func autoQuitSkippedWhenTheAppReportsUnsavedWork() throws {
+        let (fx, a, _) = try autoQuitRun(onQuit: "quit", unsaved: true)
+        defer {
+            _ = a.handle(Request("resume", app: "all"))
+            fx.kill()
+        }
+        #expect(isStopped(fx.pid) && kill(fx.pid, 0) == 0 && a.pauses[fx.id] != nil)
+        #expect(codes(a).contains { $0.contains("auto quit skipped: it reports unsaved work") })
     }
 
     /// The real watchdog process in lab mode: a simulated stall pauses the registered

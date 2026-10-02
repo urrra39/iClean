@@ -346,7 +346,7 @@ extension Config {
         check((2...120).contains(brake.giveUpSeconds), "brake.giveUpSeconds", "must be 2...120")
         check((0...60).contains(brake.releaseAfterNormalMinutes), "brake.releaseAfterNormalMinutes", "must be 0...60")
         check((0.1...4).contains(brake.maxPauseHours), "brake.maxPauseHours", "must be 0.1...4 (never more than 4 hours)")
-        check((1...240).contains(brake.quitAfterMinutes), "brake.quitAfterMinutes", "must be 1...240")
+        check((5...3600).contains(brake.autoQuitSeconds), "brake.autoQuitSeconds", "must be 5...3600")
         for (name, sh) in [
             ("callMode", callMode), ("thermalShield", thermalShield), ("antiBeachball.mitigation", antiBeachball.mitigation),
         ] {

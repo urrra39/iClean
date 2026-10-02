@@ -26,10 +26,12 @@ public struct BrakeSettings: Codable, Equatable, Sendable {
     /// activated, or after `maxPauseHours` (4 h at most).
     public var releaseAfterNormalMinutes = 2.0
     public var maxPauseHours = 4.0
-    /// Apps (bundle IDs or names) that may be asked to quit (their own Quit) after
-    /// `quitAfterMinutes` paused by the brake. Empty: nobody is asked.
-    public var quitRequestApps: [String] = []
-    public var quitAfterMinutes = 10.0
+    /// Auto graceful quit, per-app opt-in (bundle IDs or names; empty: off for every app).
+    /// Once an app has been the confirmed culprit for `autoQuitSeconds`, it is asked to
+    /// quit with its own Quit (its save and restore flow runs), unless it reports unsaved
+    /// work. If it ignores the request it is paused again. Nothing is ever force-killed.
+    public var autoQuitApps: [String] = []
+    public var autoQuitSeconds = 30.0
     /// The Black Box ring buffer and its file (written only while the Mac is not healthy).
     public var blackBox = true
     public init() {}
@@ -301,7 +303,8 @@ public struct BrakePause: Codable, Equatable, Sendable {
     public var appID: String
     public var name: String
     public var pausedAt: Double
-    public var quitRequested = false
+    /// The auto graceful quit was tried (once per pause).
+    public var autoQuitTried = false
 
     public init(appID: String, name: String, pausedAt: Double) {
         self.appID = appID
@@ -316,10 +319,15 @@ public struct BrakePause: Codable, Equatable, Sendable {
         return normalSince.map { now - $0 >= settings.releaseAfterNormalMinutes * 60 } ?? false
     }
 
-    public func quitRequestDue(now: Double, settings: BrakeSettings) -> Bool {
-        !quitRequested && now - pausedAt >= settings.quitAfterMinutes * 60
-            && settings.quitRequestApps.contains { $0.lowercased() == appID.lowercased() || $0.lowercased() == name.lowercased() }
+    /// When the auto graceful quit is due, or nil when this app has not opted in.
+    public func autoQuitAt(settings: BrakeSettings) -> Double? {
+        guard !autoQuitTried,
+            settings.autoQuitApps.contains(where: { $0.lowercased() == appID.lowercased() || $0.lowercased() == name.lowercased() })
+        else { return nil }
+        return pausedAt + settings.autoQuitSeconds
     }
+
+    public func autoQuitDue(now: Double, settings: BrakeSettings) -> Bool { autoQuitAt(settings: settings).map { now >= $0 } ?? false }
 }
 
 // MARK: Black Box

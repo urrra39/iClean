@@ -139,9 +139,18 @@ import Testing
         #expect(!p.releaseDue(now: 600, normalSince: 540, settings: s))
         #expect(p.releaseDue(now: 600, normalSince: 480, settings: s))
         #expect(p.releaseDue(now: 4 * 3600, normalSince: nil, settings: s))
-        #expect(!p.quitRequestDue(now: 3600, settings: s))
-        s.quitRequestApps = ["Big"]
-        #expect(!p.quitRequestDue(now: 300, settings: s) && p.quitRequestDue(now: 600, settings: s))
+        // Auto graceful quit: off unless the app opted in; 30 s after the pause was confirmed; once.
+        #expect(p.autoQuitAt(settings: s) == nil && !p.autoQuitDue(now: 3600, settings: s))
+        s.autoQuitApps = ["Big"]
+        #expect(p.autoQuitAt(settings: s) == 30 && !p.autoQuitDue(now: 29, settings: s) && p.autoQuitDue(now: 30, settings: s))
+        var tried = p
+        tried.autoQuitTried = true
+        #expect(tried.autoQuitAt(settings: s) == nil)
+        s.autoQuitSeconds = 2
+        var bad = Config()
+        bad.brake = s
+        #expect(bad.validate().contains { $0.path == "brake.autoQuitSeconds" })
+        s.autoQuitSeconds = 30
         s.maxPauseHours = 5
         #expect(Config().validate().isEmpty)
         var c = Config()

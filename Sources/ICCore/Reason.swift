@@ -70,6 +70,8 @@ public enum Code {
     public static let panicWould = "PANIC_WOULD_PAUSE"
     public static let panicGaveUp = "PANIC_GAVE_UP"
     public static let panicReleased = "PANIC_RELEASED"
+    public static let panicQuit = "PANIC_AUTO_QUIT"
+    public static let panicQuitSkipped = "PANIC_AUTO_QUIT_SKIPPED_UNSAVED"
 
     // Why an app was thawed
     public static let thawActivated = "THAW_ACTIVATED"

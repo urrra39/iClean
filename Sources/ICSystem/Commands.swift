@@ -256,6 +256,21 @@ extension Daemon {
             return before(req.app ?? "")
         case "context":
             return handleContext(req)
+        case "quitapp", "unsaved":
+            // For the Panic Brake, which has no AppKit: the app's own Quit (never forced), or
+            // the F7 unsaved-work signal. Same-user, unprotected, in-scope apps only.
+            guard let pid = Int32(req.value ?? ""), let info = Proc.info(pid), info.uid == getuid(),
+                !labMode || ScopeLock.permits(info.identity),
+                let app = NSRunningApplication(processIdentifier: pid), app.activationPolicy == .regular,
+                !Protection.isProtectedID(app.bundleIdentifier ?? "")
+            else { return Response(ok: false, text: "unknown") }
+            if req.cmd == "unsaved" {
+                let u = UnsavedWork.check(pid)
+                return Response(ok: true, text: u == true ? "yes" : u == false ? "no" : "unknown")
+            }
+            let asked = app.terminate()
+            record("Panic Brake: asked \(app.localizedName ?? "pid \(pid)") to quit (\(asked ? "accepted" : "refused"))")
+            return Response(ok: asked, text: asked ? "asked" : "refused")
         case "leaks":
             let args = (req.value?.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
             return leaksReport(quit: args["quit"] as? String, confirm: args["yes"] as? Bool ?? false)

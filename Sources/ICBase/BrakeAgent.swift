@@ -154,6 +154,8 @@ public struct BrakeStatus: Codable, Sendable {
     public var loopLatencyMs: [Double]  // p50, p95, max over the last 10 minutes
     public var blackBoxSamples: Int
     public var unclean: Bool
+    /// What will happen to each paused app (auto quit or release).
+    public var plans: [String] = []
 }
 
 /// The Panic Brake runtime, in its own process (`icbrake`) with its own LaunchAgent and
@@ -196,6 +198,22 @@ public final class BrakeAgent {
     var lastConfigCheck = 0.0
     var configMTime: Date?
     public internal(set) var events: [DaemonEvent] = []
+    /// Apps resumed and asked to quit, waiting to see whether they exit (10 s).
+    var quitting: [String: (since: Double, pause: BrakePause, processes: [ProcessIdentity])] = [:]
+    public static let quitWaitSeconds = 10.0
+    /// The app's own Quit. The watchdog has no AppKit, so the daemon sends it
+    /// (`NSRunningApplication.terminate`); without the daemon nothing is asked.
+    public lazy var quitApp: (Int32) -> Bool = { [paths] pid in
+        IPC.send(Request("quitapp", value: "\(pid)"), path: paths.socket.path, timeout: 5)?.ok == true
+    }
+    /// The F7 unsaved-work signal, read by the daemon (Accessibility): true, false or nil (unknown).
+    public lazy var unsavedWork: (Int32) -> Bool? = { [paths] pid in
+        switch IPC.send(Request("unsaved", value: "\(pid)"), path: paths.socket.path, timeout: 3)?.text {
+        case "yes": return true
+        case "no": return false
+        default: return nil
+        }
+    }
     var server: IPCServer?
     var timer: DispatchSourceTimer?
     var unclean = false
@@ -349,13 +367,11 @@ public final class BrakeAgent {
         for (id, p) in pauses {
             if p.pause.releaseDue(now: now, normalSince: normalSince, settings: settings) {
                 release(id, reason: Code.panicReleased, note: "released")
-            } else if p.pause.quitRequestDue(now: now, settings: settings) {
-                pauses[id]?.pause.quitRequested = true
-                release(id, reason: Code.panicReleased, note: "resumed to ask it to quit")
-                let asked = Self.requestQuit(id)
-                record(id, p.pause.name, kind: .requestQuit, code: Code.panicReleased, "asked to quit (\(asked ? "accepted" : "refused"))")
+            } else if p.pause.autoQuitDue(now: now, settings: settings) {
+                autoQuit(id, now: now)
             }
         }
+        checkQuitting(now: now)
         flushBlackBox(force: false)
     }
 
@@ -472,18 +488,66 @@ public final class BrakeAgent {
         _ = Signals.recover(journal: journal, unhide: { _ in false })
     }
 
-    /// The app's own Quit, as an Apple event (like Command-Q): the app may ask to save.
-    /// Only apps with a bundle ID can be asked; nothing is ever force-quit.
-    static func requestQuit(_ appID: String) -> Bool {
-        guard !appID.hasPrefix("exe:"), !appID.hasPrefix("proc:"), !appID.contains("\"") else { return false }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        p.arguments = ["-e", "tell application id \"\(appID)\" to quit"]
-        p.standardOutput = FileHandle.nullDevice
-        p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return false }
-        p.waitUntilExit()
-        return p.terminationStatus == 0
+    /// Auto graceful quit (opt-in per app): skipped when the app reports unsaved work;
+    /// otherwise the app is resumed (a paused app cannot answer) and asked to quit with
+    /// its own Quit. `checkQuitting` pauses it again if it is still running 10 s later.
+    func autoQuit(_ id: String, now: Double) {
+        guard var p = pauses[id], let root = p.processes.first else { return }
+        p.pause.autoQuitTried = true
+        pauses[id] = p
+        if unsavedWork(root.pid) == true {
+            record(
+                id, p.pause.name, kind: .requestQuit, code: Code.panicQuitSkipped,
+                "auto quit skipped: it reports unsaved work; it stays paused")
+            return
+        }
+        Signals.thawTree(p.processes, journal: journal)
+        pauses[id] = nil
+        let asked = quitApp(root.pid)
+        record(
+            id, p.pause.name, kind: .requestQuit, code: Code.panicQuit,
+            asked ? "asked to quit (its own Quit)" : "could not send the quit request")
+        quitting[id] = (now, p.pause, p.processes)
+    }
+
+    /// Exited: done (cleanly or not, it is gone). Still running after the wait: the request
+    /// was ignored, so it is paused again (journaled) and stays listed.
+    func checkQuitting(now: Double) {
+        for (id, q) in quitting {
+            let alive = q.processes.contains { Proc.startTime($0.pid) == $0.startTime }
+            if !alive {
+                quitting[id] = nil
+                record(id, q.pause.name, kind: .requestQuit, code: Code.panicQuit, "exited after the quit request")
+            } else if now - q.since >= Self.quitWaitSeconds {
+                quitting[id] = nil
+                let live = q.processes.filter { Proc.startTime($0.pid) == $0.startTime }
+                let r = Signals.freezeTree(live, appID: id, at: now, journal: journal)
+                if r.ok {
+                    var pause = q.pause
+                    pause.autoQuitTried = true
+                    pauses[id] = (pause, live)
+                }
+                record(
+                    id, q.pause.name, kind: .freeze, code: Code.panicPause,
+                    r.ok ? "ignored the quit request; paused again" : "ignored the quit request; could not pause it again")
+            }
+        }
+    }
+
+    /// What will happen to each paused app, for `iclear brake status`.
+    func plans() -> [String] {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return pauses.values.sorted { $0.pause.pausedAt < $1.pause.pausedAt }.map { p in
+            let name = p.pause.name
+            if let at = p.pause.autoQuitAt(settings: settings) {
+                return
+                    "\(name): will be asked to quit (its own Quit) at \(f.string(from: Date(timeIntervalSince1970: at))) unless it reports unsaved work; if it ignores the request it is paused again."
+            }
+            return
+                "\(name): stays paused until pressure has been normal for \(Int(settings.releaseAfterNormalMinutes)) min, you open it, or 4 h at most"
+                + (p.pause.autoQuitTried ? " (the auto quit was already tried)." : "; auto quit is off for it.")
+        }
     }
 
     /// An activation of a paused app (reported by the daemon) resumes it.
@@ -541,7 +605,8 @@ public final class BrakeAgent {
         func q(_ x: Double) -> Double { l.isEmpty ? 0 : l[min(l.count - 1, Int(Double(l.count - 1) * x))] }
         return BrakeStatus(
             mode: settings.mode, state: state, score: score, pauses: pauses.values.map(\.pause).sorted { $0.pausedAt < $1.pausedAt },
-            episode: ladder.tried, loopLatencyMs: [q(0.5), q(0.95), l.last ?? 0], blackBoxSamples: samples, unclean: unclean)
+            episode: ladder.tried, loopLatencyMs: [q(0.5), q(0.95), l.last ?? 0], blackBoxSamples: samples, unclean: unclean, plans: plans()
+        )
     }
 
     public func handle(_ req: Request) -> Response {
@@ -571,7 +636,7 @@ public final class BrakeAgent {
                 return Response(ok: false, text: "The Panic Brake has not paused \(req.app ?? "that app").")
             }
             release(id, reason: Code.thawUser, note: "resumed to ask it to quit")
-            let asked = Self.requestQuit(id)
+            let asked = p.processes.first.map { quitApp($0.pid) } ?? false
             return Response(
                 ok: asked,
                 text: asked ? "Asked \(p.pause.name) to quit (its own Quit)." : "\(p.pause.name) did not accept the quit request.")
