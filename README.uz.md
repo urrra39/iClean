@@ -130,8 +130,13 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   to'xtab xabar beradi. Oldingi plandagi ilova faqat 10 s dan keyin va faqat eng
   yuqorida bo'lsa nomzod bo'ladi. U **kuzatish** rejimida boshlanadi: faqat "pauza
   qilgan bo'lardim" deb yozadi; pauzalar bosim normal bo'lganda, ilovani ochganingizda
-  yoki 4 soatda tugaydi. Majburan o'chirmaydi; yopish so'rovi faqat siz
-  ro'yxatga olgan ilovalarga boradi. Sahifa almashtirmaydigan og'ir ish (kompilyatsiya,
+  yoki 4 soatda tugaydi. Majburan o'chirmaydi.
+  Ixtiyoriy, har bir ilova uchun alohida va standart holatda o'chiq: `brake.autoQuitApps`
+  ro'yxatidagi ilova `brake.autoQuitSeconds` (30 s) davomida tasdiqlangan sababchi bo'lib
+  qolsa, undan o'zining Quit buyrug'i bilan yopilish so'raladi (saqlash va tiklash jarayoni
+  ishlaydi); ilova saqlanmagan ish borligini bildirsa (bu signal mavjud bo'lsa), bu qadam
+  o'tkazib yuboriladi, so'rovni e'tiborsiz qoldirgan ilova esa yana pauza qilinadi.
+  `iclear brake status` har bir pauzadagi ilova bilan nima bo'lishini ko'rsatadi. Sahifa almashtirmaydigan og'ir ish (kompilyatsiya,
   nusxalash, eksport) uni ishga tushirmasligi kerak; bu oldindan belgilangan sinov,
   hali o'tkazilmagan.
 - **Black Box** (`iclear blackbox`). Oxirgi ~5 daqiqa, 2 s oralig'ida (bosim, svop,

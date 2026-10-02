@@ -119,8 +119,12 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   resumes it and tries the next (up to 3), and at 10 s it stops and notifies. The
   foreground app is a candidate only after 10 s and only as the top culprit. It starts
   in **observe** mode, which only records "would have paused"; pauses end on normal
-  pressure, when you activate the app, or at 4 hours. It does not force-kill; a quit
-  request goes only to apps you list. Heavy work that does not page (a compile, a copy,
+  pressure, when you activate the app, or at 4 hours. It does not force-kill.
+  Optional, per app and off by default: an app listed in `brake.autoQuitApps` that stays
+  the confirmed culprit for `brake.autoQuitSeconds` (30 s) is asked to quit with its own
+  Quit, so its save and restore flow runs; this is skipped when the app reports unsaved
+  work (where that signal exists), and an app that ignores the request is paused again.
+  `iclear brake status` says what will happen to each paused app. Heavy work that does not page (a compile, a copy,
   an export) is not meant to trigger it; that is a pre-registered test, not yet run.
 - **Black Box** (`iclear blackbox`). The last ~5 minutes at 2 s resolution (pressure,
   swap, page-ins, thermal and power state, and the top suspects by app name), written

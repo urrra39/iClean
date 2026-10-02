@@ -28,6 +28,11 @@
   gives up and notifies at 10 s. Journaled pauses, its own watchdog child, releases on
   normal pressure, activation or 4 h; no force-kill. It cannot fix kernel, GPU/driver,
   WindowServer or root-owned causes.
+- Panic Brake auto graceful quit (per-app opt-in, `brake.autoQuitApps`, off by default):
+  after `brake.autoQuitSeconds` (30 s) as the confirmed culprit, the app's own Quit; skipped
+  when it reports unsaved work; paused again if it ignores the request; never SIGKILL.
+  Shown in `iclear brake status`. Not part of the stage 5 gate (no pre-registered
+  criterion covers it).
 - **Black Box** (`iclear blackbox`): the last ~5 minutes at 2 s, written only while the
   Mac is not healthy, shown after an unclean restart.
 - ICBase: the Foundation-only parts (files, journal, signals, IPC, sampler, the brake)

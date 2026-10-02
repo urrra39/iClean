@@ -96,6 +96,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | `contexts` (v1.1) | `configAndDecoding` (names, paths, duplicates), `resolveMostSpecificGlobAndBranch`, `planKeepsSharedApps`, `switchSharedAppAndUndo` |
 | `context.dwellSeconds`, `context.cooldownMinutes` (v1.1) | `dwellAndSubdirectories`, `cooldown`, `falseTriggersAreIgnored` |
 | `leaks.minHours`, `leaks.minSamples`, `leaks.minRateMBPerHour` (v1.1) | `notTrends` (too little data, slow growth), `steadyGrowthIsFound` |
+| `brake.autoQuitApps`, `brake.autoQuitSeconds` (v1.1) | `pausesAreReleasedAndQuitRequestsAreOptIn` (opt-in, timing, once, validation); `autoQuitQuitsCleanly`, `autoQuitIgnoredLeavesItPaused`, `autoQuitCrashIsRecordedAsExited`, `autoQuitSkippedWhenTheAppReportsUnsavedWork` (probe apps that quit, refuse or crash); the daemon's `quitapp`/`unsaved` path end to end is **NOT TESTED**; not in the lab gate |
 | `brake.*` (v1.1) | `pausesAreReleasedAndQuitRequestsAreOptIn` (validation, release, quit opt-in), `ladderTriesTheNextCandidateAndGivesUp` (`candidates`), `observeRecordsOnceAndOffDoesNothing` (`mode`); `brake.blackBox` off is **NOT TESTED** |
 | `leaks.notify` (v1.1) | off by default (`defaultsAreValidAndObserveFirst`); one notification per app per day (`leakNotificationsOncePerDay`) |
 | `callMode.*` | `callModeLowersOthersAndRestoresWithinTwoSeconds`, `ShieldTests`; lab `callmode` |
@@ -145,6 +146,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | 1.1 A context switch is one transaction | `hardBlockStopsTheSwitch` |
 | 1.1 Auto-Context and the leak trend stay in the lab's scope | the switch and `leaks` work on the scope-filtered app list; `scopeLockRefusesUnregisteredProcesses`; selftest `context switch (isolated)` runs scope-locked |
 | 1.1 Panic Brake pauses are journaled and survive its death | `icbrakePausesTheRunawayAndItsWatchdogRecovers`, `pausesTheCulpritAndKeepsItWhenTheStallClears` (journal) |
+| 1.1 Auto graceful quit does not force, and an ignored request leaves the app paused | `autoQuitIgnoredLeavesItPaused` (paused again, journaled), `autoQuitSkippedWhenTheAppReportsUnsavedWork`, `productCodeHasNoNetworkingOrPrivilegeEscalation` (no `forceTerminate`) |
 | 1.1 Panic Brake touches only reachable same-user trees | `rankingExcludesProtectedAndOutOfReachAndHoldsBackTheForeground`, `icbrakePausesTheRunawayAndItsWatchdogRecovers` (unregistered process untouched) |
 | 1.1 No quit without preview and confirmation, no force-quit (L6) | `leakQuitNeedsPreviewAndConfirmation`, `productCodeHasNoNetworkingOrPrivilegeEscalation` (no `forceTerminate`) |
 

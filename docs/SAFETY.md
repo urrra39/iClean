@@ -51,7 +51,10 @@ signal, PID and start time are checked, and anything it paused is resumed if it 
 not running. It acts only on the user's own processes: not on the protected set, on
 other users' or root-owned processes, or (in the lab) on anything not registered. It
 starts in observe mode, keeps a pause only if the stall cleared with it, ends every
-pause on normal pressure, on activation, or at 4 hours, and has no force-kill.
+pause on normal pressure, on activation, or at 4 hours, and has no force-kill. The
+optional auto graceful quit (per app, off by default) sends only the app's own Quit
+through the daemon, skips apps that report unsaved work, and pauses an app again if it
+ignores the request.
 
 **What it cannot fix:** kernel, GPU/driver or WindowServer hangs, hardware faults, and
 root-owned processes (Spotlight `mds`, `backupd`, `kernel_task`): there it only records.
