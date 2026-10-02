@@ -1,23 +1,15 @@
-iClear @VERSION@: pauses idle background apps on a Mac that is running out of memory and
-resumes each one when you switch back to it. It starts in **Observe mode**, which only
-records what it would do.
+iClear @VERSION@ is a bug-fix release of 1.0.0. iClear pauses idle background apps on a
+Mac that is running out of memory and resumes each one when you switch back to it. It
+starts in **Observe mode**, which only records what it would do.
 
-**Validated scope.** One Mac (Apple M3 Pro, 18 GB, macOS 27.0.1), in a lab with real
-apps started by the lab (Chrome, VS Code, TextEdit, Preview) and simulators, never with
-personal accounts. Results: `docs/VALIDATION.md`; criteria: `docs/RELEASE_CRITERIA.md`.
-**Not validated:** real Slack, Spotify or any account; Intel Macs (CI tests only); macOS
-13 and 14; 8 GB Macs; battery estimates (experimental, target mode off). A 7-day soak is
-in progress; its results will be published separately.
+## Fixed
 
-## What is new since 0.1.0
+- Traces could be wiped at the size cap: files were deleted in name order, so the file
+  still being written went first. The oldest file now goes first and the current one is
+  kept; reading returns records oldest first. Two tests cover it.
 
-Renamed from iClean (`iclear migrate` resumes and moves an old install safely). Workspace
-Stash (`iclear stash`, `iclear pop`), `iclear selftest`, app classes with
-`iclear compat <app>` (chat, mail, calendar and media apps are never paused by default),
-`iclear before <app>`, Anti-Beachball forensics, battery estimates (experimental).
-Call Mode and Anti-Beachball mitigation ship off: they did not meet their pre-registered
-rules. "Known side effects" in the README lists what pausing does to chat apps, media
-players and browsers. Full list: `CHANGELOG.md`.
+Nothing else changed. The lab and validation results in `docs/VALIDATION.md` are from
+1.0.0; this release was not re-run through the lab. Full list: `CHANGELOG.md`.
 
 ## Downloads
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1 (2026-10-02)
+
+- **Fix: traces could be wiped at the size cap.** Trace files were deleted in name order,
+  and a day's current file (`day.jsonl`) sorts before its rotated `day.jsonl.1`, so when
+  the traces passed `trace.maxMB` the file still being written was deleted first and the
+  rest could follow. Reading also returned a rotated file's older records after the newer
+  ones. Files are now handled oldest first (a day's `.1` before the current file), and
+  the newest file is kept. Two tests cover it; before them no test covered the trace
+  files. Found on 2026-10-02 while preparing the soak's trace analysis.
+- Known limit, unchanged: with many apps a day of traces can exceed the 20 MB default
+  (`trace.maxMB`), so `iclear simulate --since 7d` and `iclear advise` may see less than
+  a week of data.
+- Nothing else changed. Lab and validation results in the docs are from 1.0.0.
+
 ## 1.0.0 (2026-10-02)
 
 - **Renamed from iClean to iClear.** CLI `iclear`, daemon `icleard`, app iClear, bundle

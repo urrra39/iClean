@@ -81,7 +81,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | `guards.*` | `newRemoteConnectionIsActiveUntilQuiet`, `loopbackAndBenignPortsAreIgnored`, `servingListener`, `writes`, `recentWriteAndLockFile` |
 | `healthCheck.*` | `unhealthyThawQuarantines`, `crashAfterThawIsQuarantined` |
 | `runaway.*` | `runawayNotifiesOnceAndFeedsHealth`, `sustainedCPUInBackground`, `steadyGrowthButNotNoise` |
-| `trace.*` | `TraceWriter` tests (`recordsAreCapped`) |
+| `trace.*` | `limitsDeleteOldestAndKeepTheCurrentFile`, `readIsOldestFirst` (1.0.1; before them no test covered the trace files) |
 | `notifications.*` | `notificationsAreRateLimitedAndProtectedIgnored` |
 | `stash.maxAgeHours` | `lifecycleRemindsThenExpires`, `expiryAfterSleepPopsWithoutLateReminder` |
 | `stash.hotkeys` | **NOT TESTED** (manual M5) |
