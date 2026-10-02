@@ -20,7 +20,7 @@ rm -rf "$DIST"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 cp "$BIN/iClearMenu" "$APP/Contents/MacOS/iClear"
 # Helpers/ keeps iclear apart from iClear on case-insensitive volumes.
-cp "$BIN/icleard" "$BIN/iclear" "$BIN/ic-hog" "$BIN/ic-ui-probe" "$BIN/ic-call-sim" "$APP/Contents/Helpers/"
+cp "$BIN/icleard" "$BIN/icbrake" "$BIN/iclear" "$BIN/ic-hog" "$BIN/ic-ui-probe" "$BIN/ic-call-sim" "$APP/Contents/Helpers/"
 cp -R "$BIN/iClear_iClearMenu.bundle" "$APP/Contents/Resources/"
 sed "s/@VERSION@/$VERSION/g" packaging/Info.plist > "$APP/Contents/Info.plist"
 
@@ -32,7 +32,7 @@ sign "$APP"
 
 # Command-line tarball: iclear, icleard and the test fixtures used by `iclear selftest` and `iclear bench`.
 mkdir -p "$DIST/iclear-$VERSION"
-cp "$BIN/iclear" "$BIN/icleard" "$BIN/ic-hog" "$BIN/ic-ui-probe" "$BIN/ic-call-sim" "$DIST/iclear-$VERSION/"
+cp "$BIN/iclear" "$BIN/icleard" "$BIN/icbrake" "$BIN/ic-hog" "$BIN/ic-ui-probe" "$BIN/ic-call-sim" "$DIST/iclear-$VERSION/"
 for f in "$DIST/iclear-$VERSION"/*; do sign "$f"; done
 tar -C "$DIST" -czf "$DIST/iclear-$VERSION-macos.tar.gz" "iclear-$VERSION"
 (cd "$DIST" && ditto -c -k --keepParent iClear.app "iClear-$VERSION.zip")

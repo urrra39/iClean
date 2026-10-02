@@ -60,3 +60,11 @@
 "context.accept" = "O'tish";
 "context.dismiss" = "Hozir emas";
 "leaks" = "O'sish";
+"brake.prompt" = "Panic Brake kuzatmoqda: xotira qotib qolganda qaysi ilovangizni pauza qilishini yozib boradi. Yoqsangiz, o'sha ilovani pauza qiladi (shu yerdan davom ettirasiz).";
+"brake.turnOn" = "Yoqish";
+"brake.keepObserving" = "Kuzatishda qolsin";
+"brake.paused" = "Panic Brake pauza qildi: %@";
+"brake.quit" = "Yopish";
+"brake.nowOn" = "Panic Brake yoqildi.";
+"brake.nowObserve" = "Panic Brake kuzatishda qoladi.";
+"blackbox.unclean" = "Mac to'g'ri o'chirilmasdan qayta ishga tushdi. Batafsil: iclear blackbox";

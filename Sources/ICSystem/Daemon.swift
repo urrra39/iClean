@@ -561,9 +561,11 @@ public final class Daemon {
 /// The watchdog: a separate process that thaws everything in the journal if the
 /// daemon disappears for any reason, including SIGKILL.
 public enum Watchdog {
-    public static func run(parent: pid_t, paths: Paths) -> Never {
+    public static func run(parent: pid_t, paths: Paths) -> Never { run(parent: parent, journal: JournalStore(url: paths.journal)) }
+
+    /// Waits for `parent` to exit, then resumes everything in `journal`.
+    public static func run(parent: pid_t, journal: JournalStore) -> Never {
         setsid()  // own process group, so killing the daemon's group does not take it down
-        let journal = JournalStore(url: paths.journal)
         let kq = kqueue()
         var ev = kevent(
             ident: UInt(parent), filter: Int16(EVFILT_PROC), flags: UInt16(EV_ADD | EV_ONESHOT),

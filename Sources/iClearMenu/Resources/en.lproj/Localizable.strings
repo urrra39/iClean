@@ -60,3 +60,11 @@
 "context.accept" = "Switch";
 "context.dismiss" = "Not now";
 "leaks" = "Growth";
+"brake.prompt" = "Panic Brake is observing: in a memory stall it records which of your apps it would pause. Turn it on to let it pause that app (you can resume it here).";
+"brake.turnOn" = "Turn on";
+"brake.keepObserving" = "Keep observing";
+"brake.paused" = "Paused by Panic Brake: %@";
+"brake.quit" = "Quit";
+"brake.nowOn" = "Panic Brake on.";
+"brake.nowObserve" = "Panic Brake keeps observing.";
+"blackbox.unclean" = "The Mac restarted without a clean shutdown. Details: iclear blackbox";

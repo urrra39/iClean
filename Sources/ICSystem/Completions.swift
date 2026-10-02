@@ -4,12 +4,13 @@ public enum Completions {
         "status", "why", "explain", "thaw", "freeze", "undo", "mode", "profile", "stats", "advise",
         "quarantine", "habits", "workspace", "simulate", "trace", "config", "doctor", "install",
         "uninstall", "migrate", "stash", "pop", "selftest", "battery", "beachball", "before", "compat", "shield", "hook", "context",
-        "leaks", "bench", "completions",
+        "leaks", "brake", "blackbox", "bench", "completions",
         "version",
         "help",
     ]
     static let sub: [String: [String]] = [
-        "mode": ["observe", "active"], "profile": ["work", "batterySaver", "presentation", "dev", "auto"],
+        "mode": ["observe", "active"], "brake": ["observe", "on", "off", "status", "report", "resume", "quit"],
+        "profile": ["work", "batterySaver", "presentation", "dev", "auto"],
         "habits": ["show", "reset", "export"], "quarantine": ["release"], "trace": ["export"],
         "config": ["path", "show", "validate", "allow", "deny", "import", "export"], "thaw": ["--all"],
         "completions": ["zsh", "bash", "fish"], "doctor": ["--report"], "uninstall": ["--purge"], "migrate": ["--dry-run", "--remove-old"],

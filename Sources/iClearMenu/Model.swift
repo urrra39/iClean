@@ -19,6 +19,10 @@ final class Model: ObservableObject {
     @Published var stashes: [StashRecord] = []
     @Published var batteryLine: String?
     @Published var stashName = ""
+    @Published var brake: BrakeStatus?
+    /// The one-time question after install: the brake starts in observe mode.
+    @Published var brakePromptDone = UserDefaults.standard.bool(forKey: "brakePromptDone")
+    private var lastBrakeEvent = Date().timeIntervalSince1970
 
     let paths = Paths()
     private var timer: Timer?
@@ -67,6 +71,14 @@ final class Model: ObservableObject {
         } else {
             batteryLine = nil
         }
+        let b = IPC.send(Request("status"), path: paths.brakeSocket.path, timeout: 2)
+        brake = b?.data.flatMap { try? JSONDecoder().decode(BrakeStatus.self, from: Data($0.utf8)) }
+        if let e = IPC.send(Request("events", value: "\(lastBrakeEvent)"), path: paths.brakeSocket.path, timeout: 2),
+            let events = e.data.flatMap({ try? JSONDecoder().decode([DaemonEvent].self, from: Data($0.utf8)) })
+        {
+            for ev in events { post(ev) }
+            lastBrakeEvent = events.map(\.t).max() ?? lastBrakeEvent
+        }
         if let e = send("events", value: "\(lastEvent)"), let data = e.data?.data(using: .utf8),
             let events = try? JSONDecoder().decode([DaemonEvent].self, from: data)
         {
@@ -100,6 +112,21 @@ final class Model: ObservableObject {
     }
 
     func thaw(_ id: String) { run("thaw", app: id) }
+    func brakeResume(_ id: String) { message = IPC.send(Request("resume", app: id), path: paths.brakeSocket.path)?.text }
+    func brakeQuit(_ id: String) { message = IPC.send(Request("quit", app: id), path: paths.brakeSocket.path)?.text }
+    /// Same as `iclear brake on|observe`: the config file holds the mode; the watchdog reloads it.
+    func setBrake(_ mode: BrakeMode) {
+        var c = (try? Data(contentsOf: paths.config)).flatMap { try? Config.load(json: $0).0 } ?? Config()
+        c.brake.mode = mode
+        try? Files.atomicWrite(c.encoded(), to: paths.config)
+        UserDefaults.standard.set(true, forKey: "brakePromptDone")
+        brakePromptDone = true
+        message = mode == .on ? localized("brake.nowOn") : localized("brake.nowObserve")
+    }
+    func dismissUnclean() {
+        try? FileManager.default.removeItem(at: paths.blackBoxUnclean)
+        refresh()
+    }
     func stash(_ name: String) {
         let n = name.trimmingCharacters(in: .whitespaces)
         run("stash", app: n.isEmpty ? "quick" : n, value: "{}")
@@ -120,6 +147,11 @@ final class Model: ObservableObject {
 
     func startDaemon() {
         message = (try? Installer(paths: paths, daemonPath: daemonPath).install()) ?? localized("daemon.installFailed")
+        // The Panic Brake starts in observe mode next to the daemon.
+        let brakePath = daemonPath.replacingOccurrences(of: "/icleard", with: "/icbrake")
+        if FileManager.default.isExecutableFile(atPath: brakePath) {
+            _ = try? Installer(paths: paths, daemonPath: brakePath, role: "brake").install()
+        }
         refresh()
     }
 

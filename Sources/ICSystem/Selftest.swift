@@ -339,6 +339,86 @@ public enum Selftest {
             )
         }
 
+        check("Panic Brake (isolated)") {
+            // Per-Mac calibration first: 3 s of idle readings at the watchdog's rate.
+            let reader = BrakeSignalReader()
+            var last = reader.read(t: 0, jitterMs: 0)
+            var swaps: [Double] = []
+            var decs: [Double] = []
+            var late: [Double] = []
+            for i in 1...12 {
+                let t0 = DispatchTime.now().uptimeNanoseconds
+                usleep(250_000)
+                let lateMs = max(0, Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6 - 250)
+                let s = reader.read(t: Double(i) / 4, jitterMs: lateMs)
+                swaps.append(Double(s.swapIns &- last.swapIns) * 4)
+                decs.append(Double(s.decompressions &- last.decompressions) * 4)
+                late.append(lateMs)
+                last = s
+            }
+            let real = Paths()
+            try? real.ensure()
+            try? Files.writeJSON(
+                StallCalibration.from(idleSwapIns: swaps, idleDecompressions: decs, idleJitterMs: late), to: real.brakeCalibration,
+                pretty: true)
+            guard FileManager.default.isExecutableFile(atPath: tool("icbrake")) else {
+                return (.skip, "icbrake not found next to iclear", 0)
+            }
+            guard let runaway = try? SpawnedHog(path: tool("ic-hog"), args: ["--mb", "150", "--grow-mbps", "20", "--cap-mb", "400"]),
+                let calm = try? SpawnedHog(path: tool("ic-hog"), args: ["--mb", "150"]), runaway.waitReady(), calm.waitReady(),
+                let rid = runaway.identity, let cid = calm.identity
+            else { return (.fail, "could not start ic-hog", 0) }
+            defer {
+                runaway.kill()
+                calm.kill()
+            }
+            let paths = Paths(environment: ["ICLEAR_HOME": home.appendingPathComponent("brake").path, "ICLEAR_INSTANCE": "selftest"])
+            try? paths.ensure()
+            try? JSONEncoder().encode([rid, cid]).write(to: paths.labRegistry)
+            var c = Config()
+            c.brake.mode = .on
+            try? c.encoded().write(to: paths.config)
+            let b = Process()
+            b.executableURL = URL(fileURLWithPath: tool("icbrake"))
+            b.environment = ProcessInfo.processInfo.environment.merging(
+                ["ICLEAR_HOME": paths.home.path, "ICLEAR_INSTANCE": "selftest", "ICLEAR_LAB": "1"]) { _, n in n }
+            b.standardError = FileHandle.nullDevice
+            guard (try? b.run()) != nil else { return (.fail, "could not start icbrake", 0) }
+            defer {
+                b.terminate()
+                b.waitUntilExit()
+            }
+            func ask(_ cmd: String, app: String? = nil, value: String? = nil) -> Response? {
+                IPC.send(Request(cmd, app: app, value: value), path: paths.brakeSocket.path, timeout: 5)
+            }
+            func stopped(_ h: SpawnedHog) -> Bool { Proc.bsdInfo(h.pid)?.pbi_status == UInt32(SSTOP) }
+            func within(_ seconds: Double, _ cond: () -> Bool) -> Double? {
+                let t0 = Date()
+                while Date().timeIntervalSince(t0) < seconds {
+                    if cond() { return Date().timeIntervalSince(t0) }
+                    usleep(50_000)
+                }
+                return nil
+            }
+            guard within(10, { ask("ping")?.ok == true }) != nil else { return (.fail, "icbrake did not answer", 0) }
+            _ = ask("simulate", value: "on")
+            let paused = within(8) { stopped(runaway) }
+            _ = ask("simulate", value: "off")
+            let kept = paused != nil && within(8, { (ask("status")?.data ?? "").contains("\"pauses\":[{") }) != nil && stopped(runaway)
+            _ = ask("resume", app: "all")
+            let resumed = within(3) { !stopped(runaway) } != nil
+            let untouched = !stopped(calm)
+            let ok = paused != nil && kept && resumed && untouched
+            return (
+                ok ? .pass : .fail,
+                String(
+                    format:
+                        "runaway paused %@ after a simulated stall began; kept paused when it cleared: %@; resumed: %@; other process untouched: %@",
+                    paused.map { String(format: "%.1f s", $0) } ?? "not at all (8 s)", kept ? "yes" : "no", resumed ? "yes" : "no",
+                    untouched ? "yes" : "no"), 1
+            )
+        }
+
         check("pressure sensor") {
             let level = Sysctl.int("kern.memorystatus_vm_pressure_level")
             let avail = Sysctl.int("kern.memorystatus_level")

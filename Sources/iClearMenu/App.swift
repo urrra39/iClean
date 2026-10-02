@@ -54,6 +54,7 @@ struct MenuView: View {
                 controls(s)
                 Divider()
                 frozen(s)
+                brakeSection
                 Divider()
                 stashSection(s)
             } else {
@@ -141,6 +142,33 @@ struct MenuView: View {
                         .accessibilityLabel(Text(String(format: localized("a11y.thaw"), f.name)))
                     Button(localized("neverFreeze")) { model.neverFreeze(f.id) }
                         .accessibilityLabel(Text(String(format: localized("a11y.never"), f.name)))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder var brakeSection: some View {
+        if let b = model.brake {
+            if b.mode == .observe && !model.brakePromptDone {
+                Text(localized("brake.prompt")).font(.caption).fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button(localized("brake.turnOn")) { model.setBrake(.on) }
+                    Button(localized("brake.keepObserving")) { model.setBrake(.observe) }
+                }
+            }
+            ForEach(b.pauses, id: \.appID) { p in
+                HStack {
+                    Image(systemName: "hand.raised").accessibilityHidden(true)
+                    Text(String(format: localized("brake.paused"), p.name)).lineLimit(1)
+                    Spacer()
+                    Button(localized("thaw")) { model.brakeResume(p.appID) }
+                    Button(localized("brake.quit")) { model.brakeQuit(p.appID) }
+                }
+            }
+            if b.unclean {
+                HStack {
+                    Text(localized("blackbox.unclean")).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    Button(localized("close")) { model.dismissUnclean() }
                 }
             }
         }

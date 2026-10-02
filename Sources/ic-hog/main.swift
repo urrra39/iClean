@@ -24,6 +24,8 @@ struct Options {
     var exitAfter = 0.0  // exit after N seconds; 0 = run until killed
     var lifeline: Int32 = 0  // exit when this process ends instead of when the parent changes
     var profile: Profile?  // footprint over time (leak-trend tests)
+    var capMB = 0  // stop growing (--grow-mbps, --runaway) at this total; 0 = no cap
+    var thrash = false  // re-touch random pages of the allocation without pause (page-ins under pressure)
 }
 
 /// A footprint shape over time, on top of `--mb`: `rate=MB_PER_HOUR,noise=MB,step=HOURS:MB,
@@ -96,6 +98,12 @@ func parse() -> Options {
         case "--exit-after": o.exitAfter = Double(v())!
         case "--lifeline": o.lifeline = Int32(v())!
         case "--profile": o.profile = Profile(v())
+        case "--runaway":
+            // Fast growth for Panic Brake tests: 200 MB/s unless --grow-mbps says otherwise, capped.
+            if o.growMBps == 0 { o.growMBps = 200 }
+            if o.capMB == 0 { o.capMB = 4096 }
+        case "--cap-mb": o.capMB = Int(v())!
+        case "--thrash": o.thrash = true
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -249,6 +257,7 @@ let parentPID = getppid()
 var lastTouch = start
 var lastHB = start
 var lastGrow = start
+var owedMB = 0.0
 var lastProfile: UInt64 = 0
 
 func tick() {
@@ -279,8 +288,10 @@ func tick() {
         touchAll()
         lastTouch = t
     }
-    if opts.growMBps > 0, Double(t - lastGrow) / 1e9 >= 1 {
-        allocate(mb: max(1, Int(opts.growMBps)))
+    if opts.growMBps > 0, Double(t - lastGrow) / 1e9 >= 0.1, opts.capMB == 0 || blockBytes.reduce(0, +) >> 20 < opts.capMB {
+        owedMB += opts.growMBps * Double(t - lastGrow) / 1e9
+        allocate(mb: Int(owedMB))
+        owedMB -= Double(Int(owedMB))
         lastGrow = t
     }
     if let p = opts.profile, t - lastProfile >= 1_000_000_000 {
@@ -292,6 +303,23 @@ func tick() {
         try? h.synchronize()
     }
     if opts.exitAfter > 0, Double(t - start) / 1e9 >= opts.exitAfter { exit(0) }
+}
+
+if opts.thrash {
+    // A working set re-touched at random: under memory pressure every touch can be a page-in.
+    Thread.detachNewThread {
+        var x: UInt64 = 0x9E37_79B9_7F4A_7C15
+        while true {
+            for (p, n) in zip(blocks, blockBytes) where n > 0 {
+                x ^= x << 13
+                x ^= x >> 7
+                x ^= x << 17
+                let bytes = p.assumingMemoryBound(to: UInt8.self)
+                let off = Int(x % UInt64(n / pageSize)) * pageSize
+                bytes[off] &+= 1
+            }
+        }
+    }
 }
 
 if opts.cpu {

@@ -95,6 +95,8 @@ public struct Config: Codable, Equatable, Sendable {
     public var contexts: [ContextRule] = []
     public var context = ContextSettings()
     public var leaks = LeakSettings()
+    /// Panic Brake and Black Box (a separate watchdog process reads these).
+    public var brake = BrakeSettings()
     public var callMode = ShieldSettings()
     public var thermalShield = ShieldSettings()
     public var antiBeachball = BeachballSettings()
@@ -338,6 +340,13 @@ extension Config {
         check(
             leaks.minHours >= 1 && leaks.minSamples >= 6 && leaks.minRateMBPerHour > 0, "leaks",
             "minHours >= 1, minSamples >= 6, minRateMBPerHour > 0")
+        check((1...10).contains(brake.candidates), "brake.candidates", "must be 1...10")
+        check((0...120).contains(brake.foregroundAfterSeconds), "brake.foregroundAfterSeconds", "must be 0...120")
+        check((1...30).contains(brake.checkSeconds), "brake.checkSeconds", "must be 1...30")
+        check((2...120).contains(brake.giveUpSeconds), "brake.giveUpSeconds", "must be 2...120")
+        check((0...60).contains(brake.releaseAfterNormalMinutes), "brake.releaseAfterNormalMinutes", "must be 0...60")
+        check((0.1...4).contains(brake.maxPauseHours), "brake.maxPauseHours", "must be 0.1...4 (never more than 4 hours)")
+        check((1...240).contains(brake.quitAfterMinutes), "brake.quitAfterMinutes", "must be 1...240")
         for (name, sh) in [
             ("callMode", callMode), ("thermalShield", thermalShield), ("antiBeachball.mitigation", antiBeachball.mitigation),
         ] {

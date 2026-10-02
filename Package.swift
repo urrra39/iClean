@@ -14,6 +14,7 @@ let package = Package(
                 .linkedFramework("CoreMediaIO"), .linkedFramework("AppKit"),
             ]),
         .executableTarget(name: "icleard", dependencies: ["ICSystem"]),
+        .executableTarget(name: "icbrake", dependencies: ["ICSystem"]),
         .executableTarget(name: "iclear", dependencies: ["ICCore", "ICSystem"]),
         .executableTarget(name: "iClearMenu", dependencies: ["ICCore", "ICSystem"], resources: [.process("Resources")]),
         .executableTarget(name: "ic-hog"),
@@ -23,6 +24,6 @@ let package = Package(
         .executableTarget(name: "ic-media-sim", linkerSettings: [.linkedFramework("MediaPlayer")]),
         .executableTarget(name: "ic-lab", dependencies: ["ICCore", "ICSystem"]),
         .testTarget(name: "ICCoreTests", dependencies: ["ICCore"], exclude: ["Fixtures"]),
-        .testTarget(name: "ICSystemTests", dependencies: ["ICCore", "ICSystem", "ic-hog", "icleard", "iclear"]),
+        .testTarget(name: "ICSystemTests", dependencies: ["ICCore", "ICSystem", "ic-hog", "icleard", "iclear", "icbrake"]),
     ]
 )

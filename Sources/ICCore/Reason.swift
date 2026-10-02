@@ -63,6 +63,14 @@ public enum Code {
     public static let conservative = "SKIP_REGRET_BUDGET"
     public static let notInspected = "SKIP_GUARDS_NOT_INSPECTED"
 
+    // Panic Brake
+    public static let panicPause = "PANIC_PAUSE"
+    public static let panicConfirmed = "PANIC_CONFIRMED"
+    public static let panicResumed = "PANIC_NOT_THE_CULPRIT"
+    public static let panicWould = "PANIC_WOULD_PAUSE"
+    public static let panicGaveUp = "PANIC_GAVE_UP"
+    public static let panicReleased = "PANIC_RELEASED"
+
     // Why an app was thawed
     public static let thawActivated = "THAW_ACTIVATED"
     public static let thawMaxDuration = "THAW_MAX_DURATION"
