@@ -64,11 +64,12 @@ public final class LibprocTrees: BrakeTreeSource {
                     origin: p.path.hasPrefix("/System/") ? .system : b.id.hasPrefix("com.apple.") ? .apple : .thirdParty))
         }
         for (pid, p) in table where owner[pid] == nil && p.footprintMB >= 100 {
-            let id = "exe:\(p.name)"
+            // The PID keeps two copies of the same program apart (their growth must not mix).
+            let id = "exe:\(p.name):\(pid)"
             apps.append(
                 AppSnapshot(
                     id: id, name: p.name, processes: [p.identity], residentMB: p.residentMB, footprintMB: p.footprintMB,
-                    cpuPercent: cpu(id + "\(pid)", [pid]), isRegularApp: false,
+                    cpuPercent: cpu(id, [pid]), isRegularApp: false,
                     origin: p.path.hasPrefix("/System/") || p.path.hasPrefix("/usr/") ? .system : .thirdParty))
         }
         return (apps, table)
