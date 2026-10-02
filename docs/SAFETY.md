@@ -42,6 +42,22 @@ puts back every journaled change. If escalating does not help on this Mac, it sw
 itself off (rule 1.0 #5). With Call Mode off, Focus Safe Mode alone applies and nothing
 is done automatically during a call.
 
+## Panic Brake (v1.1, in development)
+
+The brake runs in its own process (`icbrake`) with its own journal and watchdog child,
+so it keeps the same invariants as the daemon: every pause is journaled before the
+signal, PID and start time are checked, and anything it paused is resumed if it dies
+(`kill -9` included), at logout or shutdown, and by `iclear thaw --all` even when it is
+not running. It acts only on the user's own processes: not on the protected set, on
+other users' or root-owned processes, or (in the lab) on anything not registered. It
+starts in observe mode, keeps a pause only if the stall cleared with it, ends every
+pause on normal pressure, on activation, or at 4 hours, and has no force-kill.
+
+**What it cannot fix:** kernel, GPU/driver or WindowServer hangs, hardware faults, and
+root-owned processes (Spotlight `mds`, `backupd`, `kernel_task`): there it only records.
+A fully frozen Mac cannot be rescued. Recovery times are reported only as measured
+distributions ([RELEASE_CRITERIA_v1.1.md](RELEASE_CRITERIA_v1.1.md)).
+
 ## What "protected" covers
 
 Never frozen, deprioritised or asked to quit: anything under `/System` or `/usr`,

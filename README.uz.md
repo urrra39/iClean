@@ -119,12 +119,46 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   va uni majburan yopmaydi. "Tozalash" tugmasi yo'q: macOS'da boshqa ilovani xotira
   bo'shatishga yoki axlat yig'ishga majburlash usuli yo'q.
 
+- **Panic Brake** (`iclear brake observe | on | off | status | report | resume | quit`).
+  Alohida kichik kuzatuvchi (`icbrake`, o'z LaunchAgent'i, AppKit'siz, aniq vaqtli
+  oqim) har 250 ms da xotira bosimi, svopdan qaytarishlar, siqilgan xotirani ochish,
+  sahifa yuklanishlari, navbat va o'z taymeri kechikishini o'qiydi. Mac xotira tufayli
+  qotib qolsa (xotira belgisi va javob berish muammosi birga, yoki kritik bosim), u sizning
+  jarayon daraxtlaringizni xotira o'sishi, sahifa yuklanishi va protsessor bo'yicha
+  saralaydi va eng yuqorisini pauza qiladi (avval jurnalga yozib); qotish o'tsa, uni
+  pauzada qoldiradi, aks holda davom ettirib keyingisini sinaydi (3 tagacha), 10 s da
+  to'xtab xabar beradi. Oldingi plandagi ilova faqat 10 s dan keyin va faqat eng
+  yuqorida bo'lsa nomzod bo'ladi. U **kuzatish** rejimida boshlanadi: faqat "pauza
+  qilgan bo'lardim" deb yozadi; pauzalar bosim normal bo'lganda, ilovani ochganingizda
+  yoki 4 soatda tugaydi. Majburan o'chirmaydi; yopish so'rovi faqat siz
+  ro'yxatga olgan ilovalarga boradi. Sahifa almashtirmaydigan og'ir ish (kompilyatsiya,
+  nusxalash, eksport) uni ishga tushirmasligi kerak; bu oldindan belgilangan sinov,
+  hali o'tkazilmagan.
+- **Black Box** (`iclear blackbox`). Oxirgi ~5 daqiqa, 2 s oralig'ida (bosim, svop,
+  sahifa yuklanishlari, harorat va quvvat holati, eng shubhali ilovalar nomi), faqat Mac
+  sog'lom bo'lmaganda yoziladi. To'g'ri o'chirilmasdan qayta ishga tushgandan keyin menyu
+  va `iclear blackbox` o'sha vaqt chizig'ini ko'rsatadi. Oxirgi bir necha soniya
+  yo'qolishi mumkin. macOS'ning "Previous shutdown cause" yozuvi faqat foydalanuvchi uni
+  o'qiy olsa ko'rsatiladi; sinov Mac'ida o'qib bo'lmaydi.
+
+### Panic Brake nimani tuzata olmaydi
+
+U faqat sizning foydalanuvchi ilovalaringiz va jarayonlaringiz bilan ishlaydi. Yadro,
+GPU/drayver yoki WindowServer qotishlari, apparat nosozliklari va root jarayonlari
+(Spotlight `mds`, Time Machine `backupd`, `kernel_task`) uning qo'lidan kelmaydi: bunda u
+faqat ko'rganini yozib qo'yadi. To'liq qotib qolgan Mac'ni hech qanday ilova qutqara
+olmaydi. Mac'ni qanchalik tez tiklashi hali o'lchanmagan; mezonlar va raqamlar
+[RELEASE_CRITERIA_v1.1.md](docs/RELEASE_CRITERIA_v1.1.md) da.
+
 Ikkalasi uchun mavjud ishlar ([NOVELTY.md](docs/NOVELTY.md#v11-re-audit-2026-10-02),
 2026-10-02 da qidirilgan): ish muhiti vositalari ilovalar guruhini tugma bilan ochadi va
 yopadi (Bunch, Commute, Ikuna, ShiftPlus), autohide esa ishlatilmayotgan ilovalarni
 yashiradi; xotira o'sishi tendensiyasining statistikasi (Mann-Kendall va Sen qiyaligi)
 ma'lum usul, boshqa Mac vositalari ham o'sayotgan ilovalarni belgilaydi (RamRadar, Memory
-Monitor, Mac Performance Monitor).
+Monitor, Mac Performance Monitor). Panic Brake uchun: earlyoom Linux'da eng katta jarayonni
+o'chirib xuddi shu vazifani bajaradi; memory_guard.py macOS'da siz ko'rsatgan jarayon
+daraxtlarining yaratuvchilarini pauza qiladi, keyin ishchilarni o'chiradi; turnstile
+bosim ostida o'z vazifalarini o'chirishdan oldin pauza qiladi.
 
 ## Ma'lum yon ta'sirlar
 
@@ -281,6 +315,9 @@ qilgan. Ularning README fayllari va sahifalari o'qib chiqildi (birinchi sakkiz q
 | [ContextResume](https://github.com/yigitbozyaka/ContextResume) | Har bir git branch uchun eslatma (git holati, oxirgi xato bergan buyruq, niyatingiz), branch almashganda shell prompt hook orqali ko'rsatadi | Nima qilayotganingizni eslab qoladi, qaysi ilovalar ochiq bo'lganini emas; ilovalarni pauza qilmaydi va boshqarmaydi |
 | [direnv](https://direnv.net/) | Shell hook orqali har bir katalog uchun muhit o'zgaruvchilarini yuklaydi va olib tashlaydi | Yondosh, boshqa muammo: ilovalar emas, shell muhiti |
 | [SceneShift](https://tandukuda.github.io/SceneShift/) | Faqat Windows: ilovalar to'plamini o'chiradigan, to'xtatadigan, davom ettiradigan yoki qayta ochadigan terminal vositasi, bekor qilish bilan | Windows'dagi o'xshash to'xtatish-tiklash g'oyasi; iClear macOS uchun va xotira bosimiga qarab ishlaydi |
+| [earlyoom](https://github.com/rfjakob/earlyoom) (Linux) | Bo'sh xotira va svop 10% dan tushganda eng katta jarayonni o'chiradi (SIGTERM, keyin SIGKILL); mlockall, taxminan 2 MiB | Panic Brake macOS'da shu g'oyaga amal qiladi, lekin o'chirish o'rniga pauza qiladi va jurnal yuritadi |
+| [memory_guard.py](https://gist.github.com/jlevy/5b43e0d44166b9c7fe8157ee938cb0d5) | Siz ko'rsatgan jarayon daraxtlari uchun macOS kuzatuvchisi: kuzatish, mashq, faqat pauza va to'liq rejimlar; yaratuvchilarni pauza qiladi, keyin ishchilarni o'chiradi | Usuli yaqin. Panic Brake barcha jarayon daraxtlaringizni saralaydi, hech narsani o'chirmaydi va har bir pauzani qotishga qarab tekshiradi |
+| [turnstile](https://github.com/mcclowes/turnstile) | Vazifalar ishga tushirgichi: xotira chegarasidan oshgan vazifa bosim ostida pauza qilinadi, bosim 15 s davom etsagina o'chiriladi | Faqat o'z vazifalari bilan ishlaydi |
 | [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon buyruq qatori: ilovalardan yopilishni so'raydi (majburan o'chirmaydi), raqib jarayonlarni `nice` bilan faqat aniq tiklay olsagina pasaytiradi, svop nega qolishini tushuntiradi, ikki papkadagi eski keshlarni o'chiradi | Pauza o'rniga yopadi va kesh o'chiradi; iClear pauza qiladi, holatni saqlaydi va fayl o'chirmaydi. Ikkalasi ham ustuvorlik o'zgarishini aynan qaytaradi |
 
 2026-10-02 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi

@@ -22,6 +22,18 @@
   and the leak trend on synthetic series.
 - `ic-hog --profile` shapes a footprint over time (growth, noise, a step, a sawtooth
   cache, a faster clock) for the leak-trend lab.
+- **Panic Brake** (`iclear brake`, observe by default): a separate watchdog (`icbrake`,
+  no AppKit) that, in a memory stall, pauses the top-ranked same-user culprit, keeps it
+  paused if the stall clears, otherwise resumes it and tries the next (up to 3), and
+  gives up and notifies at 10 s. Journaled pauses, its own watchdog child, releases on
+  normal pressure, activation or 4 h; no force-kill. It cannot fix kernel, GPU/driver,
+  WindowServer or root-owned causes.
+- **Black Box** (`iclear blackbox`): the last ~5 minutes at 2 s, written only while the
+  Mac is not healthy, shown after an unclean restart.
+- ICBase: the Foundation-only parts (files, journal, signals, IPC, sampler, the brake)
+  as their own target, so the watchdog does not load AppKit.
+- Release criteria stage 5 (G1-G10, H1-H5) in docs/RELEASE_CRITERIA_v1.1.md, committed
+  before any measurement of these features.
 - The trace retention fix shipped in 1.0.1 (below).
 - Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
   (amendment 2).

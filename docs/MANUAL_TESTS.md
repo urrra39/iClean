@@ -15,6 +15,11 @@ what counts as a pass. Results go into [VALIDATION.md](VALIDATION.md) with the d
 4. **Fast user switching.** Switch to another user and back while something is
    frozen. Pass: nothing stays frozen longer than its normal limit; no errors in
    `iclear status`.
+5. **Black Box after an unclean restart (v1.1, H4).** With the Panic Brake installed
+   (`iclear brake observe`), hold the power button until the Mac turns off, then start
+   it. Pass: the menu shows the unclean-restart notice and `iclear blackbox` prints the
+   saved timeline (or says it was empty because the Mac was healthy). Then restart
+   normally from the Apple menu. Pass: no notice appears.
 
 ## Other hardware and systems
 

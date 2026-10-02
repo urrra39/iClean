@@ -35,6 +35,8 @@ automated test that exercises it and is listed in the README's "Not validated" l
 | `bench` | used to produce [BENCHMARKS.md](BENCHMARKS.md); **NOT TESTED** in the suite |
 | `hook zsh\|bash\|fish\|git` (v1.1) | `hooksAndCommands` (snippets print, `context enter` is silent and quick without a daemon); zsh and bash overhead and delivery: spike [`hook_overhead.py`](../spikes/hook_overhead.py), gate X1 after the soak; fish and the git hook running in a real shell or repository **NOT TESTED** |
 | `context add/list/remove/status/pause/resume/accept/dismiss/switch/undo/suggest/enter` (v1.1) | `ContextTests` (9 tests: resolve, dwell, false triggers, cooldown, modes, plan, suggestions, decoding, stash `only`), `ContextIntegrationTests` (switch with a shared app and undo, hard block stops the switch, crash after a switch, Observe records and Active suggests, branch detection), `everyCommandRunsThroughTheCLI`; lab X2-X6 after the soak |
+| `brake observe/on/off/status/report/resume/quit` (v1.1) | `BrakeTests` (detector, ranking, ladder, releases, Black Box), `BrakeIntegrationTests` (pause and confirm, wrong guess then give up, observe touches nothing, real `icbrake` with kill -9 and its watchdog), `everyCommandRunsThroughTheCLI` (refusals); selftest `Panic Brake (isolated)`; lab `brake`, `brake-fp`, `brake-replay` after the soak |
+| `blackbox [--previous] [--dismiss]` (v1.1) | `blackBoxRingMarkerAndPrivacy`, `icbrakePausesTheRunawayAndItsWatchdogRecovers` (file written while stalled), `everyCommandRunsThroughTheCLI`; lab `blackbox`; unclean restart: manual step 5 |
 | `leaks`, `leaks quit <app> [--yes]` (v1.1) | `LeakTests` (5 tests: Theil-Sen and Mann-Kendall, growth found, flat/step/sawtooth/in-use/too-little-data/stopped/slow not found, history bounds, in use), `leakQuitNeedsPreviewAndConfirmation`, `leakNotificationsOncePerDay`, `everyCommandRunsThroughTheCLI`; lab L1-L4 with `ic-hog --profile` after the soak |
 
 ## Menu actions
@@ -50,6 +52,7 @@ render used for the screenshots.
 | Stash, Pop | `stash`, `pop` | manual M5 |
 | Why, Digest, Battery, Stalls, Calls | `why`, `stats`, `battery`, `beachball`, `shield` | manual M4 |
 | Growth (v1.1) | `leaks` | **NOT TESTED** by hand yet |
+| Panic Brake: first-run prompt, paused apps (Resume, Quit), unclean-restart notice (v1.1) | brake config, `resume`, `quit` | **NOT TESTED** by hand yet |
 | Context suggestion: Switch, Not now (v1.1) | `context accept`, `context dismiss` | **NOT TESTED** by hand yet |
 | Start daemon | `launchctl` | manual M1 |
 | Open Accessibility settings | system URL | manual M6 |
@@ -93,6 +96,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | `contexts` (v1.1) | `configAndDecoding` (names, paths, duplicates), `resolveMostSpecificGlobAndBranch`, `planKeepsSharedApps`, `switchSharedAppAndUndo` |
 | `context.dwellSeconds`, `context.cooldownMinutes` (v1.1) | `dwellAndSubdirectories`, `cooldown`, `falseTriggersAreIgnored` |
 | `leaks.minHours`, `leaks.minSamples`, `leaks.minRateMBPerHour` (v1.1) | `notTrends` (too little data, slow growth), `steadyGrowthIsFound` |
+| `brake.*` (v1.1) | `pausesAreReleasedAndQuitRequestsAreOptIn` (validation, release, quit opt-in), `ladderTriesTheNextCandidateAndGivesUp` (`candidates`), `observeRecordsOnceAndOffDoesNothing` (`mode`); `brake.blackBox` off is **NOT TESTED** |
 | `leaks.notify` (v1.1) | off by default (`defaultsAreValidAndObserveFirst`); one notification per app per day (`leakNotificationsOncePerDay`) |
 | `callMode.*` | `callModeLowersOthersAndRestoresWithinTwoSeconds`, `ShieldTests`; lab `callmode` |
 | `thermalShield.*` | `ShieldTests` (ladder logic only); the thermal trigger on real heat is **NOT TESTED** |
@@ -140,6 +144,8 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | 1.1 A context switch is journaled first (it is a stash and a pop) | `switchSharedAppAndUndo` (journal ends empty), `crashAfterSwitchRecovers` (recovery after the daemon dies mid-switch) |
 | 1.1 A context switch is one transaction | `hardBlockStopsTheSwitch` |
 | 1.1 Auto-Context and the leak trend stay in the lab's scope | the switch and `leaks` work on the scope-filtered app list; `scopeLockRefusesUnregisteredProcesses`; selftest `context switch (isolated)` runs scope-locked |
+| 1.1 Panic Brake pauses are journaled and survive its death | `icbrakePausesTheRunawayAndItsWatchdogRecovers`, `pausesTheCulpritAndKeepsItWhenTheStallClears` (journal) |
+| 1.1 Panic Brake touches only reachable same-user trees | `rankingExcludesProtectedAndOutOfReachAndHoldsBackTheForeground`, `icbrakePausesTheRunawayAndItsWatchdogRecovers` (unregistered process untouched) |
 | 1.1 No quit without preview and confirmation, no force-quit (L6) | `leakQuitNeedsPreviewAndConfirmation`, `productCodeHasNoNetworkingOrPrivilegeEscalation` (no `forceTerminate`) |
 
 ## Red team (1.0)

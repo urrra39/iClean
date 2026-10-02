@@ -77,6 +77,19 @@
   more (a single step fails this), no sawtooth (two drops of over 20%), and growth in
   the last hour. Notifications (off by default) are limited to one per app per day.
 
+- **Panic Brake** (`ICCore.StallDetector`, `CulpritRanker`, `BrakeLadder`;
+  `ICBase.BrakeAgent`; `icbrake`): a Foundation-only process with its own LaunchAgent
+  (`io.github.urrra39.iclear.brake`, ProcessType Interactive), journal
+  (`brake-journal.json`), socket (`icbrake.sock`) and watchdog child. A time-constraint
+  thread reads allocation-free signals every 250 ms into the one stall detector; the
+  main queue ranks process trees from the process table once a second while not
+  healthy, runs the ladder, releases pauses and flushes the Black Box. The daemon
+  forwards activations (front app) over IPC.
+- **Black Box** (`ICCore.BlackBoxRing`, `BlackBoxMarker`): 150 samples at 2 s, written to
+  `blackbox.json` atomically while the Mac is not healthy (≤ 1 MB); `blackbox-marker.json`
+  records the boot and whether it ended cleanly; after an unclean restart the file moves
+  to `blackbox-previous.json` and `blackbox-unclean.json` marks the notice.
+
 Floor: macOS 13 for everything (see [DECISIONS.md](DECISIONS.md) #19). Older MacBooks
 are limited to the macOS versions they can run; a MacBook that cannot run macOS 13
 cannot run iClear.

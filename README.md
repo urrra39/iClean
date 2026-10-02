@@ -109,11 +109,44 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   "flush" button: macOS offers no way to make another app free memory or collect
   garbage.
 
+- **Panic Brake** (`iclear brake observe | on | off | status | report | resume | quit`).
+  A small separate watchdog (`icbrake`, its own LaunchAgent, no AppKit, a
+  time-constraint thread) reads memory pressure, swap-ins, decompressions, page-ins,
+  the run queue and its own timer lateness every 250 ms. When the Mac is in a memory
+  stall (memory evidence and responsiveness evidence together, or critical pressure),
+  it ranks your own process trees by footprint growth, page-ins and CPU and pauses the
+  top one (journaled first); if the stall clears it keeps it paused, otherwise it
+  resumes it and tries the next (up to 3), and at 10 s it stops and notifies. The
+  foreground app is a candidate only after 10 s and only as the top culprit. It starts
+  in **observe** mode, which only records "would have paused"; pauses end on normal
+  pressure, when you activate the app, or at 4 hours. It does not force-kill; a quit
+  request goes only to apps you list. Heavy work that does not page (a compile, a copy,
+  an export) is not meant to trigger it; that is a pre-registered test, not yet run.
+- **Black Box** (`iclear blackbox`). The last ~5 minutes at 2 s resolution (pressure,
+  swap, page-ins, thermal and power state, and the top suspects by app name), written
+  only while the Mac is not healthy. After a restart without a clean shutdown, the menu
+  and `iclear blackbox` show that timeline. The last few seconds may be missing. macOS's
+  "Previous shutdown cause" is shown only if a user can read it; on the reference Mac it
+  cannot.
+
+### What the Panic Brake cannot fix
+
+It can only act on your own user-space apps and processes. It cannot fix kernel,
+GPU/driver or WindowServer hangs, hardware faults, or root-owned processes such as
+Spotlight (`mds`), Time Machine (`backupd`) or `kernel_task`: then it only records what
+it saw. A Mac that is fully frozen cannot be rescued by any app. How fast it brings a Mac
+back is not measured yet; the criteria and their numbers are in
+[RELEASE_CRITERIA_v1.1.md](docs/RELEASE_CRITERIA_v1.1.md).
+
 Prior art for both ([NOVELTY.md](docs/NOVELTY.md#v11-re-audit-2026-10-02), searched
 2026-10-02): workspace tools open and close app groups by shortcut (Bunch, Commute,
 Ikuna, ShiftPlus) and autohide hides unused apps; the leak trend's statistics
 (Mann-Kendall with Sen's slope) are an established method, and other Mac tools already
-flag growing apps (RamRadar, Memory Monitor, Mac Performance Monitor).
+flag growing apps (RamRadar, Memory Monitor, Mac Performance Monitor). For the Panic
+Brake ([NOVELTY.md](docs/NOVELTY.md#panic-brake-and-black-box-2026-10-02)): earlyoom does
+the same job on Linux by killing the largest process; memory_guard.py pauses the
+spawners of process trees you name on macOS and then sheds workers; turnstile pauses its
+own jobs under pressure before killing them.
 
 ## Known side effects
 
@@ -256,6 +289,9 @@ their READMEs and product pages (the first eight rows on 2026-09-30, the rest on
 | [ContextResume](https://github.com/yigitbozyaka/ContextResume) | Per-git-branch notes (git state, last failing command, your intent) shown on branch switch, through a shell prompt hook | Remembers what you were doing, not which apps were open; it does not pause or manage apps |
 | [direnv](https://direnv.net/) | Loads and unloads environment variables per directory through a shell hook | Adjacent, different problem: the shell's environment, not apps |
 | [SceneShift](https://tandukuda.github.io/SceneShift/) | Windows only: a terminal tool that kills, suspends, resumes or relaunches presets of apps, with undo | The same suspend-and-restore idea on Windows; iClear is for macOS and acts on memory pressure |
+| [earlyoom](https://github.com/rfjakob/earlyoom) (Linux) | Kills the largest process (SIGTERM, then SIGKILL) when available memory and swap fall below 10%; mlockall, about 2 MiB resident | The concept the Panic Brake follows on macOS, but it pauses instead of killing and keeps a journal |
+| [memory_guard.py](https://gist.github.com/jlevy/5b43e0d44166b9c7fe8157ee938cb0d5) | macOS sidecar for process trees you point it at: observe, rehearse, pause-only and full modes; pauses spawners (SIGSTOP), then sheds workers (SIGTERM, SIGKILL) on reclaimable-memory, pressure and compressor-slope signals | Close in method. The Panic Brake ranks all of your process trees, does not kill, and checks each pause against the stall |
+| [turnstile](https://github.com/mcclowes/turnstile) | Job runner: a job over its memory limit is paused (SIGSTOP) under pressure and terminated only if pressure persists 15 s | Acts on its own jobs only |
 | [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon command line: asks apps to quit rather than force-killing them, lowers rival processes with `nice` only when it can restore them exactly, explains why swap stays, and deletes old caches in two folders | Quits instead of pausing and deletes caches; iClear pauses, keeps state and does not delete files. Both restore priority changes exactly |
 
 As of 2026-10-02, we did not find a pressure ETA forecast, regret-aware freezing,
