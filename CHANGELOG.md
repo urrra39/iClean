@@ -25,6 +25,17 @@
 - The trace retention fix shipped in 1.0.1 (below).
 - Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
   (amendment 2).
+## 1.0.2 (2026-10-03)
+
+- **Fix: a corrupt freeze journal could lose the records of paused apps.** If the journal
+  file could not be decoded (it is always written atomically, so this needs outside
+  damage), the next pause replaced it with a new journal, and an ordinary read moved it
+  aside without running the recovery fallback. The records of apps still paused could
+  then be lost, and those apps stay paused if the daemon died afterwards. A corrupt
+  journal is now left for recovery, no new pause is written on it, and the daemon runs
+  recovery (which resumes every stopped app process and keeps the file aside) when it
+  meets one. Two tests cover it.
+- Nothing else changed. Lab and validation results in the docs are from 1.0.0.
 
 ## 1.0.1 (2026-10-02)
 
