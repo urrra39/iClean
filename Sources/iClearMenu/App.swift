@@ -99,6 +99,9 @@ struct MenuView: View {
                 .accessibilityLabel(Text(String(format: localized("a11y.swap"), Int(s.swapUsedMB))))
             }
             Text(String(format: localized("forecast"), localizedForecast(s.forecast))).font(.caption)
+            if let c = model.capacityLine {
+                Text(c).font(.caption).foregroundStyle(.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
             if let b = model.batteryLine {
                 Text(b).font(.caption).foregroundStyle(.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }

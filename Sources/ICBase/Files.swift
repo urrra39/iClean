@@ -33,6 +33,7 @@ public struct Paths: Sendable {
     public var socket: URL { base.appendingPathComponent("icleard.sock") }
     public var lock: URL { base.appendingPathComponent("icleard.lock") }
     public var hardware: URL { base.appendingPathComponent("hardware.json") }
+    public var capacity: URL { base.appendingPathComponent("capacity.json") }
     /// Lab mode only: identities of the processes the lab harness registered.
     public var labRegistry: URL { base.appendingPathComponent("lab-registry.json") }
 

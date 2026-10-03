@@ -89,6 +89,7 @@ let usage = """
       context list | status | remove <name> | switch <name> | undo | pause | resume
       context suggest [<path>] | accept | dismiss | enter <path> [branch]
       leaks [quit <app> [--yes]]       apps whose memory keeps growing while not in use (a trend, not a diagnosis)
+      capacity [--json]                what pausing measurably changed this week (available memory, swap, headroom estimate)
       brake observe | on | off         Panic Brake: pause the same-user culprit of a memory stall (observe records only)
       brake status | report | resume <app | all> | quit <app>
       blackbox [--previous] [--dismiss]   the last minutes before an unclean restart (numbers and app names only)
@@ -421,6 +422,10 @@ case "migrate":
 case "uninstall":
     out(brakeInstaller.uninstall(purge: false))
     out(installer.uninstall(purge: rest.contains("--purge")))
+
+case "capacity":
+    guard let r = daemon(Request("capacity", json: json)) else { fail("icleard is not running.") }
+    out(json ? (r.data ?? "{}") : r.text)
 
 case "brake":
     let sub = rest.first ?? "status"

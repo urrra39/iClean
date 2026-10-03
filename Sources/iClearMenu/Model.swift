@@ -20,6 +20,7 @@ final class Model: ObservableObject {
     @Published var batteryLine: String?
     @Published var stashName = ""
     @Published var brake: BrakeStatus?
+    @Published var capacityLine: String?
     /// The one-time question after install: the brake starts in observe mode.
     @Published var brakePromptDone = UserDefaults.standard.bool(forKey: "brakePromptDone")
     private var lastBrakeEvent = Date().timeIntervalSince1970
@@ -70,6 +71,14 @@ final class Model: ObservableObject {
             batteryLine = String(format: localized("battery.line"), Int(b.percent), b.watts, Int(m)) + " " + label
         } else {
             batteryLine = nil
+        }
+        if let d = send("capacity")?.data, let c = try? JSONDecoder().decode(CapacityReport.self, from: Data(d.utf8)) {
+            capacityLine =
+                c.episodes == 0
+                ? localized("capacity.none")
+                : String(format: localized("capacity.line"), c.episodes, c.gainMedianMB.map { String(format: "%+.0f", $0) } ?? "?")
+        } else {
+            capacityLine = nil
         }
         let b = IPC.send(Request("status"), path: paths.brakeSocket.path, timeout: 2)
         brake = b?.data.flatMap { try? JSONDecoder().decode(BrakeStatus.self, from: Data($0.utf8)) }

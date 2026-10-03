@@ -77,6 +77,10 @@
   more (a single step fails this), no sawtooth (two drops of over 20%), and growth in
   the last hour. Notifications (off by default) are limited to one per app per day.
 
+- **Capacity Report** (`ICCore.CapacityLedger`): the daemon records each successful
+  pause (with available memory before), samples available memory, swap and pressure each
+  tick, ends an episode when none of its apps is paused, and counts activations within
+  10 minutes as regrets; saved with the state as `capacity.json` (atomic write).
 - **Thrash Guard** (`ICCore.ThrashRates`, `Engine.thrashRound`): the engine feeds the
   daemon's samples into the shared `StallDetector`; an episode is a page-in storm with
   warning pressure or a stall on `thrash.sustainTicks` consecutive ticks. Per-app page-in

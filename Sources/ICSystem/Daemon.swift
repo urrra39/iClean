@@ -72,6 +72,8 @@ public final class Daemon {
     var contextState = ContextState()
     var contextTimer: DispatchSourceTimer?
     var footprints = FootprintHistory()
+    /// Capacity Report: pause episodes and what they measurably changed (capacity.json).
+    var capacity = CapacityLedger()
     var lastLeakCheck = 0.0
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
@@ -94,6 +96,7 @@ public final class Daemon {
         battery =
             ((try? Files.readJSON(BatteryState.self, from: paths.base.appendingPathComponent("battery.json"))) ?? nil) ?? BatteryState()
         contextState = ((try? Files.readJSON(ContextState.self, from: contextURL)) ?? nil) ?? ContextState()
+        capacity = ((try? Files.readJSON(CapacityLedger.self, from: paths.capacity)) ?? nil) ?? CapacityLedger()
     }
 
     /// Loads the config, creating the default (Observe mode) on first run. An invalid
@@ -351,6 +354,9 @@ public final class Daemon {
         batteryTick(r.apps, now: now)
         leaksTick(now: now)
         execute(result.actions)
+        capacity.noteSample(
+            availableMB: SystemSampler.availableMB(), swapMB: sample.swapUsedMB, pressure: sample.pressure.rawValue,
+            frozen: Set(engine.state.frozen.filter { !$0.value.dryRun }.keys), now: now)
         if now - lastSave >= 60 { saveState() }
         tickTimer?.schedule(deadline: .now() + interval(for: sample.pressure))
     }
@@ -392,6 +398,7 @@ public final class Daemon {
     public func saveState() {
         lastSave = clock()
         try? Files.writeJSON(engine.state, to: paths.state)
+        try? Files.writeJSON(capacity, to: paths.capacity)
     }
 
     // MARK: Thaw path
@@ -413,6 +420,7 @@ public final class Daemon {
         var thawStart: Double?
         if let appID, let f = frozen[appID], !f.dryRun {
             for id in f.processes { _ = Signals.send(SIGCONT, to: id) }
+            capacity.noteActivationThaw(appID: appID, now: clock())
             thawStart = clock()
             measureThawLatency(appID: appID, name: f.name, root: f.processes.first, since: thawStart!)
         }
@@ -460,6 +468,10 @@ public final class Daemon {
             switch a.kind {
             case .freeze:
                 let r = Signals.freezeTree(a.processes, appID: a.appID, at: now, journal: journal)
+                if r.ok {
+                    let mb = lastApps.first { $0.id == a.appID }?.footprintMB ?? 0
+                    capacity.noteFreeze(appID: a.appID, footprintMB: mb, availableMB: SystemSampler.availableMB(), now: now)
+                }
                 if !r.ok {
                     outcome = "failed: \(r.error ?? "unknown")"
                     if !a.reasons.contains(where: { $0.code == "TREE_GREW" }) { engine.freezeFailed(a.appID, at: now) }

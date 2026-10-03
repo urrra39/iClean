@@ -146,6 +146,12 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   yo'qolishi mumkin. macOS'ning "Previous shutdown cause" yozuvi faqat foydalanuvchi uni
   o'qiy olsa ko'rsatiladi; sinov Mac'ida o'qib bo'lmaydi.
 
+- **Capacity Report** (`iclear capacity [--json]`, menyu qatori). Har bir pauza uchun
+  60 s dan keyin bo'sh xotiraning o'lchangan o'zgarishi, pauzadagi hajm, vaqt va
+  afsuslar; ogohlantirishgacha qolgan zaxira taxmini (oraliq bilan); svop va uning
+  24 soatlik o'zgarishi; pauza bo'lmasa "xabar qiladigan narsa yo'q". Nimani o'zgartira
+  oladi va nimani yo'q: [CAPACITY.md](docs/CAPACITY.md). Laboratoriya natijasi hali e'lon
+  qilinmagan.
 - **Thrash Guard** (`thrash.enabled`, **o'chiq**). Fon ilovalari tez-tez uyg'onib sovuq
   xotiraga tegsa, Mac doimiy sahifa yuklaydi va oldingi plandagi ilova qotadi. Bunday
   holatda (sahifa yuklanish bo'roni va ogohlantiruvchi bosim yoki qotish, ketma-ket

@@ -68,3 +68,5 @@
 "brake.nowOn" = "Panic Brake yoqildi.";
 "brake.nowObserve" = "Panic Brake kuzatishda qoladi.";
 "blackbox.unclean" = "Mac to'g'ri o'chirilmasdan qayta ishga tushdi. Batafsil: iclear blackbox";
+"capacity.none" = "Sig'im: bu hafta xabar qiladigan narsa yo'q.";
+"capacity.line" = "Bu hafta: %d ta pauza, joylashgandan keyin bo'sh xotira medianasi %@ MB (iclear capacity).";

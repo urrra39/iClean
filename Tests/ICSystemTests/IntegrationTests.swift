@@ -508,7 +508,7 @@ import Testing
             ["thaw", "--all"], ["stash"], ["stash", "list"], ["pop", "--all"], ["battery"], ["battery", "target", "off"],
             ["beachball"], ["beachball", "stats"], ["shield"], ["config", "path"], ["config", "show"],
             ["trace", "export"], ["migrate", "--dry-run"], ["context"], ["context", "list"], ["context", "status"], ["context", "pause"],
-            ["context", "resume"], ["context", "dismiss"], ["context", "suggest", "/tmp"], ["leaks"], ["hook", "zsh"],
+            ["context", "resume"], ["context", "dismiss"], ["context", "suggest", "/tmp"], ["leaks"], ["hook", "zsh"], ["capacity"],
         ]
         for args in ok {
             let r = run("iclear", args, env: env)

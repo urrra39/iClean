@@ -33,6 +33,10 @@
   when it reports unsaved work; paused again if it ignores the request; never SIGKILL.
   Shown in `iclear brake status`. Not part of the stage 5 gate (no pre-registered
   criterion covers it).
+- **Capacity Report** (`iclear capacity [--json]`, a menu line, `capacity.json`):
+  pause episodes with the measured change in available memory after 60 s, paused
+  footprint, time and regrets; a headroom-to-warning estimate with an interval; swap and
+  its 24-hour change. docs/CAPACITY.md explains what iClear can and cannot change.
 - **Thrash Guard** (`thrash.*`, off by default): in a page-in storm with warning pressure
   or a stall, pauses the background apps with the highest own page-in rate through the
   journaled freeze path (`THRASH_PAGEIN`); every policy check except idle-by-CPU applies.

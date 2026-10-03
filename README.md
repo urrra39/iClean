@@ -133,6 +133,11 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   "Previous shutdown cause" is shown only if a user can read it; on the reference Mac it
   cannot.
 
+- **Capacity Report** (`iclear capacity [--json]`, menu line). Per pause episode, the
+  measured change in available memory 60 s after pausing, the paused footprint, time and
+  regrets; a headroom-to-warning estimate with an interval; swap and its 24-hour change;
+  "nothing to report" when there were no pauses. What it can and cannot change:
+  [CAPACITY.md](docs/CAPACITY.md). No lab capacity result is published yet.
 - **Thrash Guard** (`thrash.enabled`, **off**). When background apps keep waking and
   touching cold memory, the Mac pages in all the time and the foreground stalls. In such
   an episode (a page-in storm with warning pressure or a stall, on consecutive samples)

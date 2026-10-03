@@ -68,3 +68,5 @@
 "brake.nowOn" = "Panic Brake on.";
 "brake.nowObserve" = "Panic Brake keeps observing.";
 "blackbox.unclean" = "The Mac restarted without a clean shutdown. Details: iclear blackbox";
+"capacity.none" = "Capacity: nothing to report this week.";
+"capacity.line" = "This week: %d pause episode(s), median %@ MB available after settling (iclear capacity).";

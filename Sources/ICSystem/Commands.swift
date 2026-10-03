@@ -256,6 +256,9 @@ extension Daemon {
             return before(req.app ?? "")
         case "context":
             return handleContext(req)
+        case "capacity":
+            let r = capacity.report(now: clock(), availableMB: SystemSampler.availableMB(), swapMB: engine.recent.last?.swapUsedMB ?? 0)
+            return Response(ok: true, text: r.text(), data: encode(r))
         case "quitapp", "unsaved":
             // For the Panic Brake, which has no AppKit: the app's own Quit (never forced), or
             // the F7 unsaved-work signal. Same-user, unprotected, in-scope apps only.
