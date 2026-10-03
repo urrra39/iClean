@@ -2,11 +2,17 @@ iClear @VERSION@ is a bug-fix release of 1.0.0. iClear pauses idle background ap
 Mac that is running out of memory and resumes each one when you switch back to it. It
 starts in **Observe mode**, which only records what it would do.
 
-## Fixed
+## Fixed in 1.0.2
 
-- Traces could be wiped at the size cap: files were deleted in name order, so the file
-  still being written went first. The oldest file now goes first and the current one is
-  kept; reading returns records oldest first. Two tests cover it.
+- A corrupt freeze journal could lose the records of paused apps: it was replaced by the
+  next pause and moved aside by an ordinary read without the recovery fallback. It is now
+  left for recovery, no pause is written on it, and the daemon runs recovery when it meets
+  one. This needs outside damage to a file that is always written atomically. Two tests
+  cover it.
+
+## Fixed in 1.0.1
+
+- Traces could be wiped at the size cap: the file still being written was deleted first.
 
 Nothing else changed. The lab and validation results in `docs/VALIDATION.md` are from
 1.0.0; this release was not re-run through the lab. Full list: `CHANGELOG.md`.
