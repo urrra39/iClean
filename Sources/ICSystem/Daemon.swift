@@ -453,6 +453,12 @@ public final class Daemon {
             switch a.kind {
             case .freeze:
                 let r = Signals.freezeTree(a.processes, appID: a.appID, at: now, journal: journal)
+                if !r.ok, r.error?.contains("corrupt") == true {
+                    // Nothing new is paused on a journal that cannot be read; recovery resumes
+                    // every stopped app process and moves the damaged file aside.
+                    let rec = Signals.recover(journal: journal)
+                    record("The freeze journal was corrupt: resumed \(rec.thawed) process(es) and kept the file aside.")
+                }
                 if !r.ok {
                     outcome = "failed: \(r.error ?? "unknown")"
                     if !a.reasons.contains(where: { $0.code == "TREE_GREW" }) { engine.freezeFailed(a.appID, at: now) }

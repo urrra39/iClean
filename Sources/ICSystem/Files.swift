@@ -99,6 +99,10 @@ public final class JournalStore: @unchecked Sendable {
 
     public init(url: URL) { self.url = url }
 
+    public struct CorruptJournal: Error, CustomStringConvertible {
+        public var description: String { "the journal is corrupt; run recovery first" }
+    }
+
     public enum LoadResult: Equatable {
         case ok(Journal)
         /// The file was unreadable; it was moved aside and a fallback scan is needed.
@@ -115,16 +119,26 @@ public final class JournalStore: @unchecked Sendable {
         return .corrupt(movedTo: aside)
     }
 
+    /// The journal for reading, without side effects: a corrupt file stays where it is
+    /// so that recovery (`load`, through `Signals.recover`) finds it and runs its fallback.
     public func read() -> Journal {
-        if case .ok(let j) = load() { return j }
-        return Journal()
+        lock.lock()
+        defer { lock.unlock() }
+        guard let data = try? Data(contentsOf: url) else { return Journal() }
+        return (try? JSONDecoder().decode(Journal.self, from: data)) ?? Journal()
     }
 
     /// Read-modify-write under the lock.
+    /// A journal that exists but does not decode is left untouched and the write is
+    /// refused: replacing it would lose the records of processes that are still paused.
     public func update(_ body: (inout Journal) -> Void) throws {
         lock.lock()
         defer { lock.unlock() }
-        var j = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
+        var j = Journal()
+        if let data = try? Data(contentsOf: url) {
+            guard let decoded = try? JSONDecoder().decode(Journal.self, from: data) else { throw CorruptJournal() }
+            j = decoded
+        }
         body(&j)
         if j.isEmpty {
             try? FileManager.default.removeItem(at: url)
