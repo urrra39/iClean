@@ -439,6 +439,13 @@ public final class Engine {
         return out
     }
 
+    /// Thrash Guard's candidates (page-ins at the last tick above the bound) need their
+    /// guards inspected although they are not idle: they wake by definition.
+    public func needsThrashInspection(_ app: AppSnapshot, _ ctx: PolicyContext) -> Bool {
+        config.thrash.enabled && (thrashRates.pageInsPerSecond[app.id] ?? 0) >= config.thrash.appPageInsPerSecond
+            && Policy.needsGuardInspection(app, ctx, ignoring: [Code.notIdle, Code.cpuActive])
+    }
+
     func preThaw(_ input: TickInput, cfg: Config) -> [Action] {
         guard cfg.habits.enabled, cfg.habits.preThaw, input.sample.pressure != .critical,
             let from = state.lastFrontmost

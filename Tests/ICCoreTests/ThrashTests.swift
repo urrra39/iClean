@@ -58,6 +58,37 @@ import Testing
         #expect(bad.validate().contains { $0.path == "thrash" })
     }
 
+    @Test func busyCandidatesGetTheirGuardsInspected() {
+        // A waker first seen a minute ago, busy, guards not yet inspected: the normal
+        // inspection rule skips it (not idle), so Thrash Guard must ask for it.
+        func waker(_ i: Int) -> AppSnapshot {
+            var a = app("com.example.waker", mb: 800, cpu: 20, signals: ActivitySignals())
+            a.pageIns = UInt64(i) * 400 * 30
+            return a
+        }
+        func engineAfterTwoTicks(_ c: Config) -> Engine {
+            let e = Engine(config: c, hardware: hw16, state: EngineState(startedAt: 0))
+            for i in 0..<2 {
+                var s = sample(Double(i) * 30, .warning)
+                s.pageIns = UInt64(i) * 4000 * 30
+                _ = e.tick(TickInput(sample: s, apps: [waker(i)], weekday: 3, hour: 10))
+            }
+            return e
+        }
+        let on = engineAfterTwoTicks(activeConfig { $0.thrash.enabled = true })
+        let ctx = on.eligibilityContext(at: 60)
+        #expect(!Policy.needsGuardInspection(waker(2), ctx))
+        #expect(on.needsThrashInspection(waker(2), ctx))
+        let off = engineAfterTwoTicks(activeConfig())
+        #expect(!off.needsThrashInspection(waker(2), off.eligibilityContext(at: 60)))
+        // Once inspected (no guard fires), the next tick pauses it.
+        var inspected = waker(2)
+        inspected.signals = ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false)
+        var s = sample(60, .warning)
+        s.pageIns = 2 * 4000 * 30
+        #expect(thrashFreezes(on.tick(TickInput(sample: s, apps: [inspected], weekday: 3, hour: 10)).actions) == ["com.example.waker"])
+    }
+
     @Test func calibrationFilesWithoutNewerFieldsStillLoad() throws {
         let old = #"{"swapInsPerSecond":300,"decompressionsPerSecond":9000,"jitterMs":100,"probeMs":2000,"loadPerCore":1.5}"#
         let c = try JSONDecoder().decode(StallCalibration.self, from: Data(old.utf8))

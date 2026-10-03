@@ -117,9 +117,10 @@ public enum Policy {
     }
 
     /// True when only the expensive guard inspections are still unknown and everything
-    /// else passes, so the daemon knows which apps to inspect (S4 sampling cost cap).
-    public static func needsGuardInspection(_ app: AppSnapshot, _ ctx: PolicyContext) -> Bool {
-        skipReasons(app, ctx, requireInspection: false).isEmpty
+    /// else passes (apart from the codes in `ignoring`), so the daemon knows which apps to
+    /// inspect (S4 sampling cost cap).
+    public static func needsGuardInspection(_ app: AppSnapshot, _ ctx: PolicyContext, ignoring: Set<String> = []) -> Bool {
+        skipReasons(app, ctx, requireInspection: false).allSatisfy { ignoring.contains($0.code) }
             && (app.signals.activeConnection == nil || app.signals.recentWrite == nil)
     }
 

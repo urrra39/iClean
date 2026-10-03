@@ -340,10 +340,12 @@ public final class Daemon {
         let mayAct =
             sample.pressure >= .warning || (engine.lastForecast.etaWarning.map { $0 <= horizon } ?? false)
             || engine.state.wakeRefreezeAt.values.contains { $0 <= now }
+            || (engine.config.thrash.enabled && engine.thrashTicks > 0)
         if mayAct {
             let ctx = engine.eligibilityContext(at: now)
             var inspected = 0
-            for i in r.apps.indices where inspected < 12 && Policy.needsGuardInspection(r.apps[i], ctx) {
+            for i in r.apps.indices
+            where inspected < 12 && (Policy.needsGuardInspection(r.apps[i], ctx) || engine.needsThrashInspection(r.apps[i], ctx)) {
                 AppCollector.inspectGuards(&r.apps[i], engine: engine, now: now)
                 inspected += 1
             }

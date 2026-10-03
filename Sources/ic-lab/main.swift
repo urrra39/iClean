@@ -279,7 +279,15 @@ case "validate":
     case "crash": lab.crash(freezeTrials: opt("--freeze", 100), stashTrials: opt("--stash", 50), tools: products)
     case "stash": lab.stash(cycles: opt("--cycles", 50), tools: products)
     case "battery": lab.battery(trials: opt("--trials", 3), tools: products)
-    case "overhead": lab.overhead(minutes: Double(opt("--minutes", 10)), tools: products)
+    case "overhead": lab.overhead(minutes: Double(opt("--minutes", 10)), thrash: args.contains("--thrash"), tools: products)
+    case "thrash":
+        lab.thrashLab(
+            pairs: opt("--pairs", 20), budgetGB: Double(opt("--budget", 8)), wakers: opt("--wakers", 4),
+            seconds: Double(opt("--seconds", 120)),
+            tools: products)
+    case "wake": lab.wakeLab(pairs: opt("--pairs", 30), seconds: Double(opt("--seconds", 300)), tools: products)
+    case "capacity": lab.capacityLab(budgetGB: Double(opt("--budget", 16)), pairs: opt("--pairs", 10), tools: products)
+    case "probe": lab.probeLab(runs: opt("--runs", 30), tools: products)
     case "combined": lab.combined(minutes: Double(opt("--minutes", 60)), tools: products)
     case "callmode":
         let sim = spawn(tool("ic-call-sim"), [])
@@ -309,7 +317,7 @@ case "validate":
         probe.kill()
     default:
         print(
-            "phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects context leaks leak-retro brake brake-fp brake-replay blackbox"
+            "phases: ax unsaved soak reclaim crash stash battery overhead combined callmode beachball sideeffects context leaks leak-retro brake brake-fp brake-replay blackbox thrash wake capacity probe"
         )
     }
     lab.cleanup()
