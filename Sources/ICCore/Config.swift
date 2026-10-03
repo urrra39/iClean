@@ -99,6 +99,7 @@ public struct Config: Codable, Equatable, Sendable {
     public var brake = BrakeSettings()
     public var thrash = ThrashSettings()
     public var wakeOnData = WakeOnDataSettings()
+    public var probe = ProbeSettings()
     public var callMode = ShieldSettings()
     public var thermalShield = ShieldSettings()
     public var antiBeachball = BeachballSettings()
@@ -353,6 +354,7 @@ extension Config {
         for id in wakeOnData.apps where ![.comm, .browser].contains(AppClass.of(id)) {
             check(false, "wakeOnData.apps", "\(id) is not a chat or browser app; it is ignored", .warning)
         }
+        check((1...10).contains(probe.cycles) && (0.5...5).contains(probe.pauseSeconds), "probe", "cycles 1...10, pauseSeconds 0.5...5")
         check((1...10).contains(brake.candidates), "brake.candidates", "must be 1...10")
         check((0...120).contains(brake.foregroundAfterSeconds), "brake.foregroundAfterSeconds", "must be 0...120")
         check((1...30).contains(brake.checkSeconds), "brake.checkSeconds", "must be 1...30")

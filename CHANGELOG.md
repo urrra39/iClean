@@ -33,6 +33,11 @@
   when it reports unsaved work; paused again if it ignores the request; never SIGKILL.
   Shown in `iclear brake status`. Not part of the stage 5 gate (no pre-registered
   criterion covers it).
+- **Canary probe** (`iclear probe <app> [--cycles N] [--yes]`): approved per app at the
+  prompt; only while the app is hidden, not frontmost, guard-passing and on AC; short
+  journaled pause/resume cycles checking liveness, responsiveness, connections and new
+  crash reports; a failure quarantines the app; `probe.requirePassed` (off) limits
+  automatic pauses to apps that passed; activation aborts it.
 - **Capacity Report** (`iclear capacity [--json]`, a menu line, `capacity.json`):
   pause episodes with the measured change in available memory after 60 s, paused
   footprint, time and regrets; a headroom-to-warning estimate with an interval; swap and

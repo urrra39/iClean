@@ -4,7 +4,7 @@ public enum Completions {
         "status", "why", "explain", "thaw", "freeze", "undo", "mode", "profile", "stats", "advise",
         "quarantine", "habits", "workspace", "simulate", "trace", "config", "doctor", "install",
         "uninstall", "migrate", "stash", "pop", "selftest", "battery", "beachball", "before", "compat", "shield", "hook", "context",
-        "leaks", "capacity", "brake", "blackbox", "bench", "completions",
+        "leaks", "capacity", "probe", "brake", "blackbox", "bench", "completions",
         "version",
         "help",
     ]

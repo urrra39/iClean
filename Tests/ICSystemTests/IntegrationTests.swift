@@ -520,7 +520,7 @@ import Testing
             ["stash", "drop", "nope"], ["explain"], ["before"],
             ["battery", "target"], ["config", "allow"], ["trace"], ["habits", "bogus"], ["context", "switch", "nope"], ["context", "undo"],
             ["context", "accept"], ["context", "add", "~/x"], ["leaks", "quit", "nope"], ["hook"],
-            ["brake", "status"], ["brake", "bogus"], ["brake", "quit", "nope"], ["blackbox"],
+            ["brake", "status"], ["brake", "bogus"], ["brake", "quit", "nope"], ["blackbox"], ["probe"], ["probe", "nope", "--yes"],
         ]
         for args in refused {
             let r = run("iclear", args, env: env)

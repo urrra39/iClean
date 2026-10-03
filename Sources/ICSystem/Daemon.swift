@@ -78,6 +78,8 @@ public final class Daemon {
     var wake = WakeOnData(settings: WakeOnDataSettings())
     var wakeTimer: DispatchSourceTimer?
     var wakeUnsupported: Set<String> = []
+    /// The canary probe in progress or last finished.
+    var probeRun: ProbeRun?
     var lastLeakCheck = 0.0
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
@@ -418,6 +420,10 @@ public final class Daemon {
             footprints.noteFront(id, at: clock())
         }
         if let id = bundleID { wake.forget(id) }
+        if let run = probeRun, run.result == nil, run.appID == bundleID || run.processes.contains(where: { $0.pid == pid }) {
+            run.abort()
+            for p in run.processes { _ = Signals.send(SIGCONT, to: p) }
+        }
         if popOnActivation(pid: pid, bundleID: bundleID) { return }
         let frozen = engine.state.frozen
         let appID =

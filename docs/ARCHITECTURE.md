@@ -77,6 +77,10 @@
   more (a single step fails this), no sawtooth (two drops of over 20%), and growth in
   the last hour. Notifications (off by default) are limited to one per app per day.
 
+- **Canary probe** (`ICCore.ProbeVerdict`, `ICSystem` `ProbeOps`): the daemon checks the
+  conditions and `Engine.probeBlockers` on the main queue, then runs the cycles on a
+  background queue (journaled `freezeTree`/`thawTree`); an activation aborts it; the result
+  is stored in `EngineState.probes` and a failure becomes a quarantine entry.
 - **Capacity Report** (`ICCore.CapacityLedger`): the daemon records each successful
   pause (with available memory before), samples available memory, swap and pressure each
   tick, ends an episode when none of its apps is paused, and counts activations within

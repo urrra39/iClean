@@ -124,7 +124,9 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   the confirmed culprit for `brake.autoQuitSeconds` (30 s) is asked to quit with its own
   Quit, so its save and restore flow runs; this is skipped when the app reports unsaved
   work (where that signal exists), and an app that ignores the request is paused again.
-  `iclear brake status` says what will happen to each paused app. Heavy work that does not page (a compile, a copy,
+  `iclear brake status` says what will happen to each paused app. In the 1.0 lab no
+  app reported the unsaved-changes signal, so an app without a reliable signal can lose
+  unsaved work when it quits: opt in only apps that autosave and restore their windows. Heavy work that does not page (a compile, a copy,
   an export) is not meant to trigger it; that is a pre-registered test, not yet run.
 - **Black Box** (`iclear blackbox`). The last ~5 minutes at 2 s resolution (pressure,
   swap, page-ins, thermal and power state, and the top suspects by app name), written
@@ -133,6 +135,13 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   "Previous shutdown cause" is shown only if a user can read it; on the reference Mac it
   cannot.
 
+- **Canary probe** (`iclear probe <app> [--cycles N]`). With your approval at the prompt,
+  and only while the app is hidden, not in front, passing every guard and the Mac is on
+  AC: a few short journaled pauses (5 by default, at most 5 s each); after each resume it
+  checks that the app is alive, answers (with Accessibility, for apps with a window) and
+  kept its connections, and looks for new crash reports. A failure quarantines the app;
+  `probe.requirePassed` (off) limits automatic pauses to apps that passed. Bringing the app
+  to the front stops the probe and resumes it.
 - **Capacity Report** (`iclear capacity [--json]`, menu line). Per pause episode, the
   measured change in available memory 60 s after pausing, the paused footprint, time and
   regrets; a headroom-to-warning estimate with an interval; swap and its 24-hour change;

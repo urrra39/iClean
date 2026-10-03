@@ -148,6 +148,8 @@ public struct EngineState: Codable, Equatable, Sendable {
     public var learnedIdleMinutes: [String: Double] = [:]
     public var demoted: [String: String] = [:]
     public var quarantine: [String: QuarantineEntry] = [:]
+    /// Canary probe results (optional so older state files still load).
+    public var probes: [String: ProbeRecord]?
     public var wakeRefreezeAt: [String: Double] = [:]
     public var lastWakeAt: [String: Double] = [:]
     public var connectionMemory: [String: [String: Double]] = [:]
@@ -417,6 +419,7 @@ public final class Engine {
         let idleCodes: Set<String> = [Code.notIdle, Code.cpuActive]
         let offenders = input.apps.compactMap { a -> (AppSnapshot, Double)? in
             guard let rate = thrashRates.pageInsPerSecond[a.id], rate >= cfg.thrash.appPageInsPerSecond,
+                !cfg.probe.requirePassed || state.probes?[a.id]?.passed == true,
                 state.frozen[a.id] == nil, Policy.skipReasons(a, ctx).allSatisfy({ idleCodes.contains($0.code) })
             else { return nil }
             return (a, rate + (thrashRates.wakeupsPerSecond[a.id] ?? 0) / 100)
@@ -462,7 +465,8 @@ public final class Engine {
         // Guards are only inspected when iClear might act, so they are not required here.
         var eligible: [AppSnapshot] = []
         for app in input.apps {
-            let r = Policy.skipReasons(app, ctx, requireInspection: false)
+            var r = Policy.skipReasons(app, ctx, requireInspection: false)
+            if cfg.probe.requirePassed, state.probes?[app.id]?.passed != true { r.append(Reason(Code.notProbed)) }
             state.lastSkips[app.id] = r
             if r.isEmpty { eligible.append(app) }
         }
@@ -798,6 +802,30 @@ public final class Engine {
     }
 
     public func releaseQuarantine(_ id: String) -> Bool { state.quarantine.removeValue(forKey: id) != nil }
+
+    /// Why a canary probe may not run now: every policy check except idle time and CPU
+    /// (the user asked for it), with the app counted as allowed.
+    public func probeBlockers(_ app: AppSnapshot, at now: Double) -> [Reason] {
+        var ctx = context(now, config, profile: lastProfile, wake: [app.id])
+        ctx.config.allow.append(app.id)
+        return Policy.skipReasons(app, ctx).filter { ![Code.cpuActive, Code.notIdle, Code.quarantined].contains($0.code) }
+    }
+
+    /// Stores a probe result; a failure quarantines the app.
+    public func recordProbe(_ r: ProbeRecord) -> [Action] {
+        state.probes = (state.probes ?? [:]).merging([r.appID: r]) { _, n in n }
+        guard !r.passed else {
+            state.quarantine[r.appID] = nil
+            return []
+        }
+        let why = "failed a canary probe: \(r.failure ?? "unknown")"
+        state.quarantine[r.appID] = QuarantineEntry(appID: r.appID, name: r.name, at: r.at, reason: why)
+        return [
+            Action(
+                kind: .quarantine, appID: r.appID, name: r.name, reasons: [Reason(Code.unhealthyAfterThaw, why)], dryRun: false,
+                message: "\(r.name) \(why); it will not be paused automatically until released")
+        ]
+    }
 
     /// Remembers S4 connection state per app between inspections.
     public func connectionVerdict(_ id: String, sockets: [SocketFact], at now: Double) -> (active: Bool, serving: Bool) {

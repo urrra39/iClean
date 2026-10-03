@@ -486,6 +486,36 @@ public enum Selftest {
             )
         }
 
+        check("canary probe (isolated)") {
+            guard let f = try? GUIFixture(probe: tool("ic-ui-probe"), dir: home, name: "SelftestCanary", frame: "200,240,320,200"),
+                let id = f.identity
+            else { return (.skip, "no GUI session (could not start a window)", 0) }
+            defer { f.kill() }
+            f.app.hide()
+            usleep(500_000)
+            var config = Config()
+            config.probe.cycles = 2
+            config.probe.pauseSeconds = 0.5
+            guard let (d, paths) = isolatedDaemon("probe", registry: [id], config: config) else {
+                return (.fail, "isolated daemon did not start", 0)
+            }
+            defer {
+                d.terminate()
+                d.waitUntilExit()
+            }
+            usleep(1_500_000)  // the daemon's first sample
+            let start = IPC.send(Request("probe", app: f.id), path: paths.socket.path, timeout: 10)
+            guard start?.ok == true else { return (.fail, "probe did not start: \(start?.text ?? "no answer")", 0) }
+            var text = "running"
+            for _ in 0..<100 where text == "running" {
+                usleep(200_000)
+                text = IPC.send(Request("probe", value: "status"), path: paths.socket.path, timeout: 5)?.text ?? "no answer"
+            }
+            let running = Proc.bsdInfo(f.pid)?.pbi_status != UInt32(SSTOP)
+            let ok = text.contains("passed 2") && running
+            return (ok ? .pass : .fail, "\(text) Running afterwards: \(running ? "yes" : "no").", 2)
+        }
+
         check("pressure sensor") {
             let level = Sysctl.int("kern.memorystatus_vm_pressure_level")
             let avail = Sysctl.int("kern.memorystatus_level")

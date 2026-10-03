@@ -63,6 +63,10 @@ public enum Code {
     public static let conservative = "SKIP_REGRET_BUDGET"
     public static let notInspected = "SKIP_GUARDS_NOT_INSPECTED"
 
+    // Canary probe
+    public static let notProbed = "SKIP_NOT_PROBED"
+    public static let probePause = "PROBE_PAUSE"
+
     // Wake-on-Data
     public static let wakeDataRx = "WAKE_DATA_RX"
     public static let refreezeQuiet = "REFREEZE_QUIET"

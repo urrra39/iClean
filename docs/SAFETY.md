@@ -54,7 +54,9 @@ starts in observe mode, keeps a pause only if the stall cleared with it, ends ev
 pause on normal pressure, on activation, or at 4 hours, and has no force-kill. The
 optional auto graceful quit (per app, off by default) sends only the app's own Quit
 through the daemon, skips apps that report unsaved work, and pauses an app again if it
-ignores the request.
+ignores the request. Apps without a reliable unsaved-changes signal (in the 1.0 lab, no
+app reported it) can lose unsaved work when they quit, so the setting only makes sense
+for apps that autosave and restore their windows.
 
 **What it cannot fix:** kernel, GPU/driver or WindowServer hangs, hardware faults, and
 root-owned processes (Spotlight `mds`, `backupd`, `kernel_task`): there it only records.

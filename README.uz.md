@@ -136,7 +136,10 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   qolsa, undan o'zining Quit buyrug'i bilan yopilish so'raladi (saqlash va tiklash jarayoni
   ishlaydi); ilova saqlanmagan ish borligini bildirsa (bu signal mavjud bo'lsa), bu qadam
   o'tkazib yuboriladi, so'rovni e'tiborsiz qoldirgan ilova esa yana pauza qilinadi.
-  `iclear brake status` har bir pauzadagi ilova bilan nima bo'lishini ko'rsatadi. Sahifa almashtirmaydigan og'ir ish (kompilyatsiya,
+  `iclear brake status` har bir pauzadagi ilova bilan nima bo'lishini ko'rsatadi. 1.0
+  laboratoriyasida hech bir ilova saqlanmagan o'zgarishlar signalini bermadi, shuning
+  uchun ishonchli signali yo'q ilova yopilganda saqlanmagan ishni yo'qotishi mumkin: faqat
+  avtomatik saqlaydigan va oynalarini tiklaydigan ilovalarni yoqing. Sahifa almashtirmaydigan og'ir ish (kompilyatsiya,
   nusxalash, eksport) uni ishga tushirmasligi kerak; bu oldindan belgilangan sinov,
   hali o'tkazilmagan.
 - **Black Box** (`iclear blackbox`). Oxirgi ~5 daqiqa, 2 s oralig'ida (bosim, svop,
@@ -146,6 +149,14 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   yo'qolishi mumkin. macOS'ning "Previous shutdown cause" yozuvi faqat foydalanuvchi uni
   o'qiy olsa ko'rsatiladi; sinov Mac'ida o'qib bo'lmaydi.
 
+- **Canary probe** (`iclear probe <ilova> [--cycles N]`). Sizning roziligingiz bilan
+  (so'rovda), faqat ilova yashirin, oldingi planda emas, barcha himoyalardan o'tgan va Mac
+  zaryadda bo'lganda: bir necha qisqa jurnalli pauza (standart 5 ta, har biri ko'pi bilan
+  5 s); har bir davom ettirishdan keyin ilova tirikligini, javob berishini (Accessibility
+  bilan, oynasi bor ilovalar uchun) va ulanishlari saqlanganini tekshiradi, yangi
+  nosozlik hisobotlarini qidiradi. Muvaffaqiyatsizlik ilovani karantinga oladi;
+  `probe.requirePassed` (o'chiq) avtomatik pauzalarni faqat sinovdan o'tgan ilovalarga
+  cheklaydi. Ilovani oldinga chiqarsangiz sinov to'xtaydi va ilova davom etadi.
 - **Capacity Report** (`iclear capacity [--json]`, menyu qatori). Har bir pauza uchun
   60 s dan keyin bo'sh xotiraning o'lchangan o'zgarishi, pauzadagi hajm, vaqt va
   afsuslar; ogohlantirishgacha qolgan zaxira taxmini (oraliq bilan); svop va uning

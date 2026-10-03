@@ -89,6 +89,7 @@ let usage = """
       context list | status | remove <name> | switch <name> | undo | pause | resume
       context suggest [<path>] | accept | dismiss | enter <path> [branch]
       leaks [quit <app> [--yes]]       apps whose memory keeps growing while not in use (a trend, not a diagnosis)
+      probe <app> [--cycles N] [--yes]   a few short pauses of one app you approve, to see whether it survives
       capacity [--json]                what pausing measurably changed this week (available memory, swap, headroom estimate)
       brake observe | on | off         Panic Brake: pause the same-user culprit of a memory stall (observe records only)
       brake status | report | resume <app | all> | quit <app>
@@ -422,6 +423,28 @@ case "migrate":
 case "uninstall":
     out(brakeInstaller.uninstall(purge: false))
     out(installer.uninstall(purge: rest.contains("--purge")))
+
+case "probe":
+    guard let app = rest.first, !app.hasPrefix("-") else { fail("usage: iclear probe <app> [--cycles N] [--yes]") }
+    let cycles = option("--cycles")
+    if !rest.contains("--yes") {
+        guard isatty(0) == 1 else { fail("A probe needs your approval: run it in a terminal or add --yes.") }
+        print(
+            "Probe \(app): pause it \(cycles ?? "5") time(s) for a few seconds each, while it is hidden, to see whether it survives? [y/N] ",
+            terminator: "")
+        guard readLine()?.lowercased().hasPrefix("y") == true else { fail("Not probed.") }
+    }
+    guard let r = daemon(Request("probe", app: app, value: cycles)) else { fail("icleard is not running.") }
+    out(r.text)
+    guard r.ok else { exit(1) }
+    while true {
+        usleep(500_000)
+        guard let s = daemon(Request("probe", value: "status")) else { fail("icleard stopped answering.") }
+        if s.text != "running" {
+            out(s.text)
+            break
+        }
+    }
 
 case "capacity":
     guard let r = daemon(Request("capacity", json: json)) else { fail("icleard is not running.") }

@@ -256,6 +256,9 @@ extension Daemon {
             return before(req.app ?? "")
         case "context":
             return handleContext(req)
+        case "probe":
+            if req.value == "status" { return probeStatus() }
+            return startProbe(req.app ?? "", cycles: req.value.flatMap(Int.init))
         case "capacity":
             let r = capacity.report(now: clock(), availableMB: SystemSampler.availableMB(), swapMB: engine.recent.last?.swapUsedMB ?? 0)
             return Response(ok: true, text: r.text(), data: encode(r))
