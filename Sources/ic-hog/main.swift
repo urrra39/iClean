@@ -28,6 +28,8 @@ struct Options {
     var thrash = false  // re-touch random pages of the allocation without pause (page-ins under pressure)
     var wakeMs = 0  // --waker: sleep, then every N ms wake and touch `wakePages` random pages of cold memory
     var wakePages = 256
+    var sendAfterMs = 0  // --listen: send `sendBytes` to each accepted client after this delay
+    var sendBytes = 0
 }
 
 /// A footprint shape over time, on top of `--mb`: `rate=MB_PER_HOUR,noise=MB,step=HOURS:MB,
@@ -109,6 +111,8 @@ func parse() -> Options {
         case "--waker": o.wakeMs = 2000
         case "--wake-ms": o.wakeMs = Int(v())!
         case "--wake-pages": o.wakePages = Int(v())!
+        case "--send-after-ms": o.sendAfterMs = Int(v())!
+        case "--send-bytes": o.sendBytes = Int(v())!
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -228,7 +232,17 @@ if let port = opts.listen {
     Thread.detachNewThread {
         while true {
             let c = accept(fd, nil, nil)
-            if c >= 0 { heldFDs.append(c) }
+            if c >= 0 {
+                heldFDs.append(c)
+                // --send-after-ms / --send-bytes: one message to each client, later (Wake-on-Data tests).
+                if opts.sendBytes > 0 {
+                    Thread.detachNewThread {
+                        usleep(UInt32(opts.sendAfterMs) * 1000)
+                        let msg = [UInt8](repeating: 0x61, count: opts.sendBytes)
+                        _ = msg.withUnsafeBytes { send(c, $0.baseAddress, $0.count, 0) }
+                    }
+                }
+            }
         }
     }
 }

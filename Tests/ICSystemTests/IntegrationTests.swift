@@ -579,7 +579,7 @@ import Testing
             "forceTerminate",
         ]
         var hits: [String] = []
-        for dir in ["ICCore", "ICSystem", "icleard", "iclear", "iClearMenu"] {
+        for dir in ["ICCore", "ICBase", "ICSystem", "icleard", "icbrake", "iclear", "iClearMenu"] {
             let url = Self.root.appendingPathComponent("Sources/\(dir)")
             guard let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil) else { continue }
             for case let f as URL in files where f.pathExtension == "swift" {

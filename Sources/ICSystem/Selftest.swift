@@ -453,30 +453,24 @@ public enum Selftest {
         }
 
         check("Wake-on-Data (sockets)") {
-            // A paused test client on loopback: the data waiting in its socket is visible
-            // without root, and it is gone once the client runs again and reads it.
-            let srv = socket(AF_INET, SOCK_STREAM, 0)
-            defer { close(srv) }
-            var addr = sockaddr_in()
-            addr.sin_family = sa_family_t(AF_INET)
-            addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-            _ = withUnsafePointer(to: &addr) {
-                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(srv, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
-            }
-            listen(srv, 1)
-            var len = socklen_t(MemoryLayout<sockaddr_in>.size)
-            _ = withUnsafeMutablePointer(to: &addr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(srv, $0, &len) } }
-            guard let h = try? SpawnedHog(path: tool("ic-hog"), args: ["--connect", "127.0.0.1:\(UInt16(bigEndian: addr.sin_port))"]),
-                h.waitReady(),
+            // Two test processes on loopback (iClear itself opens no socket): a server sends
+            // 300 bytes to its client after 600 ms; the client is paused before that. The
+            // waiting bytes are visible without root and gone once the client runs again.
+            let port = Int.random(in: 49152...60999)
+            guard
+                let server = try? SpawnedHog(
+                    path: tool("ic-hog"), args: ["--listen", "\(port)", "--send-after-ms", "600", "--send-bytes", "300"]),
+                server.waitReady()
+            else { return (.skip, "could not start the test server (port \(port) busy?)", 0) }
+            defer { server.kill() }
+            guard let h = try? SpawnedHog(path: tool("ic-hog"), args: ["--connect", "127.0.0.1:\(port)"]), h.waitReady(),
                 let id = h.identity
-            else { return (.fail, "could not start the test client", 0) }
+            else {
+                return (.fail, "could not start the test client", 0)
+            }
             defer { h.kill() }
-            let conn = accept(srv, nil, nil)
-            defer { close(conn) }
             _ = Signals.send(SIGSTOP, to: id)
-            var msg = [UInt8](repeating: 0x61, count: 300)
-            _ = send(conn, &msg, msg.count, 0)
-            usleep(100_000)
+            usleep(1_000_000)
             let paused = Sockets.receiveQueued([id])
             _ = Signals.send(SIGCONT, to: id)
             var drained = false
