@@ -138,7 +138,7 @@ public struct CapacityLedger: Codable, Equatable, Sendable {
             episodes: week.count, measuredEpisodes: gains.count, gainMedianMB: q(gains, 0.5), gainP25MB: q(gains, 0.25),
             gainP75MB: q(gains, 0.75), noGainEpisodes: gains.filter { $0 <= 0 }.count,
             pausedFootprintMB: week.map(\.pausedFootprintMB).reduce(0, +),
-            pausedHours: week.map { (($0.end ?? now) - $0.start) / 3600 }.reduce(0, +), regrets: week.map(\.regrets).reduce(0, +),
+            pausedHours: week.map { max(0, ($0.end ?? now) - $0.start) / 3600 }.reduce(0, +), regrets: week.map(\.regrets).reduce(0, +),
             headroomMB: headroom, headroomLowMB: q(onsets, 0.9).map { availableMB - $0 },
             headroomHighMB: q(onsets, 0.1).map { availableMB - $0 },
             warningOnsets: onsets.count, swapMB: swapMB, swapChange24hMB: dayAgo.map { swapMB - $0[1] })

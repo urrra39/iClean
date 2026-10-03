@@ -74,13 +74,31 @@ public enum Files {
         try atomicWrite(try e.encode(value), to: url)
     }
 
+    /// nil when the file does not exist. A file that does not decode is kept aside as
+    /// `<name>.corrupt-<time>` (evidence, and so the next write does not hide it) and the
+    /// error is thrown; callers fall back to defaults.
     public static func readJSON<T: Decodable>(_ type: T.Type, from url: URL) throws -> T? {
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try JSONDecoder().decode(type, from: data)
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            try? FileManager.default.moveItem(at: url, to: URL(fileURLWithPath: url.path + ".corrupt-\(Int(Date().timeIntervalSince1970))"))
+            throw error
+        }
     }
 
-    /// Appends one line; rotates to `<name>.1` when the file passes `maxBytes`.
+    /// Appends one line; rotates to `<name>.1` when the file passes `maxBytes`. The daemon
+    /// and the Panic Brake append to the same action log, so rotation and the write happen
+    /// under an advisory lock on `<name>.lock`.
     public static func appendLine(_ data: Data, to url: URL, maxBytes: Int) {
+        let lockFD = open(url.path + ".lock", O_WRONLY | O_CREAT, 0o600)
+        if lockFD >= 0 { flock(lockFD, LOCK_EX) }
+        defer {
+            if lockFD >= 0 {
+                flock(lockFD, LOCK_UN)
+                close(lockFD)
+            }
+        }
         if let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, size > maxBytes {
             let old = URL(fileURLWithPath: url.path + ".1")
             try? FileManager.default.removeItem(at: old)
@@ -100,6 +118,10 @@ public final class JournalStore: @unchecked Sendable {
 
     public init(url: URL) { self.url = url }
 
+    public struct CorruptJournal: Error, CustomStringConvertible {
+        public var description: String { "the journal is corrupt; run recovery first" }
+    }
+
     public enum LoadResult: Equatable {
         case ok(Journal)
         /// The file was unreadable; it was moved aside and a fallback scan is needed.
@@ -116,16 +138,26 @@ public final class JournalStore: @unchecked Sendable {
         return .corrupt(movedTo: aside)
     }
 
+    /// The journal for reading, without side effects: a corrupt file stays where it is
+    /// so that recovery (`load`, through `Signals.recover`) finds it and runs its fallback.
     public func read() -> Journal {
-        if case .ok(let j) = load() { return j }
-        return Journal()
+        lock.lock()
+        defer { lock.unlock() }
+        guard let data = try? Data(contentsOf: url) else { return Journal() }
+        return (try? JSONDecoder().decode(Journal.self, from: data)) ?? Journal()
     }
 
-    /// Read-modify-write under the lock.
+    /// Read-modify-write under the lock. A journal that exists but does not decode is
+    /// left untouched and the write is refused: replacing it would lose the records of
+    /// processes that are still paused. Recovery (`Signals.recover`) handles it.
     public func update(_ body: (inout Journal) -> Void) throws {
         lock.lock()
         defer { lock.unlock() }
-        var j = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
+        var j = Journal()
+        if let data = try? Data(contentsOf: url) {
+            guard let decoded = try? JSONDecoder().decode(Journal.self, from: data) else { throw CorruptJournal() }
+            j = decoded
+        }
         body(&j)
         if j.isEmpty {
             try? FileManager.default.removeItem(at: url)

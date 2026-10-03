@@ -59,6 +59,16 @@
 - Release criteria stage 5 (G1-G10, H1-H5) in docs/RELEASE_CRITERIA_v1.1.md, committed
   before any measurement of these features.
 - The trace retention fix shipped in 1.0.1 (below).
+- Fix (also in 1.0.2): a freeze journal that could not be decoded was silently replaced by
+  the next write, and reading it moved it aside without the recovery fallback, so the
+  records of apps still paused could be lost and those apps left paused if the daemon then
+  died. A corrupt journal is now left for recovery, new pauses are refused on it, and the
+  daemon runs recovery when it meets one.
+- Persistence hardening: a state, context, capacity or Black Box file that does not decode
+  is kept aside as `<name>.corrupt-<time>` instead of being overwritten unseen; the daemon
+  and the Panic Brake rotate the shared action log under a lock; the capacity report
+  cannot show negative paused time after a clock jump. Fault-injection tests cover torn
+  files, concurrent writers, unwritable directories and clock jumps.
 - Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
   (amendment 2).
 
