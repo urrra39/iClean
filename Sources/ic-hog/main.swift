@@ -26,6 +26,8 @@ struct Options {
     var profile: Profile?  // footprint over time (leak-trend tests)
     var capMB = 0  // stop growing (--grow-mbps, --runaway) at this total; 0 = no cap
     var thrash = false  // re-touch random pages of the allocation without pause (page-ins under pressure)
+    var wakeMs = 0  // --waker: sleep, then every N ms wake and touch `wakePages` random pages of cold memory
+    var wakePages = 256
 }
 
 /// A footprint shape over time, on top of `--mb`: `rate=MB_PER_HOUR,noise=MB,step=HOURS:MB,
@@ -104,6 +106,9 @@ func parse() -> Options {
             if o.capMB == 0 { o.capMB = 4096 }
         case "--cap-mb": o.capMB = Int(v())!
         case "--thrash": o.thrash = true
+        case "--waker": o.wakeMs = 2000
+        case "--wake-ms": o.wakeMs = Int(v())!
+        case "--wake-pages": o.wakePages = Int(v())!
         default:
             FileHandle.standardError.write("unknown option \(a)\n".data(using: .utf8)!)
             exit(2)
@@ -259,6 +264,7 @@ var lastHB = start
 var lastGrow = start
 var owedMB = 0.0
 var lastProfile: UInt64 = 0
+var lastWake: UInt64 = 0
 
 func tick() {
     let t = now()
@@ -293,6 +299,14 @@ func tick() {
         allocate(mb: Int(owedMB))
         owedMB -= Double(Int(owedMB))
         lastGrow = t
+    }
+    if opts.wakeMs > 0, t - lastWake >= UInt64(opts.wakeMs) * 1_000_000 {
+        lastWake = t
+        for _ in 0..<opts.wakePages {
+            guard let i = blocks.indices.randomElement() else { break }
+            let bytes = blocks[i].assumingMemoryBound(to: UInt8.self)
+            bytes[Int.random(in: 0..<(blockBytes[i] / pageSize)) * pageSize] &+= 1
+        }
     }
     if let p = opts.profile, t - lastProfile >= 1_000_000_000 {
         adjustProfile(toMB: Int(p.extraMB(hours: Double(t - start) / 3.6e12 * p.speed).rounded()))

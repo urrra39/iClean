@@ -80,7 +80,23 @@ public struct StallCalibration: Codable, Equatable, Sendable {
     public var jitterMs = 100.0
     public var probeMs = 2000.0
     public var loadPerCore = 1.5
+    /// System page-ins per second that count as a page-in storm (Thrash Guard).
+    public var pageInsPerSecond = 2000.0
     public init() {}
+
+    enum CodingKeys: String, CodingKey { case swapInsPerSecond, decompressionsPerSecond, jitterMs, probeMs, loadPerCore, pageInsPerSecond }
+
+    /// Older calibration files lack newer fields; those keep their defaults.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = StallCalibration()
+        swapInsPerSecond = try c.decodeIfPresent(Double.self, forKey: .swapInsPerSecond) ?? d.swapInsPerSecond
+        decompressionsPerSecond = try c.decodeIfPresent(Double.self, forKey: .decompressionsPerSecond) ?? d.decompressionsPerSecond
+        jitterMs = try c.decodeIfPresent(Double.self, forKey: .jitterMs) ?? d.jitterMs
+        probeMs = try c.decodeIfPresent(Double.self, forKey: .probeMs) ?? d.probeMs
+        loadPerCore = try c.decodeIfPresent(Double.self, forKey: .loadPerCore) ?? d.loadPerCore
+        pageInsPerSecond = try c.decodeIfPresent(Double.self, forKey: .pageInsPerSecond) ?? d.pageInsPerSecond
+    }
 
     /// Ten times the idle median of each rate (one busy moment in a short baseline would
     /// otherwise set the bar) and ten times the idle p99 of the loop lateness, never below
@@ -126,6 +142,9 @@ public struct StallDetector: Sendable {
     public init(calibration: StallCalibration = StallCalibration()) { self.calibration = calibration }
 
     public var state: StallState { stalledSince != nil ? .stalled : memoryEvidence ? .elevated : .healthy }
+
+    /// System page-ins above the calibrated rate (Thrash Guard's half of an episode).
+    public var pageInStorm: Bool { pageInsPerSecond >= calibration.pageInsPerSecond }
 
     @discardableResult
     public mutating func update(_ s: StallSignals) -> StallState {

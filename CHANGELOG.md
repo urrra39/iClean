@@ -33,6 +33,11 @@
   when it reports unsaved work; paused again if it ignores the request; never SIGKILL.
   Shown in `iclear brake status`. Not part of the stage 5 gate (no pre-registered
   criterion covers it).
+- **Thrash Guard** (`thrash.*`, off by default): in a page-in storm with warning pressure
+  or a stall, pauses the background apps with the highest own page-in rate through the
+  journaled freeze path (`THRASH_PAGEIN`); every policy check except idle-by-CPU applies.
+  Page-ins and wakeups come from the collector's existing `proc_pid_rusage` call.
+  `ic-hog --waker` for the lab; a synthetic selftest check.
 - **Black Box** (`iclear blackbox`): the last ~5 minutes at 2 s, written only while the
   Mac is not healthy, shown after an unclean restart.
 - ICBase: the Foundation-only parts (files, journal, signals, IPC, sampler, the brake)

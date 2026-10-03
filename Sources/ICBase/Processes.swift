@@ -14,6 +14,9 @@ public struct ProcInfo: Sendable {
     public var residentMB: Double
     public var footprintMB: Double
     public var cpuNanos: UInt64
+    /// Page-ins and wakeups since the process started (same `proc_pid_rusage` call).
+    public var pageIns: UInt64 = 0
+    public var wakeups: UInt64 = 0
 
     public var identity: ProcessIdentity { ProcessIdentity(pid: pid, startTime: startTime) }
 }
@@ -59,7 +62,7 @@ public enum Proc {
             uid: b.pbi_uid, name: name, path: path(pid), stopped: b.pbi_status == UInt32(SSTOP),
             residentMB: ok ? Double(ri.ri_resident_size) / 1_048_576 : 0,
             footprintMB: ok ? Double(ri.ri_phys_footprint) / 1_048_576 : 0,
-            cpuNanos: cpu)
+            cpuNanos: cpu, pageIns: ok ? ri.ri_pageins : 0, wakeups: ok ? ri.ri_interrupt_wkups &+ ri.ri_pkg_idle_wkups : 0)
     }
 
     public static func allPIDs() -> [Int32] {

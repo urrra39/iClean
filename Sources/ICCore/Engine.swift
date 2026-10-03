@@ -205,6 +205,11 @@ public final class Engine {
         }
     }
     public private(set) var lastRunaway: [RunawayFinding] = []
+    /// Thrash Guard: the shared stall detector on the daemon's samples, per-app rates, and
+    /// how many consecutive ticks the episode has held.
+    public private(set) var thrashDetector = StallDetector()
+    public private(set) var thrashRates = ThrashRates()
+    public private(set) var thrashTicks = 0
 
     /// Minimum spacing between freeze rounds, so the kernel has time to compress.
     public static let roundSpacing = 60.0
@@ -299,12 +304,21 @@ public final class Engine {
             s, swapOutMBPerMinute: recent.first.map { Health.swapOutRate($0, s) } ?? 0,
             runawayApps: runaway.count)
 
+        thrashDetector.update(StallSignals(t: now, pressure: s.pressure.rawValue, swapIns: s.swapIns, pageIns: s.pageIns ?? 0))
+        thrashRates.update(input.apps, now: now)
+        let episode = thrashDetector.pageInStorm && (s.pressure >= .warning || thrashDetector.state == .stalled)
+        thrashTicks = episode ? thrashTicks + 1 : 0
         var trigger: String?
         if focus.isEmpty {
             actions += preThaw(input, cfg: cfg)
             let (a, t) = freezeRound(input, cfg: cfg, profile: profile, forecast: forecast)
             actions += a
             trigger = t
+            if cfg.thrash.enabled, thrashTicks >= cfg.thrash.sustainTicks {
+                let a = thrashRound(input, cfg: cfg, profile: profile)
+                actions += a
+                if !a.isEmpty { trigger = Code.thrashPageIn }
+            }
         }
         if let last = actions.last(where: { $0.kind != .notify }) { state.lastAction = last.summary }
         state.lastSampleTime = now
@@ -390,6 +404,34 @@ public final class Engine {
                             reasons: [Reason(calm ? Code.thawRelieved : Code.thawActivated)], dryRun: dryRun))
                 }
             }
+        }
+        return out
+    }
+
+    /// Pauses the top background offenders of a page-in storm. Every policy check applies
+    /// (protected and COMM/MEDIA apps, frontmost and visible apps, guards, cooldown,
+    /// quarantine, budgets) except "idle by CPU", since these apps wake by definition.
+    func thrashRound(_ input: TickInput, cfg: Config, profile: ProfileName) -> [Action] {
+        let now = input.sample.time
+        let ctx = context(now, cfg, profile: profile)
+        let idleCodes: Set<String> = [Code.notIdle, Code.cpuActive]
+        let offenders = input.apps.compactMap { a -> (AppSnapshot, Double)? in
+            guard let rate = thrashRates.pageInsPerSecond[a.id], rate >= cfg.thrash.appPageInsPerSecond,
+                state.frozen[a.id] == nil, Policy.skipReasons(a, ctx).allSatisfy({ idleCodes.contains($0.code) })
+            else { return nil }
+            return (a, rate + (thrashRates.wakeupsPerSecond[a.id] ?? 0) / 100)
+        }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }
+        let budgetMB = cfg.maxFrozenPercentOfRAM / 100 * input.sample.physicalMB
+        var frozenTotal = state.frozen.values.map(\.residentAtFreezeMB).reduce(0, +)
+        var out: [Action] = []
+        for (app, _) in offenders.prefix(cfg.thrash.maxAppsPerEpisode) {
+            guard state.frozen.count < cfg.maxFrozenApps, frozenTotal + app.residentMB <= budgetMB else { break }
+            let rate = thrashRates.pageInsPerSecond[app.id] ?? 0
+            out.append(
+                freeze(
+                    app, reasons: [Reason(Code.thrashPageIn, String(format: "%.0f page-ins/s", rate))], relief: reliefEstimate(app), at: now
+                ))
+            frozenTotal += app.residentMB
         }
         return out
     }

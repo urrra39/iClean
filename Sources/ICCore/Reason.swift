@@ -63,6 +63,9 @@ public enum Code {
     public static let conservative = "SKIP_REGRET_BUDGET"
     public static let notInspected = "SKIP_GUARDS_NOT_INSPECTED"
 
+    // Thrash Guard
+    public static let thrashPageIn = "THRASH_PAGEIN"
+
     // Panic Brake
     public static let panicPause = "PANIC_PAUSE"
     public static let panicConfirmed = "PANIC_CONFIRMED"

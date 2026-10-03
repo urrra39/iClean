@@ -96,6 +96,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | `contexts` (v1.1) | `configAndDecoding` (names, paths, duplicates), `resolveMostSpecificGlobAndBranch`, `planKeepsSharedApps`, `switchSharedAppAndUndo` |
 | `context.dwellSeconds`, `context.cooldownMinutes` (v1.1) | `dwellAndSubdirectories`, `cooldown`, `falseTriggersAreIgnored` |
 | `leaks.minHours`, `leaks.minSamples`, `leaks.minRateMBPerHour` (v1.1) | `notTrends` (too little data, slow growth), `steadyGrowthIsFound` |
+| `thrash.*` (v1.1) | `pausesTheTopBackgroundOffendersOnly`, `needsTheEpisodeTheSettingAndActiveMode` (off by default, validation, Observe dry run); selftest `Thrash Guard (synthetic)`; lab T1-T4 after the soak |
 | `brake.autoQuitApps`, `brake.autoQuitSeconds` (v1.1) | `pausesAreReleasedAndQuitRequestsAreOptIn` (opt-in, timing, once, validation); `autoQuitQuitsCleanly`, `autoQuitIgnoredLeavesItPaused`, `autoQuitCrashIsRecordedAsExited`, `autoQuitSkippedWhenTheAppReportsUnsavedWork` (probe apps that quit, refuse or crash); the daemon's `quitapp`/`unsaved` path end to end is **NOT TESTED**; not in the lab gate |
 | `brake.*` (v1.1) | `pausesAreReleasedAndQuitRequestsAreOptIn` (validation, release, quit opt-in), `ladderTriesTheNextCandidateAndGivesUp` (`candidates`), `observeRecordsOnceAndOffDoesNothing` (`mode`); `brake.blackBox` off is **NOT TESTED** |
 | `leaks.notify` (v1.1) | off by default (`defaultsAreValidAndObserveFirst`); one notification per app per day (`leakNotificationsOncePerDay`) |
@@ -120,6 +121,7 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | F6 `before` | `launchAdvisor`, `featureCommandsAnswer` | **NOT TESTED** continuously (a one-shot estimate) |
 | F7 Unsaved guard | `keepListUnsavedAndSharedWindows` (planner) | lab `unsaved` (spike g) |
 | App classes (COMM, MEDIA, BROWSER) | `AppClassTests` (defaults, cooldown, browser caution, wake window never during a call, compat) | lab `sideeffects` |
+| Thrash Guard (v1.1) | `ThrashTests` (episode, ranking, protection, Observe, calibration decoding) | lab T1-T4 (paired runs with `ic-hog --waker` under the 8 GB emulation) after the soak |
 | Auto-Context Stash (v1.1) | `ContextTests`, `ContextIntegrationTests`; selftest `context switch (isolated)` | lab `context` (X2-X6) after the soak |
 | Leak trend (v1.1) | `LeakTests`, `leakQuitNeedsPreviewAndConfirmation`; selftest `leak trend (synthetic)` | lab `leaks` (L1-L4) after the soak; `leak-retro` (L5) on the soak's Observe trace |
 | Everything together | | lab `combined` (≥ 60 min) |

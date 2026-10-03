@@ -77,6 +77,12 @@
   more (a single step fails this), no sawtooth (two drops of over 20%), and growth in
   the last hour. Notifications (off by default) are limited to one per app per day.
 
+- **Thrash Guard** (`ICCore.ThrashRates`, `Engine.thrashRound`): the engine feeds the
+  daemon's samples into the shared `StallDetector`; an episode is a page-in storm with
+  warning pressure or a stall on `thrash.sustainTicks` consecutive ticks. Per-app page-in
+  and wakeup rates come from counters the collector reads in its existing
+  `proc_pid_rusage` call. Offenders go through `Policy.skipReasons` (all codes except
+  idle-by-CPU) and the normal freeze action.
 - **Panic Brake** (`ICCore.StallDetector`, `CulpritRanker`, `BrakeLadder`;
   `ICBase.BrakeAgent`; `icbrake`): a Foundation-only process with its own LaunchAgent
   (`io.github.urrra39.iclear.brake`, ProcessType Interactive), journal

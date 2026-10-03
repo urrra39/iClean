@@ -119,6 +119,11 @@ public final class AppCollector {
                     isRegularApp: false, origin: system ? .system : .thirdParty,
                     isDaemonLineage: procs.contains { lineage.contains($0.pid) }))
         }
+        for i in apps.indices {
+            let procs = apps[i].processes.compactMap { table[$0.pid] }
+            apps[i].pageIns = procs.map(\.pageIns).reduce(0, &+)
+            apps[i].wakeups = procs.map(\.wakeups).reduce(0, &+)
+        }
         apps.sort { $0.id < $1.id }
         return Result(
             apps: apps, session: SessionProbe.context(frontmostPID: frontPID, windows: windows),

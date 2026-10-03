@@ -419,6 +419,39 @@ public enum Selftest {
             )
         }
 
+        check("Thrash Guard (synthetic)") {
+            // A page-in storm at warning pressure: the busiest background app is paused,
+            // the frontmost app and a chat app are not; nothing happens when it is off.
+            func run(_ enabled: Bool) -> [String] {
+                var c = Config()
+                c.mode = .active
+                c.forecast.enabled = false
+                c.thrash.enabled = enabled
+                let e = Engine(config: c, hardware: Hardware(memoryGB: 16), state: EngineState(startedAt: 0))
+                var out: [String] = []
+                for i in 0..<3 {
+                    var s = SystemSample(time: Double(i) * 30, pressure: .warning, availablePercent: 10)
+                    s.pageIns = UInt64(i) * 120_000
+                    let apps = [("com.example.waker", 400), ("com.example.front", 900), ("com.tinyspeck.slackmacgap", 900)].map {
+                        id, rate in
+                        var a = AppSnapshot(
+                            id: id, name: id, processes: [ProcessIdentity(pid: Int32(9000 + rate), startTime: 1)], residentMB: 500,
+                            cpuPercent: 20, isFrontmost: id == "com.example.front",
+                            signals: ActivitySignals(activeConnection: false, servingListener: false, recentWrite: false, lockHeld: false))
+                        a.pageIns = UInt64(i * rate * 30)
+                        return a
+                    }
+                    out += e.tick(TickInput(sample: s, apps: apps, weekday: 3, hour: 10)).actions
+                        .filter { $0.reasons.contains { $0.code == Code.thrashPageIn } }.map(\.appID)
+                }
+                return out
+            }
+            let on = run(true)
+            let off = run(false)
+            let ok = on == ["com.example.waker"] && off.isEmpty
+            return (ok ? .pass : .fail, "paused when on: \(on.isEmpty ? "none" : on.joined(separator: ", ")); when off: \(off.count)", 2)
+        }
+
         check("pressure sensor") {
             let level = Sysctl.int("kern.memorystatus_vm_pressure_level")
             let avail = Sysctl.int("kern.memorystatus_level")

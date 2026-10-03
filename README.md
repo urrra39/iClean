@@ -133,6 +133,13 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   "Previous shutdown cause" is shown only if a user can read it; on the reference Mac it
   cannot.
 
+- **Thrash Guard** (`thrash.enabled`, **off**). When background apps keep waking and
+  touching cold memory, the Mac pages in all the time and the foreground stalls. In such
+  an episode (a page-in storm with warning pressure or a stall, on consecutive samples)
+  the background apps with the highest own page-in rate are paused through the normal
+  journaled path (`THRASH_PAGEIN`), with every guard and protection except "idle by CPU".
+  It stays off until its pre-registered lab criteria (T1-T4) pass; not yet measured.
+
 ### What the Panic Brake cannot fix
 
 It can only act on your own user-space apps and processes. It cannot fix kernel,

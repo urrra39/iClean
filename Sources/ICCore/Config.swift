@@ -97,6 +97,7 @@ public struct Config: Codable, Equatable, Sendable {
     public var leaks = LeakSettings()
     /// Panic Brake and Black Box (a separate watchdog process reads these).
     public var brake = BrakeSettings()
+    public var thrash = ThrashSettings()
     public var callMode = ShieldSettings()
     public var thermalShield = ShieldSettings()
     public var antiBeachball = BeachballSettings()
@@ -340,6 +341,10 @@ extension Config {
         check(
             leaks.minHours >= 1 && leaks.minSamples >= 6 && leaks.minRateMBPerHour > 0, "leaks",
             "minHours >= 1, minSamples >= 6, minRateMBPerHour > 0")
+        check(
+            thrash.appPageInsPerSecond > 0 && (1...5).contains(thrash.maxAppsPerEpisode) && (1...20).contains(thrash.sustainTicks),
+            "thrash",
+            "appPageInsPerSecond > 0, maxAppsPerEpisode 1...5, sustainTicks 1...20")
         check((1...10).contains(brake.candidates), "brake.candidates", "must be 1...10")
         check((0...120).contains(brake.foregroundAfterSeconds), "brake.foregroundAfterSeconds", "must be 0...120")
         check((1...30).contains(brake.checkSeconds), "brake.checkSeconds", "must be 1...30")

@@ -146,6 +146,14 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   yo'qolishi mumkin. macOS'ning "Previous shutdown cause" yozuvi faqat foydalanuvchi uni
   o'qiy olsa ko'rsatiladi; sinov Mac'ida o'qib bo'lmaydi.
 
+- **Thrash Guard** (`thrash.enabled`, **o'chiq**). Fon ilovalari tez-tez uyg'onib sovuq
+  xotiraga tegsa, Mac doimiy sahifa yuklaydi va oldingi plandagi ilova qotadi. Bunday
+  holatda (sahifa yuklanish bo'roni va ogohlantiruvchi bosim yoki qotish, ketma-ket
+  o'lchovlarda) o'z sahifa yuklanishi eng yuqori bo'lgan fon ilovalari odatdagi jurnalli
+  yo'l bilan pauza qilinadi (`THRASH_PAGEIN`); "protsessor bo'yicha bo'sh" shartidan
+  boshqa barcha himoyalar amal qiladi. Oldindan belgilangan laboratoriya mezonlari (T1-T4)
+  o'tmaguncha o'chiq qoladi; hali o'lchanmagan.
+
 ### Panic Brake nimani tuzata olmaydi
 
 U faqat sizning foydalanuvchi ilovalaringiz va jarayonlaringiz bilan ishlaydi. Yadro,
