@@ -51,3 +51,85 @@ the results documented.
 
 **Ship rule.** The Black Box is on only if H1, H2, H3 and H5 pass and H4's tests pass;
 otherwise it ships off, with the results documented.
+
+## Stage 6: the remaining v1.1 features and the regression gate (pre-registered 2026-10-03)
+
+Committed before any spike, lab run or measurement of Thrash Guard, Wake-on-Data, the
+capacity benchmark or the canary probe ([DECISIONS.md](DECISIONS.md) #39). G and H above
+are unchanged. Auto-Context Stash and the leak trend keep their stage 4 criteria in
+[RELEASE_CRITERIA.md](RELEASE_CRITERIA.md) (X1-X8, L1-L6); the lines below only add
+stricter requirements to them. Lab conditions as above; memory phases also use the
+constrained-memory emulation below, and run only in the owner's quiet window (02:00-07:00
+local, idle for 10 min, on AC, battery ≥ 50%).
+
+**Constrained-memory emulation (`ic-hog --mb`, called the ballast in these docs).** A
+lab-registered process holds memory resident and touched so that about 8 GB or about
+16 GB of this Mac's RAM is left; induced memory stays within 60% of RAM. Every result
+from it is labelled "emulated constrained Mac on one real machine; not a real 8 GB or
+16 GB Mac".
+
+### Additions to stage 4
+
+| # | Criterion | Threshold |
+|---|---|---|
+| X9 | Crash mid-switch, more trials (in addition to X6) | **100/100** `kill -9` trials of the lab daemon during a switch: every lab app running and shown within 2.0 s. |
+| X10 | False triggers, rate (in addition to X4) | Switches per scripted must-not-switch event **= 0** over ≥ 250 events. |
+
+### Thrash Guard (`THRASH_PAGEIN`)
+
+| # | Criterion | Threshold |
+|---|---|---|
+| T1 | Benefit | N ≥ 20 randomized paired runs (on vs off) under the 8 GB emulation with `ic-hog --waker` fixtures and the foreground probe: the median paired reduction of the probe's p95 lateness is **≥ 20%**, and the lower end of its 95% bootstrap interval is above 0. |
+| T2 | No harm | Across all "on" runs: **0** document changes (SHA-256), **0** new crash reports, **0** post-resume hangs (no Accessibility answer within 5 s) of paused fixtures. |
+| T3 | Defaults and limits (tests) | Observe mode records only; COMM and MEDIA apps, the frontmost app and apps with visible windows are not paused; every pause is journaled and bounded by the 4-hour limit; regret tracking and cooldowns apply. |
+| T4 | Cost | The daemon's idle CPU with Thrash Guard sampling on stays within C12 (≤ 0.5% of one core). |
+
+Ship rule: Thrash Guard can act (in Active mode) only if T1-T4 pass; otherwise it ships
+**off**. If the spike shows per-process page-ins cannot be read without root, it is not
+built and the result is recorded.
+
+### Wake-on-Data (`WAKE_DATA_RX`, `REFREEZE_QUIET`)
+
+| # | Criterion | Threshold |
+|---|---|---|
+| D1 | Messages | **0** missed messages over ≥ 30 paired runs with 300 s pauses (`ic-chat-sim`, heartbeat and naive clients). |
+| D2 | Connections | **0** dropped connections for heartbeat clients. |
+| D3 | Delay | Delivery delay of messages sent during the pause: **p95 ≤ 2 s**, reported as p50/p95/p99. |
+| D4 | Duty cycle | Median share of the pause spent resumed **≤ 10%**; CPU reported. |
+| D5 | Guards (tests) | Opt-in per app, COMM/BROWSER only; no wake against audio, call, camera or microphone guards; journaled; never beyond the 4-hour limit; apps behind a VPN, proxy or network extension are marked unsupported. |
+
+Ship rule: Wake-on-Data is offered (opt-in) only if D1-D5 pass; otherwise it ships
+**off**. If the spike shows receive queues cannot be read without root, it is not built.
+
+### Capacity benchmark (a measurement, not a gate)
+
+Under each emulated budget (about 8 GB and about 16 GB left), heavy fixtures are opened
+one at a time (a throwaway-profile Chrome, an Electron app, native apps, `ic-hog --waker`
+instances) until responsiveness fails: the foreground probe's p95 lateness over 30 s is
+above 100 ms, or system page-ins stay above the calibrated threshold for 30 s, or
+pressure stays at warning or worse for more than 30 s. Capacity ratio = apps open with
+iClear Active / apps open with iClear off, over ≥ 10 randomized paired runs per budget.
+Reported as a distribution with every no-gain case; the only wording allowed is the
+measured form ("in lab condition X, with iClear Active, N-times as many idle-but-waking
+test apps stayed open before pressure turned yellow (distribution, N runs, emulated
+constrained Mac, one machine)").
+
+### Canary probe (`iclear probe`)
+
+| # | Criterion | Threshold |
+|---|---|---|
+| P1 | Classification (tests) | Fixtures that survive, hang after resume and crash are classified correctly in **100%** of ≥ 30 runs; a failure quarantines the app; nothing runs on real apps in lab mode. |
+
+### Regression gate for v1.1.0
+
+| # | Criterion | Threshold |
+|---|---|---|
+| R1 | Stage 1 subset on the v1.1 build | C1, C2, C3, C7, C10, C12, C13, C14 of [RELEASE_CRITERIA.md](RELEASE_CRITERIA.md) pass again, with the full selftest (≥ 2 minutes). |
+| R2 | Idle overhead | Daemon idle CPU **≤ 0.5%** of one core over 10 minutes with every v1.1 sensor at its default; if exceeded, sampling is reduced, never the bound raised. |
+| R3 | CI | Green on every runner for the tagged commit. |
+| R4 | Coverage | `ICCore` line coverage **≥ 90%**. |
+| R5 | Mapping | Every new CLI command and config key has a TEST_MATRIX row. |
+
+Release rule for v1.1.0: stage 4, stage 5 (as its ship rules allow), the stage 6 gates
+that apply to features that were built, and R1-R5 pass; otherwise `v1.1.0-rc.N` with the
+failures listed.
