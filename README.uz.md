@@ -152,6 +152,15 @@ Bular `v1.1` tarmog'ida. Ularning laboratoriya sinovlari ([RELEASE_CRITERIA.md](
   24 soatlik o'zgarishi; pauza bo'lmasa "xabar qiladigan narsa yo'q". Nimani o'zgartira
   oladi va nimani yo'q: [CAPACITY.md](docs/CAPACITY.md). Laboratoriya natijasi hali e'lon
   qilinmagan.
+- **Wake-on-Data** (`wakeOnData`, **o'chiq**, faqat tanlangan chat yoki brauzer ilovasi
+  uchun). Bunday ilova pauzada bo'lganda iClear har 250 ms da uning soketlaridagi qabul
+  navbatini tekshiradi (libproc, root kerak emas); ma'lumot kutayotgan bo'lsa ilovani
+  davom ettiradi (`WAKE_DATA_RX`) va ma'lumot to'xtagach 5 s dan keyin yana pauza qiladi
+  (`REFREEZE_QUIET`), agar qo'ng'iroq, audio yoki boshqa himoya to'sqinlik qilmasa. Vaqtning
+  20% dan ko'pida davom ettirilgan ilova ishlab turaveradi. Qamrab olinmaydi: Apple push
+  bildirishnomalari, trafigi boshqa jarayon orqali o'tadigan ilovalar (VPN, proksi, tarmoq
+  kengaytmasi; qo'llab-quvvatlanmaydi deb belgilanadi), tizim ko'rmaydigan QUIC. Hali
+  o'lchanmagan.
 - **Thrash Guard** (`thrash.enabled`, **o'chiq**). Fon ilovalari tez-tez uyg'onib sovuq
   xotiraga tegsa, Mac doimiy sahifa yuklaydi va oldingi plandagi ilova qotadi. Bunday
   holatda (sahifa yuklanish bo'roni va ogohlantiruvchi bosim yoki qotish, ketma-ket

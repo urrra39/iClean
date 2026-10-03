@@ -452,6 +452,46 @@ public enum Selftest {
             return (ok ? .pass : .fail, "paused when on: \(on.isEmpty ? "none" : on.joined(separator: ", ")); when off: \(off.count)", 2)
         }
 
+        check("Wake-on-Data (sockets)") {
+            // A paused test client on loopback: the data waiting in its socket is visible
+            // without root, and it is gone once the client runs again and reads it.
+            let srv = socket(AF_INET, SOCK_STREAM, 0)
+            defer { close(srv) }
+            var addr = sockaddr_in()
+            addr.sin_family = sa_family_t(AF_INET)
+            addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+            _ = withUnsafePointer(to: &addr) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(srv, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+            }
+            listen(srv, 1)
+            var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+            _ = withUnsafeMutablePointer(to: &addr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(srv, $0, &len) } }
+            guard let h = try? SpawnedHog(path: tool("ic-hog"), args: ["--connect", "127.0.0.1:\(UInt16(bigEndian: addr.sin_port))"]),
+                h.waitReady(),
+                let id = h.identity
+            else { return (.fail, "could not start the test client", 0) }
+            defer { h.kill() }
+            let conn = accept(srv, nil, nil)
+            defer { close(conn) }
+            _ = Signals.send(SIGSTOP, to: id)
+            var msg = [UInt8](repeating: 0x61, count: 300)
+            _ = send(conn, &msg, msg.count, 0)
+            usleep(100_000)
+            let paused = Sockets.receiveQueued([id])
+            _ = Signals.send(SIGCONT, to: id)
+            var drained = false
+            for _ in 0..<50 where !drained {
+                usleep(20_000)
+                drained = Sockets.receiveQueued([id]).bytes == 0
+            }
+            let ok = paused.bytes == 300 && drained
+            return (
+                ok ? .pass : .fail,
+                "paused client: \(paused.bytes) bytes waiting in \(paused.sockets) socket(s); read after resume: \(drained ? "yes" : "no")",
+                1
+            )
+        }
+
         check("pressure sensor") {
             let level = Sysctl.int("kern.memorystatus_vm_pressure_level")
             let avail = Sysctl.int("kern.memorystatus_level")

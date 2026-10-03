@@ -74,6 +74,10 @@ public final class Daemon {
     var footprints = FootprintHistory()
     /// Capacity Report: pause episodes and what they measurably changed (capacity.json).
     var capacity = CapacityLedger()
+    /// Wake-on-Data state and its poll timer (only while a covered app is paused or awake).
+    var wake = WakeOnData(settings: WakeOnDataSettings())
+    var wakeTimer: DispatchSourceTimer?
+    var wakeUnsupported: Set<String> = []
     var lastLeakCheck = 0.0
     /// Tests run health checks by hand instead of on timers.
     public var scheduleHealthChecks = true
@@ -357,6 +361,7 @@ public final class Daemon {
         capacity.noteSample(
             availableMB: SystemSampler.availableMB(), swapMB: sample.swapUsedMB, pressure: sample.pressure.rawValue,
             frozen: Set(engine.state.frozen.filter { !$0.value.dryRun }.keys), now: now)
+        scheduleWakePoll()
         if now - lastSave >= 60 { saveState() }
         tickTimer?.schedule(deadline: .now() + interval(for: sample.pressure))
     }
@@ -412,6 +417,7 @@ public final class Daemon {
             ContextTracker.noteActivation(&contextState, appID: id)
             footprints.noteFront(id, at: clock())
         }
+        if let id = bundleID { wake.forget(id) }
         if popOnActivation(pid: pid, bundleID: bundleID) { return }
         let frozen = engine.state.frozen
         let appID =
@@ -421,6 +427,7 @@ public final class Daemon {
         if let appID, let f = frozen[appID], !f.dryRun {
             for id in f.processes { _ = Signals.send(SIGCONT, to: id) }
             capacity.noteActivationThaw(appID: appID, now: clock())
+            wake.forget(appID)
             thawStart = clock()
             measureThawLatency(appID: appID, name: f.name, root: f.processes.first, since: thawStart!)
         }

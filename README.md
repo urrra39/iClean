@@ -138,6 +138,13 @@ stage 4) start after the 7-day soak ends; until then, only the spikes in
   regrets; a headroom-to-warning estimate with an interval; swap and its 24-hour change;
   "nothing to report" when there were no pauses. What it can and cannot change:
   [CAPACITY.md](docs/CAPACITY.md). No lab capacity result is published yet.
+- **Wake-on-Data** (`wakeOnData`, **off**, opt-in per chat or browser app). While such
+  an app is paused, iClear checks its sockets' receive queues every 250 ms (libproc, no
+  root); when data waits it resumes the app (`WAKE_DATA_RX`), and pauses it again 5 s
+  after data stops (`REFREEZE_QUIET`) unless a call, audio or another guard now blocks
+  it. An app resumed more than 20% of the time is left running. Not covered: Apple push
+  notifications, apps whose traffic goes through another process (VPN, proxy, network
+  extension; marked unsupported), QUIC that the system cannot see. Not yet measured.
 - **Thrash Guard** (`thrash.enabled`, **off**). When background apps keep waking and
   touching cold memory, the Mac pages in all the time and the foreground stalls. In such
   an episode (a page-in storm with warning pressure or a stall, on consecutive samples)

@@ -37,6 +37,11 @@
   pause episodes with the measured change in available memory after 60 s, paused
   footprint, time and regrets; a headroom-to-warning estimate with an interval; swap and
   its 24-hour change. docs/CAPACITY.md explains what iClear can and cannot change.
+- **Wake-on-Data** (`wakeOnData.*`, off by default, opt-in per COMM/BROWSER app): a
+  paused app is resumed when data waits in its sockets' receive queues (libproc, polled
+  every 250 ms only while such an app is paused or awake) and paused again after 5 s of
+  quiet through the guarded path; above 20% resumed time it is left running; apps with no
+  sockets of their own are marked unsupported. `ic-hog --connect` now reads what arrives.
 - **Thrash Guard** (`thrash.*`, off by default): in a page-in storm with warning pressure
   or a stall, pauses the background apps with the highest own page-in rate through the
   journaled freeze path (`THRASH_PAGEIN`); every policy check except idle-by-CPU applies.

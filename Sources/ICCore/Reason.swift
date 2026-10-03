@@ -63,6 +63,11 @@ public enum Code {
     public static let conservative = "SKIP_REGRET_BUDGET"
     public static let notInspected = "SKIP_GUARDS_NOT_INSPECTED"
 
+    // Wake-on-Data
+    public static let wakeDataRx = "WAKE_DATA_RX"
+    public static let refreezeQuiet = "REFREEZE_QUIET"
+    public static let wakeDutyLimit = "WAKE_DUTY_LIMIT"
+
     // Thrash Guard
     public static let thrashPageIn = "THRASH_PAGEIN"
 

@@ -81,6 +81,12 @@
   pause (with available memory before), samples available memory, swap and pressure each
   tick, ends an episode when none of its apps is paused, and counts activations within
   10 minutes as regrets; saved with the state as `capacity.json` (atomic write).
+- **Wake-on-Data** (`ICCore.WakeOnData`, `ICBase.Sockets`, `ICSystem` `WakeOps`): a main
+  queue timer at `wakeOnData.pollMs` runs only while a covered app is paused or awake;
+  each poll sums the receive queues of the app's TCP and UDP sockets; a wake is an engine
+  thaw (`WAKE_DATA_RX`, not a regret); the re-pause takes a fresh snapshot, inspects
+  guards and goes through `Engine.refreezeAfterWake` (all checks but idle time and the
+  post-thaw cooldown).
 - **Thrash Guard** (`ICCore.ThrashRates`, `Engine.thrashRound`): the engine feeds the
   daemon's samples into the shared `StallDetector`; an episode is a page-in storm with
   warning pressure or a stall on `thrash.sustainTicks` consecutive ticks. Per-app page-in

@@ -718,6 +718,17 @@ public final class Engine {
         return (a, [])
     }
 
+    /// Pauses an app again after a Wake-on-Data resume. Idle time and the post-thaw
+    /// cooldown do not apply (it was paused a moment ago); every other check does,
+    /// including audio, microphone, call and connection guards.
+    public func refreezeAfterWake(_ app: AppSnapshot, at now: Double) -> (Action?, [Reason]) {
+        var ctx = context(now, config, profile: lastProfile, wake: [app.id])
+        ctx.config.allow.append(app.id)
+        let blockers = Policy.skipReasons(app, ctx).filter { $0.code != Code.cpuActive }
+        guard blockers.isEmpty else { return (nil, blockers) }
+        return (freeze(app, reasons: [Reason(Code.refreezeQuiet)], relief: reliefEstimate(app), at: now), [])
+    }
+
     /// Freeze requested by another feature (Call Mode, battery target). The caller has
     /// already checked eligibility; the freeze is tracked like any other, so activation,
     /// the maximum frozen time and recovery all apply. Observe mode only records it.

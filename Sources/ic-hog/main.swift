@@ -209,6 +209,8 @@ allocate(mb: opts.mb)
 
 // Sockets, files, locks (for Connection Guard / Write Guard tests)
 var heldFDs: [Int32] = []
+/// The --connect socket: whatever arrives is read and dropped (a client that consumes its messages).
+var connectedFD: Int32 = -1
 if let port = opts.listen {
     let fd = socket(AF_INET, SOCK_STREAM, 0)
     var yes: Int32 = 1
@@ -240,7 +242,9 @@ if let target = opts.connect {
     let ai = res!.pointee
     let fd = socket(ai.ai_family, ai.ai_socktype, ai.ai_protocol)
     precondition(connect(fd, ai.ai_addr, ai.ai_addrlen) == 0, "connect failed: \(errno)")
+    _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
     heldFDs.append(fd)
+    connectedFD = fd
 }
 if let path = opts.lockFile {
     let fd = open(path, O_RDWR | O_CREAT, 0o644)
@@ -311,6 +315,10 @@ func tick() {
     if let p = opts.profile, t - lastProfile >= 1_000_000_000 {
         adjustProfile(toMB: Int(p.extraMB(hours: Double(t - start) / 3.6e12 * p.speed).rounded()))
         lastProfile = t
+    }
+    if connectedFD >= 0 {
+        var buf = [UInt8](repeating: 0, count: 4096)
+        while read(connectedFD, &buf, buf.count) > 0 {}
     }
     if let h = writeHandle {
         h.write("x".data(using: .utf8)!)
