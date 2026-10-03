@@ -127,4 +127,8 @@ welcome by pull request.
 | Battery target with an app that keeps waking (1.0) | never paused twice in one target | `targetNeverPausesAnAppTwice` |
 | Priority band after a daemon crash (1.0) | restored by recovery | `backgroundBandIsJournaledAndRestored` |
 | Migration with a half-written old journal (1.0) | stops, nothing moved | `halfWrittenOldJournal` |
+| Automatic context switch during a call or screen share (1.1) | only suggested (fixed: it switched) | `modes` |
+| Leak trend on an app the user starts using (1.1) | no longer listed, no quit request offered (fixed) | `notTrends` |
+| Thrash episode while a stash is active (1.1) | stashed apps are never touched by Thrash Guard | `thrashEpisodeLeavesTheStashAlone` |
+| Wake-on-Data during a call (1.1) | not paused again until the call ends (fixed: it was) | `noRefreezeDuringACall` |
 | Pop raising the wrong copy of an app (1.0) | pop brings back the exact process through Accessibility; without it, it only uses LaunchServices when one copy of the app runs | lab `stash` (frontmost restore with the user's own Chrome running) |

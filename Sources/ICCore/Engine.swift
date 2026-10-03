@@ -731,8 +731,11 @@ public final class Engine {
 
     /// Pauses an app again after a Wake-on-Data resume. Idle time and the post-thaw
     /// cooldown do not apply (it was paused a moment ago); every other check does,
-    /// including audio, microphone, call and connection guards.
-    public func refreezeAfterWake(_ app: AppSnapshot, at now: Double) -> (Action?, [Reason]) {
+    /// including audio, microphone, call and connection guards. Like a wake window's
+    /// refreeze, none during a call, screen sharing or fullscreen use (Focus Safe Mode).
+    public func refreezeAfterWake(_ app: AppSnapshot, session: SessionContext = SessionContext(), at now: Double) -> (Action?, [Reason]) {
+        let focus = focusSafeReasons(session: session, profile: lastProfile)
+        guard focus.isEmpty else { return (nil, focus.map { Reason(Code.focusSafe, $0) }) }
         var ctx = context(now, config, profile: lastProfile, wake: [app.id])
         ctx.config.allow.append(app.id)
         let blockers = Policy.skipReasons(app, ctx).filter { $0.code != Code.cpuActive }

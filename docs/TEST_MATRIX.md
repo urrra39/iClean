@@ -178,3 +178,19 @@ and `conflictsAndProtectedRulesAreWarnings`. Behavior:
 | Stash hides the frontmost app and macOS activates a stashed one (stash lab) | hidden back to front; activations in the first 2 s ignored | `activationPopsOnlyThatApp` (settle window), lab `stash` |
 | Exited test process keeps a pipe handler spinning (paired-run lab) | handler removed at end of file | `exitedTestProcessStopsReading` |
 | Accessibility revoked mid-run | unsaved state becomes "unknown" (stash still pauses, with a note); the stall probe stops | `keepListUnsavedAndSharedWindows` (unknown path); the revocation itself is **NOT TESTED** (needs a TCC change) |
+
+## Red team (1.1)
+
+| Attack | Result | Test |
+|---|---|---|
+| Automatic context switch due during a call, screen share or fullscreen use | only suggested (was: switched; fixed) | `modes` |
+| Switch accepted during a call | call app and anything playing or recording stay running; the rest is stashed | `switchDuringACallKeepsTheCallRunning` |
+| Stash, then Dock launch of a stashed app | pops just that app | `activationPopsOnlyThatApp` |
+| Pop due while the Mac sleeps | pops once on wake | `expiryAfterSleepPopsWithoutLateReminder` |
+| Daemon killed mid-pop / mid-switch | recovery resumes and unhides the rest | `daemonKilledMidPopRecoversTheRest`, `crashAfterSwitchRecovers` |
+| Two contexts sharing an app | the shared app stays running; undo restores both groups | `switchSharedAppAndUndo`, `planKeepsSharedApps` |
+| Leak trend on an app that is suddenly used | no longer listed or offered a quit request (was: listed; fixed) | `notTrends` |
+| Thrash episode while a stash is active | the stashed app is never paused or resumed by Thrash Guard; the waker outside it is paused | `thrashEpisodeLeavesTheStashAlone` |
+| Wake-on-Data during a call | woken on data, not paused again until the call ends (was: paused again; fixed) | `noRefreezeDuringACall` |
+| Disk full during a stash or switch | refused before anything changes; the switch does not happen | `refusesWithoutDiskHeadroom`, `hardBlockStopsTheSwitch` |
+| Permission revoked mid-run | as in 1.0 | revocation itself **NOT TESTED** (needs a TCC change) |

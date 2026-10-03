@@ -35,6 +35,18 @@ import Testing
         #expect(w.observe("com.hnc.Discord", queued: 500, paused: true, now: 20) == .none)
     }
 
+    /// Red team: data arrives during a call in another app. The chat app is woken, but not
+    /// paused again until the call (or screen share, or fullscreen use) is over.
+    @Test func noRefreezeDuringACall() {
+        let chat = app("com.tinyspeck.slackmacgap", mb: 500)
+        let e = engine(apps: [chat])
+        var call = SessionContext()
+        call.cameraInUse = true
+        let (a, blockers) = e.refreezeAfterWake(chat, session: call, at: 100)
+        #expect(a == nil && blockers.map(\.code) == [Code.focusSafe])
+        #expect(e.refreezeAfterWake(chat, at: 100).0?.reasons.first?.code == Code.refreezeQuiet)
+    }
+
     @Test func aBusyAppIsLeftRunning() {
         var w = WakeOnData(settings: settings { $0.maxDutyPercent = 20 })
         let id = "com.tinyspeck.slackmacgap"

@@ -69,6 +69,14 @@
   and the Panic Brake rotate the shared action log under a lock; the capacity report
   cannot show negative paused time after a clock jump. Fault-injection tests cover torn
   files, concurrent writers, unwritable directories and clock jumps.
+- Red-team fixes: an automatic context switch due during a call, screen sharing or
+  fullscreen use ran anyway (Focus Safe Mode was not consulted); it is now only suggested.
+  Wake-on-Data paused a chat app again during a call in another app; it now waits like a
+  wake window does. The leak trend still listed an idle grower (and offered its quit
+  request) after the user brought it to the front; an app in use is no longer listed.
+  The canary probe counted a crash report of any process with the probed app's name
+  (found when a parallel test's fixture crashed); it now counts only reports of the
+  probed processes.
 - Release criteria: stage 4 (X1-X8, L1-L6) added before any v1.1 measurement
   (amendment 2).
 ## 1.0.2 (2026-10-03)

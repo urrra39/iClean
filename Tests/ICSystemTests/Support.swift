@@ -40,9 +40,12 @@ final class FakeProbe: Probe {
     var session = SessionContext()
     var now = Date().timeIntervalSince1970
     var freeDiskGB = 100.0
+    var pageIns: UInt64?
 
     func sample(now: Double) -> SystemSample {
-        SystemSample(time: now, pressure: level, availablePercent: level == .normal ? 60 : 10, physicalMB: 16384, freeDiskGB: freeDiskGB)
+        var s = SystemSample(time: now, pressure: level, availablePercent: level == .normal ? 60 : 10, physicalMB: 16384, freeDiskGB: freeDiskGB)
+        s.pageIns = pageIns
+        return s
     }
 
     func collect(now: Double) -> AppCollector.Result {

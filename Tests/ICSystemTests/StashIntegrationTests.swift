@@ -245,6 +245,50 @@ import Testing
         setpriority(PRIO_DARWIN_PROCESS, id_t(h.pid), 0)
     }
 
+    /// Red team: a page-in storm while a stash is active. The stashed app belongs to its
+    /// stash: Thrash Guard (and the policy) never pause or resume it; the waker outside
+    /// the stash is paused.
+    @Test func thrashEpisodeLeavesTheStashAlone() throws {
+        let inStash = try hog()
+        let waker = try hog()
+        defer {
+            inStash.kill()
+            waker.kill()
+        }
+        let probe = FakeProbe()
+        probe.level = .warning
+        var w = hogApp("com.example.waker", [waker])
+        w.cpuPercent = 20  // awake: only Thrash Guard may pause it
+        probe.apps = [hogApp("com.example.stashed", [inStash]), w]
+        let d = try testDaemon(probe) { $0.thrash.enabled = true }
+        defer { d.shutdown() }
+        let id = inStash.identity!
+        try d.journal.update {
+            $0.stashes.append(
+                StashRecord(
+                    name: "s", createdAt: probe.now,
+                    apps: [StashedApp(appID: "com.example.stashed", name: "s", processes: [id], wasHidden: true, windows: [], order: 0, residentMB: 1)],
+                    previousFrontmost: nil))
+        }
+        #expect(Signals.freezeTree([id], appID: "com.example.stashed", at: probe.now, journal: d.journal, stash: "s").ok)
+        let t0 = probe.now
+        for i in 1...3 {
+            probe.now = t0 + Double(i) * 30
+            probe.pageIns = UInt64(i) * 4000 * 30
+            for k in probe.apps.indices { probe.apps[k].pageIns = UInt64(i) * 400 * 30 }
+            d.tick()
+        }
+        #expect(eventually { isStopped(waker.pid) })
+        let acted = ActionLog.read(paths: d.paths).map(\.action)
+        #expect(acted.contains { $0.appID == "com.example.waker" && $0.reasons.contains { $0.code == Code.thrashPageIn } })
+        #expect(!acted.contains { $0.appID == "com.example.stashed" })
+        #expect(isStopped(inStash.pid) && d.journal.read().stashes.map(\.name) == ["s"])
+        _ = d.pop("s", restoreFocus: false)
+        _ = d.handle(Request("thaw", app: "all"))
+        #expect(eventually { !isStopped(inStash.pid) && !isStopped(waker.pid) })
+        #expect(d.journal.read().isEmpty)
+    }
+
     /// Lab scope lock: nothing outside the registry is ever signalled.
     @Test func scopeLockRefusesUnregisteredProcesses() throws {
         let a = try hog()

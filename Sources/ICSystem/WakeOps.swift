@@ -43,10 +43,11 @@ extension Daemon {
                 execute(engine.thaw(id, reason: Code.wakeDataRx, at: now), immediate: true)
             case .refreeze:
                 // Fresh readings: a call or audio that started while it was awake must block the pause.
-                guard var app = visibleApps(probe.collect(now: now).apps).first(where: { $0.id == id }) else { continue }
+                let fresh = probe.collect(now: now)
+                guard var app = visibleApps(fresh.apps).first(where: { $0.id == id }) else { continue }
                 AppCollector.inspectGuards(&app, engine: engine, now: now)
                 engine.noteAudio([app], at: now)
-                let (a, blockers) = engine.refreezeAfterWake(app, at: now)
+                let (a, blockers) = engine.refreezeAfterWake(app, session: fresh.session, at: now)
                 if let a {
                     execute([a])
                 } else {

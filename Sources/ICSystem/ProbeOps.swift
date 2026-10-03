@@ -106,10 +106,14 @@ extension Daemon {
     static func newCrashReports(name: String, processes: [ProcessIdentity], since: Date) -> Int {
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/DiagnosticReports")
         let names = Set([name] + processes.compactMap { Proc.info($0.pid)?.name })
+        let pids = processes.map { "\"pid\" : \($0.pid)," }
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         return files.filter { f in
             let m = (try? f.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            return m >= since && names.contains { f.lastPathComponent.hasPrefix($0) }
+            guard m >= since, names.contains(where: { f.lastPathComponent.hasPrefix($0) }) else { return false }
+            // About one of these processes, not another process with the same name.
+            let text = (try? String(contentsOf: f, encoding: .utf8)) ?? ""
+            return pids.contains { text.contains($0) }
         }.count
     }
 }
