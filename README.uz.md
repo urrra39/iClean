@@ -333,8 +333,8 @@ paytida harakat qiladigan yagona narsa, va qo'ng'iroqning o'ziga hech qachon teg
 ## Boshqalar bilan taqqoslash
 
 Bu loyihalar o'xshash muammolarni hal qiladi va ularning bir nechtasi buni ilgariroq
-qilgan. Ularning README fayllari va sahifalari o'qib chiqildi (birinchi sakkiz qator
-2026-09-30 da, qolganlari 2026-10-02 da):
+qilgan. Ularning README fayllari va sahifalari o'qib chiqildi (har bir qator
+2026-10-03 da qayta o'qildi):
 
 | Loyiha | Yondashuv | iClear dan farqi |
 |---|---|---|
@@ -357,12 +357,21 @@ qilgan. Ularning README fayllari va sahifalari o'qib chiqildi (birinchi sakkiz q
 | [earlyoom](https://github.com/rfjakob/earlyoom) (Linux) | Bo'sh xotira va svop 10% dan tushganda eng katta jarayonni o'chiradi (SIGTERM, keyin SIGKILL); mlockall, taxminan 2 MiB | Panic Brake macOS'da shu g'oyaga amal qiladi, lekin o'chirish o'rniga pauza qiladi va jurnal yuritadi |
 | [memory_guard.py](https://gist.github.com/jlevy/5b43e0d44166b9c7fe8157ee938cb0d5) | Siz ko'rsatgan jarayon daraxtlari uchun macOS kuzatuvchisi: kuzatish, mashq, faqat pauza va to'liq rejimlar; yaratuvchilarni pauza qiladi, keyin ishchilarni o'chiradi | Usuli yaqin. Panic Brake barcha jarayon daraxtlaringizni saralaydi, hech narsani o'chirmaydi va har bir pauzani qotishga qarab tekshiradi |
 | [turnstile](https://github.com/mcclowes/turnstile) | Vazifalar ishga tushirgichi: xotira chegarasidan oshgan vazifa bosim ostida pauza qilinadi, bosim 15 s davom etsagina o'chiriladi | Faqat o'z vazifalari bilan ishlaydi |
+| [Bunch](https://bunchapp.co/) | Ilovalarni ochadigan, yopadigan va skript ishga tushiradigan matnli "Bunch"lar, menyudan | Qo'lda ochadi va yopadi; Auto-Context terminalingizdagi loyiha o'zgarganda ilovalar guruhini pauza qiladi |
+| [Commute](https://apps.apple.com/app/id1564572231) | Ilovalar to'plamini ochib, boshqalarini yopadigan profillar, tugma bilan | Bunch bilan bir xil farq |
+| [Ikuna](https://www.brnsft.com/blog/best-mac-apps-for-project-switching-save-browser-tabs-apps-and-files-instantly-in-2026) | Joriy ish muhitini yopib, boshqasini tiklaydi (ilovalar, tablar, oyna joylari), tugma bilan; nashriyotchi aytishicha "uch soniyadan kam" | Yopib qayta ochadi; iClear joyida pauza qiladi |
+| [RamRadar](https://github.com/gemscng/RamRadar) | Oldingi tekshiruvdan beri kamida 1 GB va 50% o'sgan dasturlarni belgilaydi va so'rov bilan to'xtatadi | Ikki o'lchovli chegara va yopish; xotira o'sishi tendensiyasi bo'sh holatdagi o'lchovlar bo'yicha barqaror tendensiyadan foydalanadi va majburan yopmaydi |
+| [Mac Performance Monitor](https://github.com/Zesty0wl/mac-performance-monitor) | Menyu panelidan protsessor, xotira, GPU, tarmoq va batareyani yozadi; o'sish tekshiruvlari tashxis emas, kuzatuv sifatida | Faqat kuzatish |
+| Windows [ControlChannelTrigger](https://learn.microsoft.com/en-us/uwp/api/Windows.Networking.Sockets.ControlChannelTrigger?view=winrt-22621) | To'xtatilgan Windows ilovasiga TCP ulanishni saqlash va ma'lumot kelganda uyg'onish imkonini beradi | Wake-on-Data g'oyasi shundan; macOS'da iClear pauzadagi ilovaning qabul navbatini tashqaridan, ilovaning yordamisiz kuzatadi |
 | [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon buyruq qatori: ilovalardan yopilishni so'raydi (majburan o'chirmaydi), raqib jarayonlarni `nice` bilan faqat aniq tiklay olsagina pasaytiradi, svop nega qolishini tushuntiradi, ikki papkadagi eski keshlarni o'chiradi | Pauza o'rniga yopadi va kesh o'chiradi; iClear pauza qiladi, holatni saqlaydi va fayl o'chirmaydi. Ikkalasi ham ustuvorlik o'zgarishini aynan qaytaradi |
 
-2026-10-02 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi
+2026-10-03 holatiga ko'ra, biz bosim uchun ETA prognozi, afsusni hisobga oluvchi
 muzlatish, pauzadan oldingi ulanish/yozish himoyalari, davom ettirishdan keyingi
 karantin yoki iz qayta ijrosini bu loyihalarda ham, GitHub va veb qidiruvlarimizda ham
-topmadik ([NOVELTY.md](docs/NOVELTY.md)). Topilmagani mavjud emasligini isbotlamaydi.
+topmadik ([NOVELTY.md](docs/NOVELTY.md)). Chrome'ning o'zi Energy Saver rejimida yashirin,
+ovozsiz va protsessorni ko'p ishlatadigan tablarni muzlatadi (Chrome 133 dan) va Memory
+Saver rejimida tablarni o'chiradi, brauzer ichida. Dalil yo'qligi isbot emas: topilmagani
+mavjud emasligini anglatmaydi.
 
 ## Qayerda sinalgan
 

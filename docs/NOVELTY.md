@@ -179,6 +179,26 @@ memory stall, ranks all of the user's process trees, pauses the top one reversib
 next; nor a user-level black box of the minutes before an unclean restart. Not found is
 not proof of absence.
 
+## Re-check of every compared project (2026-10-03)
+
+Each page re-read on 2026-10-03; all were reachable and match the rows above and in the
+README: amphetamine (Apple Silicon; quit requests, reversible deprioritizing, cache
+clearing), ShiftPlus (hotkey workspaces that close or hide other apps), Bunch (text files
+that open and close apps, from a menu), Commute (profiles opening and closing apps by
+shortcut), Ikuna (close and restore workspaces by shortcut, "under three seconds" by the
+publisher), ContextResume (per-branch notes; no apps), direnv (per-directory environment),
+AppHalt (pause and resume chosen apps), MacFreeze (freezes apps after inactivity),
+wintertime (freezes background apps until you interact with them), SceneShift (Windows
+terminal tool), WattMate (per-app watts as battery minutes), MemoryShield (per-process
+memory, can terminate over thresholds), RamRadar (1 GB and 50% growth, then stops the
+program), Mac Performance Monitor (menu-bar logging and observations), Canaryd (developer
+Mac watchdog that recovers stalled services and simulators), Chrome
+([Energy Saver freezing](https://developer.chrome.com/blog/freezing-on-energy-saver): from
+Chrome 133, hidden and silent CPU-heavy tabs after five minutes). New conceptual reference:
+Windows [ControlChannelTrigger](https://learn.microsoft.com/en-us/uwp/api/Windows.Networking.Sockets.ControlChannelTrigger?view=winrt-22621)
+lets a suspended app keep a TCP connection and be woken when data arrives; Wake-on-Data
+follows the idea on macOS from outside the app. Absence of evidence is not proof.
+
 ## What the README may say
 
 Only dated, evidence-backed statements of the form "as of 2026-09-30, we did not find

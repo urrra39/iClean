@@ -300,8 +300,7 @@ is the only thing that acts during a call, and never on the call itself
 ## How it compares
 
 These projects solve overlapping problems, and several did so earlier. From reading
-their READMEs and product pages (the first eight rows on 2026-09-30, the rest on
-2026-10-02):
+their READMEs and product pages (every row re-read on 2026-10-03):
 
 | Project | Approach | Difference from iClear |
 |---|---|---|
@@ -324,12 +323,20 @@ their READMEs and product pages (the first eight rows on 2026-09-30, the rest on
 | [earlyoom](https://github.com/rfjakob/earlyoom) (Linux) | Kills the largest process (SIGTERM, then SIGKILL) when available memory and swap fall below 10%; mlockall, about 2 MiB resident | The concept the Panic Brake follows on macOS, but it pauses instead of killing and keeps a journal |
 | [memory_guard.py](https://gist.github.com/jlevy/5b43e0d44166b9c7fe8157ee938cb0d5) | macOS sidecar for process trees you point it at: observe, rehearse, pause-only and full modes; pauses spawners (SIGSTOP), then sheds workers (SIGTERM, SIGKILL) on reclaimable-memory, pressure and compressor-slope signals | Close in method. The Panic Brake ranks all of your process trees, does not kill, and checks each pause against the stall |
 | [turnstile](https://github.com/mcclowes/turnstile) | Job runner: a job over its memory limit is paused (SIGSTOP) under pressure and terminated only if pressure persists 15 s | Acts on its own jobs only |
+| [Bunch](https://bunchapp.co/) | Plain-text "Bunches" that open and close apps and run scripts, from a menu | Opens and quits by hand; Auto-Context pauses an app group when your terminal's project changes |
+| [Commute](https://apps.apple.com/app/id1564572231) | Profiles that open a set of apps and close others, by keyboard shortcut | The same difference as Bunch |
+| [Ikuna](https://www.brnsft.com/blog/best-mac-apps-for-project-switching-save-browser-tabs-apps-and-files-instantly-in-2026) | Closes the current workspace and restores another (apps, tabs, window positions) by shortcut; "under three seconds" by its publisher's account | Quit and relaunch; iClear pauses in place |
+| [RamRadar](https://github.com/gemscng/RamRadar) | Flags programs that grew by at least 1 GB and 50% since an earlier check and stops them on request | A two-reading threshold that ends in quitting; the leak trend uses a robust trend over idle samples and never forces a quit |
+| [Mac Performance Monitor](https://github.com/Zesty0wl/mac-performance-monitor) | Logs CPU, memory, GPU, network and battery from the menu bar, with growth checks that report observations rather than diagnoses | Monitoring only |
+| Windows [ControlChannelTrigger](https://learn.microsoft.com/en-us/uwp/api/Windows.Networking.Sockets.ControlChannelTrigger?view=winrt-22621) | Lets a suspended Windows app keep a TCP connection and be woken when data arrives | The concept behind Wake-on-Data; on macOS iClear watches a paused app's receive queues from outside, without the app's help |
 | [amphetamine](https://github.com/GriffinCanCode/amphetamine) (Rust crate) | Apple Silicon command line: asks apps to quit rather than force-killing them, lowers rival processes with `nice` only when it can restore them exactly, explains why swap stays, and deletes old caches in two folders | Quits instead of pausing and deletes caches; iClear pauses, keeps state and does not delete files. Both restore priority changes exactly |
 
-As of 2026-10-02, we did not find a pressure ETA forecast, regret-aware freezing,
+As of 2026-10-03, we did not find a pressure ETA forecast, regret-aware freezing,
 connection/write guards before pausing, a post-resume quarantine or trace replay in
-those projects or in our GitHub and web searches ([NOVELTY.md](docs/NOVELTY.md)). Not
-finding something is not proof that it does not exist.
+those projects or in our GitHub and web searches ([NOVELTY.md](docs/NOVELTY.md)). Chrome
+itself freezes hidden, silent, CPU-heavy tabs under Energy Saver (from Chrome 133) and
+discards tabs under Memory Saver, inside the browser. Absence of evidence is not proof:
+not finding something does not mean it does not exist.
 
 ## Tested on
 
